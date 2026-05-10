@@ -113,7 +113,7 @@ Test case: 200k − 50k = 150k × 100% × 30% = **Rp 45.000 ✅**
 
 ### Tasks
 
-- [ ] **M002-T1**: Generic `MasterCRUDPage` shell component
+- [x] **M002-T1**: Generic `MasterCRUDPage` shell component
   > `src/features/master/components/MasterCRUDPage.tsx`
   > Props: title, subtitle, CTA label, columns config, data[], renderRow, AddForm, EditForm
   > Shell: PageHeader + "Tambah" CTA button + search input (client filter) + NQ21 table + EmptyState

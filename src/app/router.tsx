@@ -4,6 +4,7 @@ import TestPage from './test'
 import PlaceholderPage from './pages/PlaceholderPage'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import TestMasterCRUDPage from './pages/_test-master-crud'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           { path: 'master/mekanik',                  element: ph('MEKANIK & RATE KOMISI') },
           { path: 'master/user',                     element: ph('MASTER USER / AKUN') },
           { path: 'test',                            element: <TestPage /> },
+          { path: 'test-master',                     element: <TestMasterCRUDPage /> },
         ],
       },
     ],
