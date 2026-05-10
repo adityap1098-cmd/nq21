@@ -174,9 +174,113 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
 
 ## M003 — Transaksi UI ⏳
 
-Tasks akan di-breakdown saat M002 selesai.
+**Halaman**: Input Transaksi, Daftar Transaksi, Detail Transaksi, Edit Transaksi
+**Visual ref**:
+- `design/v2/NQ21 PERFORMANCE/pages-extra.jsx` → Input Transaksi (full design ✅)
+- `demo.html #page-transaksi-list` → Daftar Transaksi (partial design)
+- Detail + Edit → derive dari pattern (no explicit visual ref)
 
-**Visual ref**: `demo.html`
+**DoD**: Form input transaksi bisa save ke Zustand, muncul di Daftar, Detail bisa dibuka, Edit reuse form. Bubut Luar dual-leg jalan.
+
+### Tasks
+
+- [ ] **M003-T1**: TransactionForm shell + Step 01 Header
+  > Layout: tx-layout grid (form 1fr + sticky summary 360px)
+  > Step 01: no referensi field + UNIK/DUPLIKAT status pill, tgl (readonly auto-today), tipe toggle income/expense, payment method pills (Cash/Transfer/QRIS)
+  > Step 03: catatan textarea
+  > RHF state untuk header fields (noRef, tgl, tipe, method, notes)
+  > Auto-generate noRef on mount: scan store → TRX-YYYYMMDD-NNN / EXP-YYYYMMDD-NNN
+  > Re-generate saat tipe toggle
+
+- [ ] **M003-T2**: CustomerSupplierAutocomplete component
+  > `src/features/transactions/components/CustomerSupplierAutocomplete.tsx`
+  > Type-aware: income → search customers, expense → search suppliers
+  > Dropdown: avatar initial + name + motor (customer) / phone (supplier)
+  > "+ Buat baru" option di akhir dropdown → buka Master page (defer actual in-place create ke M006)
+  > Keyboard-friendly: arrow keys + enter, blur dismiss
+
+- [ ] **M003-T3**: LineItemCard component + add/remove lines
+  > `src/features/transactions/components/LineItemCard.tsx`
+  > Header: LINE 01 label + kategori `<select>` (filtered by tipe) + JASA badge (if isJasa) + × delete
+  > Nominal input (mono font) + biaya material input (conditional show untuk non-jasa juga, tapi kalkulasi komisi cuma untuk isJasa)
+  > Basis pill: dark bg, real-time = nominal − material (cuma untuk isJasa)
+  > State: `useState` untuk lines[] (hybrid approach, bukan pure RHF useFieldArray)
+  > `addLine()`, `removeLine()`, `updateLine()` helpers
+
+- [ ] **M003-T4**: MechanicChipRow + share% logic
+  > `src/features/transactions/components/MechanicChipRow.tsx`
+  > Mechanic chip: avatar button (click → cycle next available) + name + share% input + rate% display + komisi Rp (real-time)
+  > Even share redistribution saat add mekanik baru
+  > sum(share%) validation: warn tapi tidak hard-block saat mengetik (validate at submit)
+  > Komisi per chip: `Math.round(basis × (share/100) × (rate/100))`
+  > "+ TAMBAH MEKANIK" button (hidden kalau semua mekanik sudah ada)
+
+- [ ] **M003-T5**: TransactionSummary sticky panel
+  > `src/features/transactions/components/TransactionSummary.tsx`
+  > Dark bg (`var(--text)`) sticky di top: 80px
+  > RINGKASAN header + noRef display
+  > Meta grid (tipe, customer/supplier, metode, line count)
+  > Line list scrollable (kategori + nominal per line)
+  > TOTAL (Anton 32px)
+  > Komisi section (red tint bg) — hanya muncul kalau totalKomisi > 0
+  > SIMPAN button (full width)
+
+- [ ] **M003-T6**: Bubut Luar dual-leg UI + save logic
+  > Detect `lines.some(l => category.isJasa && category.name === 'Bubut Luar')`
+  > `bubut-extra` panel: gradient red tint bg, vendor select (isVendorBubut), biaya ke vendor input
+  > On save: create 2 Zustand entries (income + expense auto noRef `<asli>-VENDOR`)
+  > Push 1 entry ke `bubutLuarLinks` mock array
+
+- [ ] **M003-T7**: Form validation + save logic
+  > Zod schema: header + lines[] validation
+  > Guards: noRef unique + format, min 1 line, nominal > 0, biayaMaterial ≤ nominal
+  > isJasa line: min 1 mekanik, sum(share%) = 100 ±0.01
+  > income: customerId required; expense: supplierId required (kecuali no-supplier categories)
+  > Submit: `useTransactionStore().addTransaction()` + auto-generate line IDs + lineMechanics entries
+  > Toast success + navigate ke Daftar Transaksi
+
+- [ ] **M003-T8**: Daftar Transaksi page
+  > `src/app/pages/transaksi/DaftarTransaksiPage.tsx`
+  > Summary strip: 4 mini cards (tx count today, total pemasukan, total pengeluaran, net)
+  > Filter: search (noRef/customer name) + tipe pills (Semua/Pemasukan/Pengeluaran) + date range pills (Hari Ini/Minggu Ini/Bulan Ini)
+  > Table: noRef (mono), tgl, tipe badge, customer/supplier, total (mono), payment badge, → Detail link
+  > Client-side pagination (20/page)
+  > Route: /transaksi (swap dari PlaceholderPage)
+
+- [ ] **M003-T9**: Detail Transaksi page
+  > `src/app/pages/transaksi/DetailTransaksiPage.tsx`
+  > Header section: noRef, tgl, tipe badge, customer/supplier, payment, total
+  > Line items table (read-only): kategori, nominal, biayaMaterial, basis
+  > Per jasa line: mechanic list (name, share%, rate%, komisi)
+  > Bubut Luar: linked expense noRef (if exists)
+  > Audit log section: timeline (created by, updated at)
+  > Actions: Edit button (if not closed period), Delete (owner only, ConfirmDialog soft-delete)
+  > Route: /transaksi/:id
+
+- [ ] **M003-T10**: Edit Transaksi
+  > Reuse TransactionForm dengan `mode='edit'` prop + transactionId dari URL params
+  > Load existing data → pre-fill RHF form + lines[] state
+  > Guard: transaksi di closed period → show warning banner + disable submit
+  > Submit: `updateTransaction()` store + audit log (update action)
+  > Route: /transaksi/:id/edit
+
+- [ ] **M003-T11**: Closer — verify + screenshot + tag vM003
+  > Route verify: /transaksi, /transaksi/baru, /transaksi/:id, /transaksi/:id/edit
+  > DoD: form save → muncul di Daftar, Detail menampilkan data benar, Edit update benar
+  > Screenshot semua 4 halaman
+  > Update PROGRESS.md M003 COMPLETE
+  > git tag vM003
+
+### Blockers
+_(none)_
+
+### Notes
+- **State architecture (LOCKED)**: Hybrid — RHF untuk header fields, `useState` untuk lines[] (mirrors bundle v2 pattern, avoids RHF useFieldArray complexity di nested mechs)
+- T2 (autocomplete) bisa dikerjain parallel dengan T1 (no dependency antara keduanya)
+- T3 → T4 → T5 berurutan (T4 depends T3 shell, T5 depends T3+T4 untuk calc)
+- T6 (Bubut Luar) bisa setelah T3 selesai
+- T7 (validation+save) terakhir sebelum T8 (harus ada working form dulu)
+- T8-T10 independent dari T7 untuk UI shell; perlu T7 untuk integration test
 
 ---
 
