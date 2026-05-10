@@ -207,13 +207,16 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > Autocomplete auto-selects new entity after create
   > Keyboard-friendly: arrow keys + enter, blur dismiss
 
-- [ ] **M003-T3**: LineItemCard component + add/remove lines
+- [x] **M003-T3**: LineItemCard component + add/remove lines
   > `src/features/transactions/components/LineItemCard.tsx`
   > Header: LINE 01 label + kategori `<select>` (filtered by tipe) + JASA badge (if isJasa) + × delete
   > Nominal input (mono font) + biaya material input (conditional show untuk non-jasa juga, tapi kalkulasi komisi cuma untuk isJasa)
   > Basis pill: dark bg, real-time = nominal − material (cuma untuk isJasa)
   > State: `useState` untuk lines[] (hybrid approach, bukan pure RHF useFieldArray)
   > `addLine()`, `removeLine()`, `updateLine()` helpers
+  > Tipe toggle confirm dialog (ConfirmDialog + pendingTipe state) saat lines punya data
+  > hasBubutLuar flag → disable Bubut Luar option di line lain + "(sudah ada)" label
+  > Summary panel total = sum(line.nominal) real-time
 
 - [ ] **M003-T4**: MechanicChipRow + share% logic
   > `src/features/transactions/components/MechanicChipRow.tsx`
@@ -296,6 +299,9 @@ _(none)_
 - **C — Bubut Luar max 1**: Hanya boleh 1 line Bubut Luar per transaksi. Kalau user coba add kedua → toast error. Simpel, sesuai realitas bengkel.
 - **D — Duplicate noRef handling**: Opsi 1 — toast error dengan link ke transaksi existing ("No. Referensi sudah ada. Lihat transaksi [TRX-...]"). Bukan hard-block, bisa override manual tapi warn.
 - **E — Backdated tgl**: Owner bisa backdate (editable date input), kasir readonly (auto = hari ini). Handling: noRef generated pakai tgl field value, bukan always today.
+- **F — No "libur" mekanik button**: Form T4 tidak punya toggle "libur/absen". Kalau mekanik tidak hadir, kasir cukup tidak menambahkan mekanik tersebut ke line. Simpel, mengurangi kompleksitas UI.
+- **G — Smart pre-fill mekanik**: Default mekanik pada line jasa baru = mekanik dari transaksi jasa terakhir yang diinput kasir ybs. Query `useTransactionStore` → filter by `userId` = auth user + latest isJasa transaction → copy mechanics array. Fallback: semua mekanik aktif.
+- **H — Audit log mekanik per-field**: Update mekanik pada line (share%, rate override, add/remove) dicatat di audit log dengan `beforeData` + `afterData` per-field, bukan snapshot seluruh transaksi. Source: `'mekanik-update-transaksi'`.
 
 ---
 

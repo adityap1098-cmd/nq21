@@ -228,6 +228,9 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **Auth store User shape**: auth store hanya simpan `{ name, role }` — tidak ada `id` atau `username`. Match ke user store dilakukan via `name` (unique di seed). Di M006, auth session harus simpan `userId` untuk lookup yang proper.
 
 - **M003 Decision D (REVISED)**: Inline create customer/supplier ENABLED di M003 — bukan defer ke M006. `InlineCreateDialog` opens dari autocomplete "+ Buat baru" option. Friction kasir terlalu tinggi kalau harus navigate ke /master dan lose form context. New entity langsung auto-selected setelah create.
+- **M003 Decision F — No "libur" mekanik button**: Form T4 tidak punya toggle absen. Kasir cukup tidak menambahkan mekanik yang tidak hadir ke line item. Mengurangi kompleksitas UI.
+- **M003 Decision G — Smart pre-fill mekanik (T4)**: Default mekanik pada line jasa baru = mechanics dari transaksi jasa terakhir kasir ybs (query store by userId + filter isJasa). Fallback: semua mekanik aktif. Implement di T4 saat MechanicChipRow dibuat.
+- **M003 Decision H — Audit log mekanik per-field (T4)**: Perubahan mekanik di transaksi (share%, rate override, add/remove chip) → audit log `beforeData`/`afterData` per-field, source `'mekanik-update-transaksi'`. Bukan snapshot full transaksi. Implement di T4.
 
 ---
 

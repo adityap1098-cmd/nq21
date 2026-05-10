@@ -8,7 +8,12 @@ import { RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useTransactionStore } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
+import { useCategoryStore } from '@/store/master/categories'
+import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
+import { LineItemCard } from './LineItemCard'
+import { createEmptyLine } from '../utils'
+import type { Line } from '../types'
 import type { TransactionType, PaymentMethod } from '@/store/types'
 
 // ─── Schema (header only — full schema added in T7) ──────────────────────────
@@ -73,6 +78,7 @@ interface TransactionFormProps {
 export function TransactionForm({ mode = 'add', transactionId }: TransactionFormProps) {
   const { user } = useAuthStore()
   const { transactions } = useTransactionStore()
+  const { categories } = useCategoryStore()
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const form = useForm<HeaderForm>({
@@ -92,8 +98,11 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
   const noReferensi = watch('noReferensi')
   const paymentMethod = watch('paymentMethod') as PaymentMethod
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [_lines, _setLines] = useState<unknown[]>([])
+  // Line items state (hybrid approach — Decision A)
+  const [lines, setLines] = useState<Line[]>(() => [createEmptyLine()])
+
+  // Tipe-change confirm dialog (when lines have data)
+  const [pendingTipe, setPendingTipe] = useState<TransactionType | null>(null)
 
   // Auto-generate noRef on tipe/tgl change; also clear customer/supplier selection (Decision E)
   useEffect(() => {
@@ -113,6 +122,48 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
 
   function handleRegenNoRef() {
     setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
+  }
+
+  // ── Line helpers ────────────────────────────────────────────────────────────
+
+  const bubutLuarCatName = 'Bubut Luar'
+  const hasBubutLuar = lines.some(
+    (l) => categories.find((c) => c.id === l.categoryId)?.name === bubutLuarCatName,
+  )
+
+  function addLine() {
+    setLines((prev) => [...prev, createEmptyLine()])
+  }
+
+  function removeLine(id: string) {
+    setLines((prev) => prev.filter((l) => l.id !== id))
+  }
+
+  function updateLine(id: string, updates: Partial<Line>) {
+    setLines((prev) =>
+      prev.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+    )
+  }
+
+  // ── Tipe toggle with confirm ─────────────────────────────────────────────────
+
+  function handleTipeClick(next: TransactionType) {
+    if (next === tipe) return
+    const hasData = lines.some((l) => l.categoryId !== null || l.nominal > 0)
+    if (hasData) {
+      setPendingTipe(next)
+    } else {
+      setValue('tipe', next)
+      setLines([createEmptyLine()])
+    }
+  }
+
+  function confirmTipeChange() {
+    if (pendingTipe) {
+      setValue('tipe', pendingTipe)
+      setLines([createEmptyLine()])
+    }
+    setPendingTipe(null)
   }
 
   const isOwner = user?.role === 'owner'
@@ -218,7 +269,7 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
                     <button
                       key={t}
                       type="button"
-                      onClick={() => setValue('tipe', t)}
+                      onClick={() => handleTipeClick(t)}
                       style={{
                         flex: 1, height: 36, borderRadius: 8, cursor: 'pointer',
                         fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
@@ -291,24 +342,57 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
           </div>
         </div>
 
-        {/* ── Step 02 — Line Items (T3 stub) ──────────────────────────────── */}
+        {/* ── Step 02 — Line Items ─────────────────────────────────────────── */}
         <div style={{
           background: 'var(--surface)',
-          border: '1px dashed var(--border-strong)',
+          border: '1px solid var(--border)',
           borderRadius: 12,
           padding: '20px 24px',
         }}>
+
+          {/* Step header */}
           <div style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-            color: 'var(--text-muted)', marginBottom: 12,
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between', marginBottom: 16,
           }}>
-            LANGKAH 02 — ITEM TRANSAKSI
+            <div style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+              color: 'var(--text-muted)',
+            }}>
+              LANGKAH 02 — ITEM TRANSAKSI
+            </div>
+            <button
+              type="button"
+              onClick={addLine}
+              style={{
+                height: 30, padding: '0 14px', borderRadius: 6,
+                border: '1.5px solid var(--border)',
+                background: 'var(--surface-alt)',
+                fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                color: 'var(--text-secondary)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 6,
+                transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>+</span>
+              TAMBAH LINE
+            </button>
           </div>
-          <div style={{
-            fontSize: 13, color: 'var(--text-muted)',
-            textAlign: 'center', padding: '20px 0',
-          }}>
-            Line items — implementasi di T3
+
+          {/* Line cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {lines.map((line, index) => (
+              <LineItemCard
+                key={line.id}
+                line={line}
+                index={index}
+                tipe={tipe}
+                onChange={(updates) => updateLine(line.id, updates)}
+                onDelete={() => removeLine(line.id)}
+                canDelete={lines.length > 1}
+                hasBubutLuar={hasBubutLuar}
+              />
+            ))}
           </div>
         </div>
 
@@ -386,7 +470,7 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
               fontFamily: 'Anton, sans-serif',
               fontSize: 28, letterSpacing: '0.02em',
             }}>
-              Rp 0
+              Rp {lines.reduce((sum, l) => sum + l.nominal, 0).toLocaleString('id-ID')}
             </div>
           </div>
 
@@ -407,6 +491,17 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
           </button>
         </div>
       </div>
+
+      {/* ── Tipe change confirm ──────────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={pendingTipe !== null}
+        onOpenChange={(open) => { if (!open) setPendingTipe(null) }}
+        title="Ganti tipe transaksi?"
+        message="Line items yang sudah diisi akan direset. Lanjutkan?"
+        confirmLabel="Ya, Ganti Tipe"
+        variant="destructive"
+        onConfirm={confirmTipeChange}
+      />
     </div>
   )
 }
