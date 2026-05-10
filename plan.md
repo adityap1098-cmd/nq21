@@ -497,6 +497,10 @@ Total halaman unik yang akan dibangun: **~18 halaman** (atau ~12-14 routes kalau
 - **Filter pills**: subtle border, active state hitam
 - **Table**: row hover surface-alt, border-bottom only
 - **Badge**: 10px font, 0.04em letter-spacing, type-coded color
+- **Sidebar section heading**: color `--accent` (merah), 10px mono uppercase, `letter-spacing: 0.12em`
+- **Sidebar logo mark**: 36×36px hitam, strip merah accent 3px di bawah-kiri
+- **Topbar features**: search global (⌘K), period pill, notification bell, CTA action button
+- **Page placeholder**: card centered, mono "COMING SOON" eyebrow + Anton page title + helper text
 
 ### Don't Do
 - Tidak pakai Inter/Roboto/Arial (generic)

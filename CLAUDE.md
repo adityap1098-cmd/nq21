@@ -47,6 +47,11 @@ Mock data layer (Zustand) harus mirror schema yang ada di `plan.md` Section 2 �
 
 ## Naming Standards (LOCKED — jangan rename)
 
+### Transaction Type Display Labels
+- `income` → display **"MASUK"** (badge, tabel, filter)
+- `expense` → display **"KELUAR"**
+- Code-level tetap `'income'` / `'expense'` — jangan rename di store/schema/API
+
 ### 4 Laporan
 Naming konsisten di seluruh app (sidebar, route, kode, dokumentasi):
 
@@ -56,6 +61,16 @@ Naming konsisten di seluruh app (sidebar, route, kode, dokumentasi):
 | 2 | **Cash Flow** | `/laporan/cash-flow` |
 | 3 | **Jasa & Mekanik** | `/laporan/jasa` |
 | 4 | **Dyno** | `/laporan/dyno` |
+
+### Sidebar Nav Labels (MASTER section — short form, tanpa prefix "Master")
+
+| Sidebar Label | Route |
+|---------------|-------|
+| **Customer** | `/master/customer` |
+| **Supplier** | `/master/supplier` |
+| **Kategori** | `/master/kategori` |
+| **Mekanik & Rate** | `/master/mekanik` |
+| **User / Akun** | `/master/user` |
 
 ### Kategori Default (income)
 Jasa, Oli, Dyno, Sparepart, Bubut Luar, Bubut Dalam.

@@ -39,18 +39,44 @@
   > Sidebar: brand glyph, 5 nav sections (UTAMA/TRANSAKSI/LAPORAN/KOMISI/MASTER), active states, footer
   > Topbar: crumb, search bar, period pill, bell, CTA button
   > router.tsx: all 18 routes with placeholder pages
-- [ ] **M001-T4**: Component library dasar — Button, Input, Card, Badge, Table, Modal (match design system)
-- [ ] **M001-T5**: Login page (visual ref: `design/project/login.jsx`)
-- [ ] **M001-T6**: Dashboard skeleton — app shell + placeholder cards (visual ref: `design/project/dashboard.jsx`)
-- [ ] **M001-T7**: Zustand store setup — mock data structure mirror schema plan.md Section 2
+- [x] **M001-T4**: Component library dasar — semua shadcn components sudah NQ21-tokenized di T2/T2.5
+  > Done: Button (7 variants), Badge (9 variants), Card, Input, Select, Table, Tabs, Dialog, Separator, Avatar, Toast, DropdownMenu
+  > Sisa: wire up ToastProvider di Layout + tambah `useToast` hook + Toaster outlet
+- [ ] **M001-T5**: Login page
+  > Visual ref: `design/project/NQ21 Performance.html` (seksi: Login)
+  > Layout: split grid `1.05fr / 0.95fr`, min-height 100vh
+  > Left panel: dark bg (`--text`), brand mark centered, tagline, version stamp
+  > Right panel: form — username + password + submit button + error state
+  > Form: React Hook Form + Zod (username required, password min 4)
+  > Mock auth: hardcoded `{ owner: 'nanang', kasir: 'sari' }` → redirect `/dashboard`
+  > Route `/login` sudah ada di router.tsx, tinggal implement komponen
+- [ ] **M001-T6**: Dashboard skeleton
+  > Visual ref: `design/project/NQ21 Performance.html` (seksi: Dashboard)
+  > KPI block (4 cards): Pendapatan, Pengeluaran, Laba Kotor, Komisi Pending
+  > Cash Flow chart (Recharts bar): in vs out, 7 hari, filter 7H/30H/90H
+  > Top Kategori panel: rank list dengan bar track
+  > Recent Transactions panel: tabel 5 baris, badge MASUK/KELUAR
+  > Periode Komisi panel: card per periode + mekanik mini grid
+  > Semua pakai hardcoded mock data (Zustand store belum di-setup, pakai const lokal dulu)
+- [ ] **M001-T7**: Zustand store setup
+  > File: `src/store/` — 1 store per domain
+  > `useTransactionStore` — mock transactions + lines + line_mechanics
+  > `useMechanicStore` — mock mechanics + commission_rates
+  > `useCategoryStore` — mock categories (semua default income + expense)
+  > `useCustomerStore` — mock customers (5-10 entries)
+  > `useSupplierStore` — mock suppliers (5 entries)
+  > `usePeriodStore` — mock commission periods (1 open + 1 closed)
+  > Mirror schema plan.md Section 2 — tipe dari `src/features/transactions/schema.ts`
+  > Setelah store jalan: replace hardcoded mock data di Dashboard (T6) dengan store
+- ~~**M001-T8**~~: _(merged into T3 — React Router setup selesai di T3)_
 
 ### Blockers
 _(none)_
 
 ### Notes
-- Sidebar nav sections: Operasional (Transaksi, 4 Laporan), Master Data (5 sub), Owner (Komisi, Audit)
-- Topbar: breadcrumb kiri, search + period pill + notif + "Transaksi Baru" CTA kanan
-- Mock auth: Owner role default, langsung redirect ke dashboard
+- T4 praktis done — cuma tinggal ToastProvider wiring (minor, bisa inline di T5 atau T6)
+- T5 dan T6 independent, bisa dikerjain dalam urutan apapun
+- T7 sebaiknya setelah T6 supaya store bisa langsung dipakai replace mock di dashboard
 
 ---
 
@@ -75,7 +101,7 @@ Tasks akan di-breakdown saat M002 selesai.
 
 Tasks akan di-breakdown saat M003 selesai.
 
-**Visual ref**: `design/project/laporan.jsx` + `design/project/dashboard.jsx`
+**Visual ref**: `design/project/NQ21 Performance.html` (seksi: Dashboard + Laporan #1–#4)
 
 ---
 
