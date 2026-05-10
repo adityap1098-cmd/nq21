@@ -33,8 +33,9 @@
 
 ### Tasks
 
-- [ ] **M001-T1**: Project scaffold — React + Vite + TypeScript strict + Tailwind v3 + shadcn/ui init
+- [x] **M001-T1**: Project scaffold — React + Vite + TypeScript strict + Tailwind v3 + shadcn/ui init
 - [ ] **M001-T2**: Design system setup — CSS variables (color tokens + font vars dari bundle), Google Fonts import, global styles
+  > _Next up_
 - [ ] **M001-T3**: App shell — sidebar 240px persistent + topbar 64px sticky (role-aware nav)
 - [ ] **M001-T4**: Component library dasar — Button, Input, Card, Badge, Table, Modal (match design system)
 - [ ] **M001-T5**: Login page (visual ref: `design/project/login.jsx`)
