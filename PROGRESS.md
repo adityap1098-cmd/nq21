@@ -43,8 +43,11 @@
   > `src/components/nq21/`: PageHeader, KpiCard, Section, EmptyState, FormField, FilterPillGroup, PeriodSelector, CurrencyDisplay, DateDisplay, ConfirmDialog, AvatarStack
   > `src/hooks/use-toast.ts` + `src/components/ui/toaster.tsx` — module-level toast store, Toaster wired ke Layout
   > test.tsx updated — visual sanity check semua component di `/test`
-- [x] **M001-T5**: Login page
+- [x] **M001-T5**: Login page + auth polish
   > Visual ref: `design/project/NQ21 Performance.html` (seksi: Login)
+  > T5.1: demo creds box wrapped in `import.meta.env.DEV` (absent in prod bundle ✅)
+  > T5.1: `/login` redirect ke `/` saat sudah logged in ✅
+  > T5.1: sessionStorage persist confirmed (`nq21-auth`), logout → user null ✅
   > Layout: split grid `1.05fr / 0.95fr`, min-height 100vh
   > Left panel: dark bg (`--text`), brand mark centered, tagline, version stamp
   > Right panel: form — username + password + submit button + error state

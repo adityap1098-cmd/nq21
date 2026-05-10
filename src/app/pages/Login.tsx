@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -16,8 +16,10 @@ type LoginForm = z.infer<typeof schema>
 export default function Login() {
   const [role, setRole] = useState<'owner' | 'kasir'>('owner')
   const [showPw, setShowPw] = useState(false)
-  const login = useAuthStore((s) => s.login)
+  const { user, login } = useAuthStore()
   const navigate = useNavigate()
+
+  if (user) return <Navigate to="/" replace />
 
   const {
     register,
@@ -340,38 +342,40 @@ export default function Login() {
             </span>
           </div>
 
-          {/* Demo creds */}
-          <div
-            style={{
-              marginTop: 28, padding: '14px 16px',
-              background: 'var(--surface-alt)',
-              border: '1px dashed var(--border-strong)',
-              borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)',
-            }}
-          >
+          {/* Demo creds — DEV only */}
+          {import.meta.env.DEV && (
             <div
               style={{
-                fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em',
-                textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6,
+                marginTop: 28, padding: '14px 16px',
+                background: 'var(--surface-alt)',
+                border: '1px dashed var(--border-strong)',
+                borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)',
               }}
             >
-              PROTOTYPE — MOCK AUTH
+              <div
+                style={{
+                  fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.18em',
+                  textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6,
+                }}
+              >
+                PROTOTYPE — MOCK AUTH
+              </div>
+              Login otomatis sebagai{' '}
+              <code
+                style={{
+                  fontFamily: 'var(--mono)',
+                  background: 'var(--surface)',
+                  padding: '2px 6px',
+                  borderRadius: 4,
+                  border: '1px solid var(--border)',
+                  fontSize: 11,
+                }}
+              >
+                {role === 'owner' ? 'Owner' : 'Kasir'}
+              </code>
+              . Password tidak divalidasi di mode demo.
             </div>
-            Login otomatis sebagai{' '}
-            <code
-              style={{
-                fontFamily: 'var(--mono)',
-                background: 'var(--surface)',
-                padding: '2px 6px',
-                borderRadius: 4,
-                border: '1px solid var(--border)',
-                fontSize: 11,
-              }}
-            >
-              {role === 'owner' ? 'Owner' : 'Kasir'}
-            </code>
-            . Password tidak divalidasi di mode demo.
-          </div>
+          )}
         </form>
       </div>
     </div>
