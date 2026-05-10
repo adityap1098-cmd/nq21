@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NQ21 PERFORMANCE — Sistem Pencatatan Bengkel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-alt: #F5F3EE;
+    --surface-deep: #EFEBE0;
+    --border: #E5E1D8;
+    --border-strong: #C9C3B6;
+    --text: #0A0908;
+    --text-secondary: #4A4540;
+    --text-muted: #8B857A;
+    --accent: #C8102E;
+    --accent-dark: #A00D24;
+    --accent-tint: #FBE9EC;
+    --success: #1E7A50;
+    --success-tint: #E6F2EC;
+    --warning: #B86E00;
+    --warning-tint: #FBF1D9;
+  }
+
+  * { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+  body { font-family: 'Manrope', sans-serif; background: var(--bg); color: var(--text); }
+  .font-display { font-family: 'Anton', sans-serif; letter-spacing: 0.005em; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* Sidebar */
+  aside.sidebar {
+    width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+  .sidebar-link {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px; border-radius: 6px;
+    color: var(--text-secondary); font-weight: 500; font-size: 14px;
+    transition: all 0.15s; cursor: pointer; user-select: none;
+  }
+  .sidebar-link:hover { background: var(--surface-alt); color: var(--text); }
+  .sidebar-link.active { background: var(--text); color: white; }
+  .sidebar-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .sidebar-link .nav-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; background: var(--surface-alt);
+    color: var(--text-muted); border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+  }
+  .sidebar-link.active .nav-num {
+    background: var(--accent); color: white;
+  }
+  .sidebar-section {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.12em; color: var(--text-muted);
+    padding: 16px 14px 8px;
+  }
+
+  /* Top bar */
+  .topbar {
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px; background: var(--surface);
+    position: sticky; top: 0; z-index: 10;
+  }
+
+  /* Page container */
+  .page-container { padding: 32px; max-width: 1400px; }
+  .page-header { margin-bottom: 28px; }
+  .page-title { font-family: 'Anton', sans-serif; font-size: 36px; line-height: 1; letter-spacing: 0.005em; }
+  .page-subtitle { color: var(--text-muted); margin-top: 6px; font-size: 14px; }
+  .accent-bar { width: 32px; height: 3px; background: var(--accent); margin-bottom: 14px; }
+
+  /* Card */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .card-pad { padding: 24px; }
+
+  /* Inputs */
+  .input {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface); font-family: inherit; font-size: 14px;
+    color: var(--text); transition: all 0.12s;
+  }
+  .input:focus { outline: none; border-color: var(--text); box-shadow: 0 0 0 3px rgba(10,9,8,0.08); }
+  .input-lg { padding: 14px 16px; font-size: 16px; }
+  .input-mono { font-family: 'JetBrains Mono', monospace; }
+  .input-numpad { font-family: 'JetBrains Mono', monospace; text-align: right; font-size: 16px; }
+  .input-hero {
+    font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600;
+    padding: 18px 20px; border: 2px solid var(--text);
+  }
+  .input-hero:focus { box-shadow: 0 0 0 4px var(--accent-tint); border-color: var(--accent); }
+
+  label.field-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-secondary);
+    margin-bottom: 6px; display: block;
+  }
+  .field-help { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: 6px; font-weight: 600; font-size: 14px;
+    transition: all 0.12s; cursor: pointer; border: 1px solid transparent;
+    user-select: none; white-space: nowrap;
+  }
+  .btn-primary { background: var(--text); color: white; }
+  .btn-primary:hover { background: #1a1815; }
+  .btn-accent { background: var(--accent); color: white; }
+  .btn-accent:hover { background: var(--accent-dark); }
+  .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { background: var(--surface-alt); border-color: var(--text); }
+  .btn-ghost { background: transparent; color: var(--text-secondary); }
+  .btn-ghost:hover { background: var(--surface-alt); color: var(--text); }
+  .btn-lg { padding: 14px 24px; font-size: 15px; }
+  .btn-sm { padding: 6px 10px; font-size: 12px; }
+
+  /* Table */
+  .table { width: 100%; border-collapse: collapse; }
+  .table th {
+    text-align: left; padding: 12px 16px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted);
+    border-bottom: 1px solid var(--border); background: var(--surface-alt);
+  }
+  .table td {
+    padding: 14px 16px; font-size: 14px; color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+  .table tr:last-child td { border-bottom: none; }
+  .table tbody tr { transition: background 0.1s; cursor: pointer; }
+  .table tbody tr:hover td { background: var(--surface-alt); }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .badge-income { background: var(--success-tint); color: var(--success); }
+  .badge-expense { background: var(--accent-tint); color: var(--accent); }
+  .badge-pending { background: var(--warning-tint); color: var(--warning); }
+  .badge-paid { background: var(--success-tint); color: var(--success); }
+  .badge-open { background: var(--surface-alt); color: var(--text-secondary); border: 1px solid var(--border); }
+  .badge-closed { background: var(--text); color: white; }
+  .badge-cash { background: var(--surface-alt); color: var(--text); }
+  .badge-tf { background: #E8F0FB; color: #2055A8; }
+  .badge-qris { background: #F2EAFB; color: #7028C2; }
+
+  /* KPI */
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 22px; transition: all 0.18s; position: relative; overflow: hidden;
+  }
+  .kpi:hover { border-color: var(--text); transform: translateY(-2px); }
+  .kpi-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 10px;
+  }
+  .kpi-value { font-family: 'Anton', sans-serif; font-size: 34px; line-height: 1; }
+  .kpi-change { font-size: 12px; margin-top: 8px; font-weight: 600; }
+  .kpi-up { color: var(--success); }
+  .kpi-down { color: var(--accent); }
+  .kpi-accent {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 3px;
+    background: var(--accent);
+  }
+
+  /* Type toggle */
+  .type-toggle {
+    display: inline-flex; background: var(--surface-alt);
+    border-radius: 8px; padding: 3px; gap: 2px;
+  }
+  .type-toggle button {
+    padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 700;
+    color: var(--text-muted); transition: all 0.15s; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .type-toggle button.active.income { background: var(--success); color: white; }
+  .type-toggle button.active.expense { background: var(--accent); color: white; }
+
+  /* Mechanic chip */
+  .mech-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 10px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 20px;
+    font-size: 12px; font-weight: 600;
+  }
+  .mech-chip .share-input {
+    width: 48px; padding: 2px 6px; border: 1px solid var(--border);
+    border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; text-align: right;
+  }
+  .mech-chip .share-input:focus { outline: none; border-color: var(--accent); }
+
+  /* Line row */
+  .line-card {
+    background: var(--surface-alt); border-radius: 10px; padding: 16px;
+    margin-bottom: 12px; border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .line-card:hover { border-color: var(--border-strong); }
+  .line-card.line-jasa { border-left: 3px solid var(--accent); }
+
+  /* Total panel sticky */
+  .total-panel {
+    background: var(--text); color: white; border-radius: 12px;
+    padding: 24px; position: sticky; top: 88px;
+  }
+  .total-panel .label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: rgba(255,255,255,0.5);
+  }
+  .total-panel .amount {
+    font-family: 'Anton', sans-serif; font-size: 42px; line-height: 1;
+    margin-top: 8px;
+  }
+
+  /* Login */
+  .login-bg {
+    background: var(--text);
+    background-image:
+      radial-gradient(circle at 20% 50%, rgba(200, 16, 46, 0.18) 0%, transparent 55%),
+      radial-gradient(circle at 80% 80%, rgba(200, 16, 46, 0.10) 0%, transparent 50%);
+    position: relative; overflow: hidden;
+  }
+  .login-bg::before {
+    content: ''; position: absolute; inset: 0;
+    background-image:
+      repeating-linear-gradient(45deg, transparent 0, transparent 60px, rgba(255,255,255,0.025) 60px, rgba(255,255,255,0.025) 61px);
+    pointer-events: none;
+  }
+  .login-stripe {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 8px; background: var(--accent);
+  }
+
+  /* Tab pills (filter) */
+  .filter-pill {
+    padding: 7px 14px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-secondary); transition: all 0.12s;
+  }
+  .filter-pill:hover { border-color: var(--text); }
+  .filter-pill.active { background: var(--text); color: white; border-color: var(--text); }
+
+  /* Animation */
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .page { animation: fadeIn 0.25s ease; }
+  .hidden { display: none !important; }
+
+  /* Workshop badges in header */
+  .nq-logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .nq-mark {
+    width: 36px; height: 36px; background: var(--text); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Anton', sans-serif; font-size: 18px;
+    border-radius: 6px; position: relative; overflow: hidden;
+  }
+  .nq-mark::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+    height: 3px; background: var(--accent);
+  }
+  .nq-text { line-height: 1; }
+  .nq-text .name { font-family: 'Anton', sans-serif; font-size: 16px; }
+  .nq-text .tagline {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.18em;
+    color: var(--text-muted); text-transform: uppercase; margin-top: 3px;
+  }
+
+  /* Cash flow row direction */
+  .flow-row.income td:first-child { border-left: 3px solid var(--success); }
+  .flow-row.expense td:first-child { border-left: 3px solid var(--accent); }
+
+  /* Big number for transaksi total */
+  .big-money {
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+    font-size: 15px;
+  }
+
+  /* Receipt-style detail */
+  .receipt-line {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 8px 0; border-bottom: 1px dashed var(--border);
+  }
+  .receipt-line:last-child { border-bottom: none; }
+  .receipt-line .key { color: var(--text-muted); font-size: 13px; }
+  .receipt-line .val { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 600; }
+
+  /* Period card */
+  .period-card {
+    padding: 20px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 10px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .period-card:hover { border-color: var(--text); transform: translateY(-1px); }
+  .period-card.closed { background: var(--surface-alt); }
+
+  /* Avatar circle */
+  .avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--text); color: white;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 12px; flex-shrink: 0;
+  }
+  .avatar-lg { width: 44px; height: 44px; font-size: 14px; }
+
+  /* Toast (confirmation) */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 100;
+    padding: 14px 18px; background: var(--text); color: white;
+    border-radius: 8px; display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15); font-size: 14px; font-weight: 500;
+    animation: fadeIn 0.2s ease; max-width: 360px;
+  }
+  .toast.success { border-left: 3px solid var(--success); }
+
+  /* Search box */
+  .search-box {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px; background: var(--surface-alt);
+    border-radius: 8px; min-width: 300px;
+  }
+  .search-box input {
+    background: transparent; border: 0; outline: 0;
+    flex: 1; font-size: 14px; font-family: inherit;
+  }
+
+  /* Chart bar (simple) */
+  .bar-chart { display: flex; align-items: end; gap: 6px; height: 140px; }
+  .bar { flex: 1; background: var(--text); border-radius: 4px 4px 0 0; position: relative; transition: all 0.2s; }
+  .bar:hover { background: var(--accent); }
+  .bar-label { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+  /* Rate matrix table */
+  .matrix-cell input {
+    width: 60px; padding: 4px 6px; border: 1px solid var(--border);
+    border-radius: 4px; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; text-align: center;
+  }
+  .matrix-cell input:focus { outline: none; border-color: var(--accent); }
+
+  /* Slip mekanik */
+  .slip {
+    background: var(--surface); border: 1px solid var(--text);
+    border-radius: 10px; padding: 28px;
+    background-image: repeating-linear-gradient(45deg, transparent 0, transparent 30px, var(--surface-alt) 30px, var(--surface-alt) 31px);
+  }
+  .slip-header {
+    border-bottom: 2px solid var(--text); padding-bottom: 16px; margin-bottom: 20px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+
+  /* Stamp */
+  .stamp {
+    display: inline-block; padding: 4px 10px;
+    border: 2px solid var(--accent); color: var(--accent);
+    transform: rotate(-4deg); font-family: 'Anton', sans-serif;
+    font-size: 13px; letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== LOGIN PAGE ============== -->
+<div id="page-login" class="page hidden login-bg" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
+  <div class="login-stripe"></div>
+  <div style="display:grid; grid-template-columns:1fr 420px; gap:64px; align-items:center; max-width:1100px; width:100%; position:relative; z-index:2;">
+    <div style="color:white;">
+      <div style="display:inline-flex; align-items:center; gap:10px; padding:6px 12px; background:rgba(255,255,255,0.08); border-radius:20px; font-size:11px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#FBE9EC; margin-bottom:24px;">
+        <span style="width:6px; height:6px; background:var(--accent); border-radius:50%;"></span>
+        Sistem Pencatatan Bengkel
+      </div>
+      <h1 class="font-display" style="font-size:88px; line-height:0.95; margin-bottom:20px;">NQ21<br><span style="color:var(--accent)">PERFORMANCE</span></h1>
+      <p style="color:rgba(255,255,255,0.7); font-size:16px; max-width:420px; line-height:1.6;">Catat transaksi dengan akurat. Hitung komisi mekanik otomatis. Tutup periode mingguan tanpa repot.</p>
+      <div style="display:flex; gap:32px; margin-top:48px;">
+        <div>
+          <div class="font-display" style="font-size:32px; color:var(--accent);">4</div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.6); margin-top:4px;">Laporan Otomatis</div>
+        </div>
+        <div>
+          <div class="font-display" style="font-size:32px; color:var(--accent);">7</div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.6); margin-top:4px;">Hari Periode</div>
+        </div>
+        <div>
+          <div class="font-display" style="font-size:32px; color:var(--accent);">100%</div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.6); margin-top:4px;">Audit Tracked</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-pad" style="background:var(--surface);">
+      <div style="margin-bottom:24px;">
+        <div class="accent-bar"></div>
+        <h2 class="font-display" style="font-size:28px;">MASUK</h2>
+        <p style="color:var(--text-muted); font-size:13px; margin-top:4px;">Login untuk lanjut ke sistem</p>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label class="field-label">Username</label>
+        <input class="input input-lg" placeholder="kasir01" value="kasir01">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label class="field-label">Password</label>
+        <input type="password" class="input input-lg" placeholder="••••••••" value="••••••••">
+      </div>
+      <button class="btn btn-primary btn-lg" style="width:100%;" onclick="showPage('dashboard')">
+        Masuk Sistem
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+      </button>
+      <div style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border); font-size:12px; color:var(--text-muted); text-align:center;">
+        Demo mode — username/password sudah terisi otomatis
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============== APP SHELL ============== -->
+<div id="app-shell" class="hidden" style="display:flex; min-height:100vh;">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div style="padding:20px 16px; border-bottom:1px solid var(--border);">
+      <div class="nq-logo">
+        <div class="nq-mark">N</div>
+        <div class="nq-text">
+          <div class="name">NQ21</div>
+          <div class="tagline">Performance</div>
+        </div>
+      </div>
+    </div>
+
+    <nav style="padding:16px 12px; flex:1; overflow-y:auto;" class="scrollbar-thin">
+      <div class="sidebar-section">Utama</div>
+      <div class="sidebar-link active" data-nav="dashboard" onclick="showPage('dashboard')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Dashboard
+      </div>
+
+      <div class="sidebar-section">Transaksi</div>
+      <div class="sidebar-link" data-nav="transaksi-baru" onclick="showPage('transaksi-baru')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Input Transaksi
+      </div>
+      <div class="sidebar-link" data-nav="transaksi-list" onclick="showPage('transaksi-list')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Daftar Transaksi
+      </div>
+
+      <div class="sidebar-section">Laporan</div>
+      <div class="sidebar-link" data-nav="laporan-kategori" onclick="showPage('laporan-kategori')">
+        <span class="nav-num">1</span>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+        Per Kategori
+      </div>
+      <div class="sidebar-link" data-nav="laporan-cashflow" onclick="showPage('laporan-cashflow')">
+        <span class="nav-num">2</span>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Cash Flow
+      </div>
+      <div class="sidebar-link" data-nav="laporan-jasa" onclick="showPage('laporan-jasa')">
+        <span class="nav-num">3</span>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+        Jasa &amp; Mekanik
+      </div>
+      <div class="sidebar-link" data-nav="laporan-dyno" onclick="showPage('laporan-dyno')">
+        <span class="nav-num">4</span>
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Dyno
+      </div>
+
+      <div class="sidebar-section">Komisi</div>
+      <div class="sidebar-link" data-nav="periode-komisi" onclick="showPage('periode-komisi')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Periode Mingguan
+      </div>
+      <div class="sidebar-link" data-nav="mekanik" onclick="showPage('mekanik')">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        Mekanik &amp; Komisi
+      </div>
+    </nav>
+
+    <div style="padding:14px 16px; border-top:1px solid var(--border);">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div class="avatar" style="background:var(--accent)">A</div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:600;">Adit (Owner)</div>
+          <div style="font-size:11px; color:var(--text-muted);">Akses penuh</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" title="Keluar" onclick="showPage('login')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main style="flex:1; min-width:0;">
+
+    <!-- =========== DASHBOARD =========== -->
+    <div id="page-dashboard" class="page">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Beranda</div>
+          <div style="font-weight:700; font-size:15px;">Ringkasan Bengkel</div>
+        </div>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <span style="font-size:13px; color:var(--text-muted); font-family:'JetBrains Mono', monospace;">Minggu, 10 Mei 2026</span>
+          <button class="btn btn-accent" onclick="showPage('transaksi-baru')">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+            Transaksi Baru
+          </button>
+        </div>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">DASHBOARD</h1>
+          <p class="page-subtitle">Snapshot bisnis minggu ini · 4 — 10 Mei 2026</p>
+        </div>
+
+        <!-- KPIs -->
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:32px;">
+          <div class="kpi">
+            <div class="kpi-accent"></div>
+            <div class="kpi-label">Pendapatan Minggu Ini</div>
+            <div class="kpi-value font-mono" style="font-family:'Anton',sans-serif;">Rp 12,4<span style="font-size:18px;">jt</span></div>
+            <div class="kpi-change kpi-up">▲ 18% vs minggu lalu</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Pengeluaran</div>
+            <div class="kpi-value">Rp 4,2<span style="font-size:18px;">jt</span></div>
+            <div class="kpi-change kpi-down">▲ 6% vs minggu lalu</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-label">Laba Kotor</div>
+            <div class="kpi-value">Rp 8,2<span style="font-size:18px;">jt</span></div>
+            <div class="kpi-change kpi-up">▲ 24% vs minggu lalu</div>
+          </div>
+          <div class="kpi" style="border-color:var(--accent);">
+            <div class="kpi-accent"></div>
+            <div class="kpi-label" style="color:var(--accent);">Komisi Pending Payout</div>
+            <div class="kpi-value">Rp 1,8<span style="font-size:18px;">jt</span></div>
+            <div class="kpi-change" style="color:var(--text-muted);">3 mekanik · periode aktif</div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1.6fr 1fr; gap:16px;">
+          <!-- Cash flow chart -->
+          <div class="card card-pad">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:20px;">
+              <div>
+                <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Cash Flow Harian</div>
+                <h3 class="font-display" style="font-size:24px; margin-top:4px;">7 Hari Terakhir</h3>
+              </div>
+              <div style="display:flex; gap:14px; font-size:12px;">
+                <div style="display:flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; background:var(--text); border-radius:2px;"></span>Masuk</div>
+                <div style="display:flex; align-items:center; gap:6px;"><span style="width:10px; height:10px; background:var(--accent); border-radius:2px;"></span>Keluar</div>
+              </div>
+            </div>
+            <div class="bar-chart">
+              <div style="flex:1;"><div class="bar" style="height:60%; margin-bottom:4px;"></div><div class="bar" style="height:30%; background:var(--accent);"></div><div class="bar-label">Sen</div></div>
+              <div style="flex:1;"><div class="bar" style="height:75%; margin-bottom:4px;"></div><div class="bar" style="height:25%; background:var(--accent);"></div><div class="bar-label">Sel</div></div>
+              <div style="flex:1;"><div class="bar" style="height:50%; margin-bottom:4px;"></div><div class="bar" style="height:35%; background:var(--accent);"></div><div class="bar-label">Rab</div></div>
+              <div style="flex:1;"><div class="bar" style="height:90%; margin-bottom:4px;"></div><div class="bar" style="height:20%; background:var(--accent);"></div><div class="bar-label">Kam</div></div>
+              <div style="flex:1;"><div class="bar" style="height:70%; margin-bottom:4px;"></div><div class="bar" style="height:40%; background:var(--accent);"></div><div class="bar-label">Jum</div></div>
+              <div style="flex:1;"><div class="bar" style="height:100%; margin-bottom:4px;"></div><div class="bar" style="height:30%; background:var(--accent);"></div><div class="bar-label">Sab</div></div>
+              <div style="flex:1;"><div class="bar" style="height:85%; margin-bottom:4px; background:var(--accent-dark);"></div><div class="bar" style="height:22%; background:var(--accent);"></div><div class="bar-label">Min</div></div>
+            </div>
+          </div>
+
+          <!-- Top kategori -->
+          <div class="card card-pad">
+            <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Top Kategori Pendapatan</div>
+            <h3 class="font-display" style="font-size:24px; margin-bottom:18px;">Bulan Ini</h3>
+            <div style="display:flex; flex-direction:column; gap:14px;">
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-weight:600; font-size:14px;">Jasa</span><span class="font-mono" style="font-weight:700;">Rp 18,4jt</span></div>
+                <div style="background:var(--surface-alt); height:6px; border-radius:3px; overflow:hidden;"><div style="background:var(--text); height:100%; width:100%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-weight:600; font-size:14px;">Sparepart</span><span class="font-mono" style="font-weight:700;">Rp 12,1jt</span></div>
+                <div style="background:var(--surface-alt); height:6px; border-radius:3px; overflow:hidden;"><div style="background:var(--text); height:100%; width:66%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-weight:600; font-size:14px;">Dyno</span><span class="font-mono" style="font-weight:700;">Rp 7,5jt</span></div>
+                <div style="background:var(--surface-alt); height:6px; border-radius:3px; overflow:hidden;"><div style="background:var(--accent); height:100%; width:41%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-weight:600; font-size:14px;">Bubut Dalam</span><span class="font-mono" style="font-weight:700;">Rp 5,2jt</span></div>
+                <div style="background:var(--surface-alt); height:6px; border-radius:3px; overflow:hidden;"><div style="background:var(--text); height:100%; width:28%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-weight:600; font-size:14px;">Oli</span><span class="font-mono" style="font-weight:700;">Rp 3,8jt</span></div>
+                <div style="background:var(--surface-alt); height:6px; border-radius:3px; overflow:hidden;"><div style="background:var(--text); height:100%; width:21%;"></div></div>
+              </div>
+              <div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;"><span style="font-weight:600; font-size:14px;">Bubut Luar</span><span class="font-mono" style="font-weight:700;">Rp 2,4jt</span></div>
+                <div style="background:var(--surface-alt); height:6px; border-radius:3px; overflow:hidden;"><div style="background:var(--text); height:100%; width:13%;"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent transactions -->
+        <div class="card" style="margin-top:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid var(--border);">
+            <div>
+              <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Aktivitas Terbaru</div>
+              <h3 class="font-display" style="font-size:22px; margin-top:2px;">5 Transaksi Terakhir</h3>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="showPage('transaksi-list')">Lihat Semua →</button>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>No Referensi</th>
+                <th>Tanggal</th>
+                <th>Customer / Supplier</th>
+                <th>Kategori</th>
+                <th>Bayar</th>
+                <th style="text-align:right;">Nominal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="font-mono" style="font-weight:600;">TRX-20260510-007</span></td><td>10 Mei, 14:32</td><td>Rio Pratama</td><td><span class="badge badge-income">Dyno</span> <span class="badge badge-income">Jasa</span></td><td><span class="badge badge-qris">QRIS</span></td><td style="text-align:right;" class="big-money">Rp 850.000</td></tr>
+              <tr><td><span class="font-mono" style="font-weight:600;">TRX-20260510-006</span></td><td>10 Mei, 13:10</td><td>Andi Wijaya</td><td><span class="badge badge-income">Jasa</span> <span class="badge badge-income">Sparepart</span></td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right;" class="big-money">Rp 450.000</td></tr>
+              <tr><td><span class="font-mono" style="font-weight:600;">EXP-20260510-002</span></td><td>10 Mei, 11:45</td><td>Toko Oli Sejahtera</td><td><span class="badge badge-expense">Beli Stok Oli</span></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right;" class="big-money" style="color:var(--accent);">Rp 1.200.000</td></tr>
+              <tr><td><span class="font-mono" style="font-weight:600;">TRX-20260510-005</span></td><td>10 Mei, 10:20</td><td>Pak Hendro</td><td><span class="badge badge-income">Bubut Luar</span></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right;" class="big-money">Rp 650.000</td></tr>
+              <tr><td><span class="font-mono" style="font-weight:600;">TRX-20260510-004</span></td><td>10 Mei, 09:15</td><td>Ferdian Maulana</td><td><span class="badge badge-income">Oli</span> <span class="badge badge-income">Jasa</span></td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right;" class="big-money">Rp 280.000</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== INPUT TRANSAKSI =========== -->
+    <div id="page-transaksi-baru" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Transaksi</div>
+          <div style="font-weight:700; font-size:15px;">Input Transaksi Baru</div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-ghost" onclick="showPage('transaksi-list')">Batal</button>
+          <button class="btn btn-secondary" onclick="showToast('Tersimpan! Form siap input transaksi berikutnya.')">Simpan &amp; Input Lagi</button>
+          <button class="btn btn-accent" onclick="showToast('Transaksi tersimpan.'); setTimeout(() => showPage('transaksi-list'), 800);">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+            Simpan Transaksi
+          </button>
+        </div>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">INPUT TRANSAKSI</h1>
+          <p class="page-subtitle">Mulai dari nomor referensi nota — semua field lain menyesuaikan</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 320px; gap:24px;">
+          <div>
+            <!-- STEP 1: NO REFERENSI -->
+            <div class="card card-pad" style="margin-bottom:16px;">
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                <div style="width:28px; height:28px; background:var(--text); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">1</div>
+                <h3 class="font-display" style="font-size:20px;">NOMOR REFERENSI NOTA</h3>
+              </div>
+              <input class="input input-hero" placeholder="TRX-20260510-008" id="ref-input">
+              <div class="field-help" style="display:flex; gap:14px; margin-top:8px;">
+                <span style="display:inline-flex; align-items:center; gap:4px; color:var(--success);">✓ Belum pernah diinput</span>
+                <span>Salin dari nota fisik atau aplikasi kasir frontline</span>
+              </div>
+            </div>
+
+            <!-- STEP 2: HEADER -->
+            <div class="card card-pad" style="margin-bottom:16px;">
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+                <div style="width:28px; height:28px; background:var(--text); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">2</div>
+                <h3 class="font-display" style="font-size:20px;">INFORMASI TRANSAKSI</h3>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+                <div>
+                  <label class="field-label">Tipe Transaksi</label>
+                  <div class="type-toggle">
+                    <button class="active income" onclick="setType(this, 'income')">▲ Pemasukan</button>
+                    <button onclick="setType(this, 'expense')">▼ Pengeluaran</button>
+                  </div>
+                </div>
+                <div>
+                  <label class="field-label">Tanggal</label>
+                  <input type="text" class="input input-mono" value="10 Mei 2026">
+                </div>
+              </div>
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div>
+                  <label class="field-label" id="party-label">Customer</label>
+                  <input class="input" placeholder="Cari atau ketik nama customer..." value="Andi Wijaya" list="customer-list">
+                  <datalist id="customer-list">
+                    <option value="Andi Wijaya"><option value="Pak Hendro"><option value="Rio Pratama"><option value="Ferdian Maulana"><option value="CV Maju Jaya">
+                  </datalist>
+                  <div class="field-help">Pelanggan baru? Ketik nama dan tekan Enter — auto tambah ke master.</div>
+                </div>
+                <div>
+                  <label class="field-label">Metode Pembayaran</label>
+                  <div style="display:flex; gap:8px;">
+                    <button class="filter-pill active" onclick="togglePill(this, '.pay-pill')" style="flex:1;">💵 Cash</button>
+                    <button class="filter-pill pay-pill" onclick="togglePill(this, '.pay-pill')" style="flex:1;">🏦 Transfer</button>
+                    <button class="filter-pill pay-pill" onclick="togglePill(this, '.pay-pill')" style="flex:1;">📱 QRIS</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 3: LINE ITEMS -->
+            <div class="card card-pad" style="margin-bottom:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <div style="width:28px; height:28px; background:var(--text); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;">3</div>
+                  <h3 class="font-display" style="font-size:20px;">RINCIAN ITEM</h3>
+                </div>
+                <span style="font-size:12px; color:var(--text-muted);">2 item · klik tambah untuk multi-line</span>
+              </div>
+
+              <!-- LINE 1: Jasa -->
+              <div class="line-card line-jasa">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <span class="badge badge-income">JASA</span>
+                  <button class="btn btn-ghost btn-sm" onclick="this.closest('.line-card').remove()">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+                  </button>
+                </div>
+                <div style="display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:12px;">
+                  <div>
+                    <label class="field-label">Kategori</label>
+                    <select class="input">
+                      <option>Jasa</option><option>Oli</option><option>Sparepart</option><option>Dyno</option><option>Bubut Dalam</option><option>Bubut Luar</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="field-label">Nominal</label>
+                    <input class="input input-numpad" value="200.000">
+                  </div>
+                  <div>
+                    <label class="field-label">Biaya Material</label>
+                    <input class="input input-numpad" value="50.000">
+                    <div class="field-help">Dipotong dari basis komisi</div>
+                  </div>
+                </div>
+                <div style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border-strong);">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <label class="field-label" style="margin:0;">Mekanik</label>
+                    <span style="font-size:11px; color:var(--text-muted);">Total share: <span style="font-weight:700; color:var(--text);">100%</span></span>
+                  </div>
+                  <div style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+                    <div class="mech-chip">
+                      <div class="avatar" style="width:22px; height:22px; font-size:10px;">B</div>
+                      <span>Budi Santoso</span>
+                      <input class="share-input" value="100">
+                      <span style="color:var(--text-muted); font-size:11px;">%</span>
+                      <button onclick="this.closest('.mech-chip').remove()" style="color:var(--text-muted); padding:0 4px; font-size:14px; line-height:1;">×</button>
+                    </div>
+                    <button class="btn btn-secondary btn-sm">+ Tambah Mekanik</button>
+                  </div>
+                  <div class="field-help" style="margin-top:10px; padding:8px 10px; background:var(--accent-tint); border-radius:6px; color:var(--accent-dark);">
+                    <strong>Komisi Budi:</strong> (200.000 − 50.000) × 100% × 30% = <span class="font-mono" style="font-weight:700;">Rp 45.000</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- LINE 2: Sparepart -->
+              <div class="line-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                  <span class="badge badge-income">SPAREPART</span>
+                  <button class="btn btn-ghost btn-sm" onclick="this.closest('.line-card').remove()">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>
+                  </button>
+                </div>
+                <div style="display:grid; grid-template-columns:1.5fr 1fr 1fr; gap:12px;">
+                  <div>
+                    <label class="field-label">Kategori</label>
+                    <select class="input"><option>Sparepart</option><option>Jasa</option><option>Oli</option></select>
+                  </div>
+                  <div>
+                    <label class="field-label">Nominal</label>
+                    <input class="input input-numpad" value="80.000">
+                  </div>
+                  <div>
+                    <label class="field-label">Catatan (opsional)</label>
+                    <input class="input" value="Filter oli AHM" placeholder="Detail item">
+                  </div>
+                </div>
+              </div>
+
+              <!-- ADD LINE -->
+              <button class="btn btn-secondary" style="width:100%; padding:14px; margin-top:8px; border-style:dashed;" onclick="showToast('Line item baru ditambahkan.')">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                Tambah Item / Jasa Baru
+              </button>
+            </div>
+
+            <!-- NOTES -->
+            <div class="card card-pad">
+              <label class="field-label">Catatan Internal (opsional)</label>
+              <textarea class="input" rows="2" placeholder="Tambahan catatan untuk owner/internal..."></textarea>
+            </div>
+          </div>
+
+          <!-- TOTAL PANEL -->
+          <div>
+            <div class="total-panel">
+              <div class="label">Total Transaksi</div>
+              <div class="amount">Rp 280<span style="font-size:24px;">.000</span></div>
+              <div style="height:1px; background:rgba(255,255,255,0.15); margin:18px 0;"></div>
+              <div style="display:flex; flex-direction:column; gap:8px; font-size:13px;">
+                <div style="display:flex; justify-content:space-between;"><span style="opacity:0.7;">Jasa Pasang</span><span class="font-mono">200.000</span></div>
+                <div style="display:flex; justify-content:space-between;"><span style="opacity:0.7;">Sparepart</span><span class="font-mono">80.000</span></div>
+              </div>
+              <div style="height:1px; background:rgba(255,255,255,0.15); margin:18px 0;"></div>
+              <div style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
+                <div style="display:flex; justify-content:space-between; opacity:0.7;"><span>Pemasukan tunai</span><span class="font-mono">Rp 280.000</span></div>
+                <div style="display:flex; justify-content:space-between; color:var(--accent);"><span>Komisi mekanik</span><span class="font-mono">Rp 45.000</span></div>
+              </div>
+            </div>
+
+            <div class="card card-pad" style="margin-top:14px;">
+              <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px;">💡 Tips Cepat</div>
+              <div style="font-size:12px; color:var(--text-secondary); line-height:1.6;">
+                Tekan <kbd style="padding:2px 6px; background:var(--surface-alt); border:1px solid var(--border); border-radius:3px; font-family:monospace; font-size:11px;">Tab</kbd> untuk pindah field. <kbd style="padding:2px 6px; background:var(--surface-alt); border:1px solid var(--border); border-radius:3px; font-family:monospace; font-size:11px;">Ctrl+Enter</kbd> untuk simpan cepat.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== LIST TRANSAKSI =========== -->
+    <div id="page-transaksi-list" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Transaksi</div>
+          <div style="font-weight:700; font-size:15px;">Daftar Transaksi</div>
+        </div>
+        <button class="btn btn-accent" onclick="showPage('transaksi-baru')">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          Transaksi Baru
+        </button>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">DAFTAR TRANSAKSI</h1>
+          <p class="page-subtitle">Semua transaksi tercatat — filter, cari, edit dengan audit log</p>
+        </div>
+
+        <!-- Filters -->
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+          <div class="search-box">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px; color:var(--text-muted);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input placeholder="Cari nomor referensi atau nama...">
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="filter-pill active">Semua</button>
+            <button class="filter-pill">Pemasukan</button>
+            <button class="filter-pill">Pengeluaran</button>
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="filter-pill active">Hari Ini</button>
+            <button class="filter-pill">Minggu Ini</button>
+            <button class="filter-pill">Bulan Ini</button>
+            <button class="filter-pill">Custom</button>
+          </div>
+          <div style="margin-left:auto; display:flex; gap:6px;">
+            <button class="btn btn-ghost btn-sm">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Summary strip -->
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:20px;">
+          <div class="card card-pad" style="padding:14px 18px;">
+            <div style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Transaksi Hari Ini</div>
+            <div class="font-display" style="font-size:24px; margin-top:4px;">12</div>
+          </div>
+          <div class="card card-pad" style="padding:14px 18px;">
+            <div style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--success);">Pemasukan</div>
+            <div class="font-display" style="font-size:24px; margin-top:4px; color:var(--success);">Rp 3,8jt</div>
+          </div>
+          <div class="card card-pad" style="padding:14px 18px;">
+            <div style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent);">Pengeluaran</div>
+            <div class="font-display" style="font-size:24px; margin-top:4px; color:var(--accent);">Rp 1,2jt</div>
+          </div>
+          <div class="card card-pad" style="padding:14px 18px;">
+            <div style="font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Net</div>
+            <div class="font-display" style="font-size:24px; margin-top:4px;">Rp 2,6jt</div>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card" style="overflow:hidden;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>No Referensi</th>
+                <th>Tgl &amp; Jam</th>
+                <th>Customer / Supplier</th>
+                <th>Kategori</th>
+                <th>Bayar</th>
+                <th style="text-align:right;">Nominal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="trx-tbody">
+              <tr class="flow-row income"><td><span class="font-mono" style="font-weight:600;">TRX-20260510-007</span></td><td>10 Mei · 14:32</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">R</div>Rio Pratama</div></td><td><span class="badge badge-income">Dyno</span> <span class="badge badge-income">Jasa</span></td><td><span class="badge badge-qris">QRIS</span></td><td style="text-align:right;" class="big-money">Rp 850.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+              <tr class="flow-row income"><td><span class="font-mono" style="font-weight:600;">TRX-20260510-006</span></td><td>10 Mei · 13:10</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">A</div>Andi Wijaya</div></td><td><span class="badge badge-income">Jasa</span> <span class="badge badge-income">Sparepart</span></td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right;" class="big-money">Rp 450.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+              <tr class="flow-row expense"><td><span class="font-mono" style="font-weight:600;">EXP-20260510-002</span></td><td>10 Mei · 11:45</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar" style="background:var(--text-muted)">T</div>Toko Oli Sejahtera</div></td><td><span class="badge badge-expense">Beli Stok Oli</span></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right; color:var(--accent);" class="big-money">− Rp 1.200.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+              <tr class="flow-row income"><td><span class="font-mono" style="font-weight:600;">TRX-20260510-005</span></td><td>10 Mei · 10:20</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">H</div>Pak Hendro</div></td><td><span class="badge badge-income">Bubut Luar</span></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right;" class="big-money">Rp 650.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+              <tr class="flow-row income"><td><span class="font-mono" style="font-weight:600;">TRX-20260510-004</span></td><td>10 Mei · 09:15</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">F</div>Ferdian Maulana</div></td><td><span class="badge badge-income">Oli</span> <span class="badge badge-income">Jasa</span></td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right;" class="big-money">Rp 280.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+              <tr class="flow-row income"><td><span class="font-mono" style="font-weight:600;">TRX-20260510-003</span></td><td>10 Mei · 08:42</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">CM</div>CV Maju Jaya</div></td><td><span class="badge badge-income">Bubut Dalam</span></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right;" class="big-money">Rp 1.450.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+              <tr class="flow-row income"><td><span class="font-mono" style="font-weight:600;">TRX-20260510-002</span></td><td>10 Mei · 08:15</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">D</div>Dimas Aryo</div></td><td><span class="badge badge-income">Jasa</span></td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right;" class="big-money">Rp 150.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+              <tr class="flow-row expense"><td><span class="font-mono" style="font-weight:600;">EXP-20260510-001</span></td><td>10 Mei · 08:00</td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar" style="background:var(--text-muted)">B</div>Bubut Mandala Jaya</div></td><td><span class="badge badge-expense">Bayar Vendor Bubut</span></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right; color:var(--accent);" class="big-money">− Rp 400.000</td><td style="text-align:right;"><button class="btn btn-ghost btn-sm">→</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== LAPORAN CASH FLOW =========== -->
+    <div id="page-laporan-cashflow" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Laporan #2</div>
+          <div style="font-weight:700; font-size:15px;">Cash Flow</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Export CSV</button>
+          <button class="btn btn-secondary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>Cetak</button>
+        </div>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">LAPORAN CASH FLOW</h1>
+          <p class="page-subtitle">Aliran kas masuk &amp; keluar — kronologis dengan saldo berjalan</p>
+        </div>
+
+        <!-- Filters -->
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+          <div style="display:flex; gap:6px;">
+            <button class="filter-pill">7 Hari</button>
+            <button class="filter-pill active">30 Hari</button>
+            <button class="filter-pill">3 Bulan</button>
+            <button class="filter-pill">Custom</button>
+          </div>
+          <div style="display:flex; gap:6px; margin-left:auto;">
+            <button class="filter-pill active">Semua Bayar</button>
+            <button class="filter-pill">💵 Cash</button>
+            <button class="filter-pill">🏦 Transfer</button>
+            <button class="filter-pill">📱 QRIS</button>
+          </div>
+        </div>
+
+        <!-- Summary -->
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:24px;">
+          <div class="kpi"><div class="kpi-label" style="color:var(--success);">Total Pemasukan</div><div class="kpi-value" style="color:var(--success);">Rp 48,5jt</div><div class="kpi-change" style="color:var(--text-muted);">156 transaksi</div></div>
+          <div class="kpi"><div class="kpi-label" style="color:var(--accent);">Total Pengeluaran</div><div class="kpi-value" style="color:var(--accent);">Rp 16,8jt</div><div class="kpi-change" style="color:var(--text-muted);">42 transaksi</div></div>
+          <div class="kpi" style="background:var(--text); color:white; border-color:var(--text);"><div class="kpi-label" style="color:rgba(255,255,255,0.6);">Saldo Bersih</div><div class="kpi-value">Rp 31,7jt</div><div class="kpi-change" style="color:rgba(255,255,255,0.5);">▲ Net positif 30 hari</div></div>
+        </div>
+
+        <!-- Cash flow table with running balance -->
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="font-display" style="font-size:22px;">RIWAYAT TRANSAKSI</h3>
+            <span style="font-size:12px; color:var(--text-muted);">Kronologis · saldo terbaru di atas</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Tgl</th>
+                <th>No Ref</th>
+                <th>Customer / Supplier</th>
+                <th>Kategori</th>
+                <th>Bayar</th>
+                <th style="text-align:right;">Masuk</th>
+                <th style="text-align:right;">Keluar</th>
+                <th style="text-align:right;">Saldo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="flow-row income"><td>10 Mei</td><td><span class="font-mono">TRX-...007</span></td><td>Rio Pratama</td><td>Dyno + Jasa</td><td><span class="badge badge-qris">QRIS</span></td><td style="text-align:right; color:var(--success);" class="font-mono"><strong>+850.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right;" class="font-mono"><strong>31.720.000</strong></td></tr>
+              <tr class="flow-row income"><td>10 Mei</td><td><span class="font-mono">TRX-...006</span></td><td>Andi Wijaya</td><td>Jasa + Sparepart</td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right; color:var(--success);" class="font-mono"><strong>+450.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right;" class="font-mono"><strong>30.870.000</strong></td></tr>
+              <tr class="flow-row expense"><td>10 Mei</td><td><span class="font-mono">EXP-...002</span></td><td>Toko Oli Sejahtera</td><td>Beli Stok Oli</td><td><span class="badge badge-tf">TF</span></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right; color:var(--accent);" class="font-mono"><strong>−1.200.000</strong></td><td style="text-align:right;" class="font-mono"><strong>30.420.000</strong></td></tr>
+              <tr class="flow-row income"><td>10 Mei</td><td><span class="font-mono">TRX-...005</span></td><td>Pak Hendro</td><td>Bubut Luar</td><td><span class="badge badge-tf">TF</span></td><td style="text-align:right; color:var(--success);" class="font-mono"><strong>+650.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right;" class="font-mono"><strong>31.620.000</strong></td></tr>
+              <tr class="flow-row income"><td>10 Mei</td><td><span class="font-mono">TRX-...004</span></td><td>Ferdian Maulana</td><td>Oli + Jasa</td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right; color:var(--success);" class="font-mono"><strong>+280.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right;" class="font-mono"><strong>30.970.000</strong></td></tr>
+              <tr class="flow-row income"><td>10 Mei</td><td><span class="font-mono">TRX-...003</span></td><td>CV Maju Jaya</td><td>Bubut Dalam</td><td><span class="badge badge-tf">TF</span></td><td style="text-align:right; color:var(--success);" class="font-mono"><strong>+1.450.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right;" class="font-mono"><strong>30.690.000</strong></td></tr>
+              <tr class="flow-row expense"><td>10 Mei</td><td><span class="font-mono">EXP-...001</span></td><td>Bubut Mandala Jaya</td><td>Bayar Vendor Bubut</td><td><span class="badge badge-tf">TF</span></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right; color:var(--accent);" class="font-mono"><strong>−400.000</strong></td><td style="text-align:right;" class="font-mono"><strong>29.240.000</strong></td></tr>
+              <tr class="flow-row income"><td>9 Mei</td><td><span class="font-mono">TRX-...012</span></td><td>Bagas Saputra</td><td>Jasa</td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right; color:var(--success);" class="font-mono"><strong>+320.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">—</td><td style="text-align:right;" class="font-mono"><strong>29.640.000</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== LAPORAN PER KATEGORI =========== -->
+    <div id="page-laporan-kategori" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Laporan #1</div>
+          <div style="font-weight:700; font-size:15px;">Per Kategori</div>
+        </div>
+        <button class="btn btn-secondary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Export CSV</button>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">LAPORAN KATEGORI</h1>
+          <p class="page-subtitle">Total pendapatan &amp; pengeluaran per kategori — bulan Mei 2026</p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px;">
+          <div class="card">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <span class="badge badge-income">PEMASUKAN</span>
+                <h3 class="font-display" style="font-size:24px; margin-top:8px;">PENDAPATAN</h3>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em;">Total</div>
+                <div class="font-display" style="font-size:30px; color:var(--success);">Rp 49,4jt</div>
+              </div>
+            </div>
+            <table class="table">
+              <thead><tr><th>Kategori</th><th style="text-align:right;">Transaksi</th><th style="text-align:right;">Nominal</th><th style="text-align:right;">% Total</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Jasa</strong></td><td style="text-align:right;" class="font-mono">94</td><td style="text-align:right;" class="font-mono"><strong>18.400.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">37%</td></tr>
+                <tr><td><strong>Sparepart</strong></td><td style="text-align:right;" class="font-mono">68</td><td style="text-align:right;" class="font-mono"><strong>12.100.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">24%</td></tr>
+                <tr><td><strong>Dyno</strong></td><td style="text-align:right;" class="font-mono">15</td><td style="text-align:right;" class="font-mono"><strong>7.500.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">15%</td></tr>
+                <tr><td><strong>Bubut Dalam</strong></td><td style="text-align:right;" class="font-mono">22</td><td style="text-align:right;" class="font-mono"><strong>5.200.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">11%</td></tr>
+                <tr><td><strong>Oli</strong></td><td style="text-align:right;" class="font-mono">42</td><td style="text-align:right;" class="font-mono"><strong>3.800.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">8%</td></tr>
+                <tr><td><strong>Bubut Luar</strong></td><td style="text-align:right;" class="font-mono">8</td><td style="text-align:right;" class="font-mono"><strong>2.400.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">5%</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <span class="badge badge-expense">PENGELUARAN</span>
+                <h3 class="font-display" style="font-size:24px; margin-top:8px;">BIAYA</h3>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em;">Total</div>
+                <div class="font-display" style="font-size:30px; color:var(--accent);">Rp 17,4jt</div>
+              </div>
+            </div>
+            <table class="table">
+              <thead><tr><th>Kategori</th><th style="text-align:right;">Transaksi</th><th style="text-align:right;">Nominal</th><th style="text-align:right;">% Total</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Gaji Mekanik</strong></td><td style="text-align:right;" class="font-mono">4</td><td style="text-align:right;" class="font-mono"><strong>6.800.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">39%</td></tr>
+                <tr><td><strong>Beli Stok Sparepart</strong></td><td style="text-align:right;" class="font-mono">12</td><td style="text-align:right;" class="font-mono"><strong>4.200.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">24%</td></tr>
+                <tr><td><strong>Beli Stok Oli</strong></td><td style="text-align:right;" class="font-mono">6</td><td style="text-align:right;" class="font-mono"><strong>2.500.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">14%</td></tr>
+                <tr><td><strong>Bayar Vendor Bubut</strong></td><td style="text-align:right;" class="font-mono">8</td><td style="text-align:right;" class="font-mono"><strong>1.800.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">10%</td></tr>
+                <tr><td><strong>Sewa</strong></td><td style="text-align:right;" class="font-mono">1</td><td style="text-align:right;" class="font-mono"><strong>1.500.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">9%</td></tr>
+                <tr><td><strong>Listrik &amp; Air</strong></td><td style="text-align:right;" class="font-mono">2</td><td style="text-align:right;" class="font-mono"><strong>450.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">3%</td></tr>
+                <tr><td><strong>Lain-lain</strong></td><td style="text-align:right;" class="font-mono">9</td><td style="text-align:right;" class="font-mono"><strong>150.000</strong></td><td style="text-align:right; color:var(--text-muted);" class="font-mono">1%</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Net result -->
+        <div style="background:var(--text); color:white; border-radius:12px; padding:32px; margin-top:24px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:32px; align-items:center;">
+          <div><div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.5);">Pendapatan</div><div class="font-display" style="font-size:36px; color:var(--success); margin-top:4px;">Rp 49,4jt</div></div>
+          <div style="text-align:center; font-size:48px; color:rgba(255,255,255,0.3);">−</div>
+          <div style="text-align:right;"><div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.5);">Pengeluaran</div><div class="font-display" style="font-size:36px; color:var(--accent); margin-top:4px;">Rp 17,4jt</div></div>
+          <div style="grid-column:1 / -1; border-top:1px solid rgba(255,255,255,0.15); padding-top:20px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;">Laba Kotor Bulan Ini</span>
+            <span class="font-display" style="font-size:54px;">Rp 32<span style="font-size:32px; color:var(--accent);">jt</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== PERIODE KOMISI =========== -->
+    <div id="page-periode-komisi" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Komisi</div>
+          <div style="font-weight:700; font-size:15px;">Periode Mingguan</div>
+        </div>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">PERIODE KOMISI</h1>
+          <p class="page-subtitle">Tutup periode tiap minggu — generate slip bagi hasil per mekanik</p>
+        </div>
+
+        <!-- Active period highlight -->
+        <div class="card" style="border-color:var(--accent); border-width:2px; padding:28px; margin-bottom:24px; background:linear-gradient(135deg, var(--surface) 0%, var(--accent-tint) 200%);">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:24px;">
+            <div>
+              <div style="display:inline-flex; align-items:center; gap:8px; padding:4px 10px; background:var(--accent); color:white; border-radius:4px; font-size:10px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; margin-bottom:12px;">
+                <span style="width:6px; height:6px; background:white; border-radius:50%; animation:pulse 2s infinite;"></span>
+                Periode Aktif
+              </div>
+              <h2 class="font-display" style="font-size:32px;">MINGGU INI · 4–10 MEI 2026</h2>
+              <p style="color:var(--text-muted); margin-top:6px;">68 transaksi jasa · 4 mekanik aktif · belum ditutup</p>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Total Komisi Berjalan</div>
+              <div class="font-display" style="font-size:42px; color:var(--accent); margin-top:4px;">Rp 1.842.500</div>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+            <div style="background:var(--surface); padding:14px; border-radius:8px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;"><div class="avatar">B</div><div><div style="font-weight:700; font-size:13px;">Budi Santoso</div><div style="font-size:11px; color:var(--text-muted);">Senior</div></div></div>
+              <div class="font-mono" style="font-weight:700; font-size:18px;">Rp 612.500</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">22 jasa · basis Rp 2,4jt</div>
+            </div>
+            <div style="background:var(--surface); padding:14px; border-radius:8px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;"><div class="avatar">A</div><div><div style="font-weight:700; font-size:13px;">Ahmad Rizki</div><div style="font-size:11px; color:var(--text-muted);">Senior</div></div></div>
+              <div class="font-mono" style="font-weight:700; font-size:18px;">Rp 528.000</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">19 jasa · basis Rp 2,1jt</div>
+            </div>
+            <div style="background:var(--surface); padding:14px; border-radius:8px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;"><div class="avatar">J</div><div><div style="font-weight:700; font-size:13px;">Joko Prasetyo</div><div style="font-size:11px; color:var(--text-muted);">Junior</div></div></div>
+              <div class="font-mono" style="font-weight:700; font-size:18px;">Rp 412.000</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">15 jasa · basis Rp 1,8jt</div>
+            </div>
+            <div style="background:var(--surface); padding:14px; border-radius:8px;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;"><div class="avatar">D</div><div><div style="font-weight:700; font-size:13px;">Dedi Kurniawan</div><div style="font-size:11px; color:var(--text-muted);">Junior</div></div></div>
+              <div class="font-mono" style="font-weight:700; font-size:18px;">Rp 290.000</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">12 jasa · basis Rp 1,3jt</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn btn-secondary">Lihat Detail Transaksi</button>
+            <button class="btn btn-primary">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Tutup Periode &amp; Generate Slip
+            </button>
+          </div>
+        </div>
+
+        <!-- Past periods -->
+        <h3 class="font-display" style="font-size:22px; margin-bottom:14px;">PERIODE SEBELUMNYA</h3>
+        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:14px;">
+          <div class="period-card closed">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+              <div>
+                <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">27 Apr – 3 Mei</div>
+                <div class="font-display" style="font-size:18px; margin-top:2px;">MINGGU 18</div>
+              </div>
+              <span class="badge badge-closed">CLOSED</span>
+            </div>
+            <div style="font-family:'JetBrains Mono', monospace; font-weight:700; font-size:20px;">Rp 1.987.000</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">4 mekanik · semua paid ✓</div>
+          </div>
+          <div class="period-card closed">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+              <div>
+                <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">20 – 26 Apr</div>
+                <div class="font-display" style="font-size:18px; margin-top:2px;">MINGGU 17</div>
+              </div>
+              <span class="badge badge-closed">CLOSED</span>
+            </div>
+            <div style="font-family:'JetBrains Mono', monospace; font-weight:700; font-size:20px;">Rp 1.654.500</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">3 mekanik · 1 pending payout</div>
+          </div>
+          <div class="period-card closed">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+              <div>
+                <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">13 – 19 Apr</div>
+                <div class="font-display" style="font-size:18px; margin-top:2px;">MINGGU 16</div>
+              </div>
+              <span class="badge badge-closed">CLOSED</span>
+            </div>
+            <div style="font-family:'JetBrains Mono', monospace; font-weight:700; font-size:20px;">Rp 2.115.000</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">4 mekanik · semua paid ✓</div>
+          </div>
+        </div>
+
+        <!-- Slip preview -->
+        <h3 class="font-display" style="font-size:22px; margin-top:32px; margin-bottom:14px;">PREVIEW SLIP BAGI HASIL</h3>
+        <div class="slip">
+          <div class="slip-header">
+            <div>
+              <div class="nq-logo"><div class="nq-mark">N</div><div class="nq-text"><div class="name">NQ21</div><div class="tagline">Performance</div></div></div>
+              <div style="margin-top:14px; font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted);">Slip Bagi Hasil Mekanik</div>
+              <h2 class="font-display" style="font-size:28px; margin-top:4px;">BUDI SANTOSO</h2>
+              <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">Periode: 4 — 10 Mei 2026</div>
+            </div>
+            <div class="stamp">DRAFT</div>
+          </div>
+
+          <table class="table" style="margin-bottom:20px;">
+            <thead><tr><th>Tgl</th><th>No Ref</th><th>Customer</th><th>Kategori</th><th style="text-align:right;">Nominal</th><th style="text-align:right;">Material</th><th style="text-align:right;">Basis</th><th style="text-align:right;">Share</th><th style="text-align:right;">Komisi</th></tr></thead>
+            <tbody>
+              <tr><td>10 Mei</td><td class="font-mono">TRX-...006</td><td>Andi Wijaya</td><td>Jasa</td><td style="text-align:right;" class="font-mono">200.000</td><td style="text-align:right;" class="font-mono">50.000</td><td style="text-align:right;" class="font-mono">150.000</td><td style="text-align:right;" class="font-mono">100%</td><td style="text-align:right;" class="font-mono"><strong>45.000</strong></td></tr>
+              <tr><td>10 Mei</td><td class="font-mono">TRX-...007</td><td>Rio Pratama</td><td>Dyno</td><td style="text-align:right;" class="font-mono">500.000</td><td style="text-align:right;" class="font-mono">0</td><td style="text-align:right;" class="font-mono">500.000</td><td style="text-align:right;" class="font-mono">100%</td><td style="text-align:right;" class="font-mono"><strong>125.000</strong></td></tr>
+              <tr><td>9 Mei</td><td class="font-mono">TRX-...014</td><td>CV Maju Jaya</td><td>Bubut Dalam</td><td style="text-align:right;" class="font-mono">800.000</td><td style="text-align:right;" class="font-mono">0</td><td style="text-align:right;" class="font-mono">800.000</td><td style="text-align:right;" class="font-mono">60%</td><td style="text-align:right;" class="font-mono"><strong>192.000</strong></td></tr>
+              <tr><td>8 Mei</td><td class="font-mono">TRX-...009</td><td>Pak Hendro</td><td>Jasa</td><td style="text-align:right;" class="font-mono">450.000</td><td style="text-align:right;" class="font-mono">100.000</td><td style="text-align:right;" class="font-mono">350.000</td><td style="text-align:right;" class="font-mono">100%</td><td style="text-align:right;" class="font-mono"><strong>105.000</strong></td></tr>
+              <tr><td colspan="8" style="text-align:right; font-weight:700; padding:18px 16px; background:var(--surface-alt);">TOTAL KOMISI MINGGU INI</td><td style="text-align:right; padding:18px 16px; background:var(--surface-alt);" class="font-mono"><strong style="color:var(--accent); font-size:18px;">Rp 612.500</strong></td></tr>
+            </tbody>
+          </table>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; padding-top:16px; border-top:2px solid var(--text);">
+            <div style="font-size:12px; color:var(--text-muted);">Generated otomatis · audit log tersimpan</div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-secondary btn-sm">📄 Cetak / PDF</button>
+              <button class="btn btn-primary btn-sm">✓ Tandai Sudah Dibayar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== MEKANIK & RATE =========== -->
+    <div id="page-mekanik" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Master Data</div>
+          <div style="font-weight:700; font-size:15px;">Mekanik &amp; Rate Komisi</div>
+        </div>
+        <button class="btn btn-accent">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+          Tambah Mekanik
+        </button>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">MEKANIK</h1>
+          <p class="page-subtitle">Daftar mekanik aktif dan rate komisi per kategori — klik angka untuk edit</p>
+        </div>
+
+        <div class="card" style="overflow:hidden;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Mekanik</th>
+                <th style="text-align:center;">Jasa</th>
+                <th style="text-align:center;">Dyno</th>
+                <th style="text-align:center;">Bubut Dalam</th>
+                <th style="text-align:center;">Bubut Luar</th>
+                <th style="text-align:center;">Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div style="display:flex; align-items:center; gap:12px;"><div class="avatar avatar-lg">B</div><div><div style="font-weight:700;">Budi Santoso</div><div style="font-size:12px; color:var(--text-muted);">Senior · 4 thn</div></div></div></td>
+                <td style="text-align:center;" class="matrix-cell"><input value="30">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="25">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="40">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="20">%</td>
+                <td style="text-align:center;"><span class="badge badge-paid">AKTIF</span></td>
+                <td><button class="btn btn-ghost btn-sm">⋯</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex; align-items:center; gap:12px;"><div class="avatar avatar-lg" style="background:#2055A8">A</div><div><div style="font-weight:700;">Ahmad Rizki</div><div style="font-size:12px; color:var(--text-muted);">Senior · 3 thn</div></div></div></td>
+                <td style="text-align:center;" class="matrix-cell"><input value="25">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="20">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="35">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="18">%</td>
+                <td style="text-align:center;"><span class="badge badge-paid">AKTIF</span></td>
+                <td><button class="btn btn-ghost btn-sm">⋯</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex; align-items:center; gap:12px;"><div class="avatar avatar-lg" style="background:#7028C2">J</div><div><div style="font-weight:700;">Joko Prasetyo</div><div style="font-size:12px; color:var(--text-muted);">Junior · 1.5 thn</div></div></div></td>
+                <td style="text-align:center;" class="matrix-cell"><input value="22">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="18">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="30">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="15">%</td>
+                <td style="text-align:center;"><span class="badge badge-paid">AKTIF</span></td>
+                <td><button class="btn btn-ghost btn-sm">⋯</button></td>
+              </tr>
+              <tr>
+                <td><div style="display:flex; align-items:center; gap:12px;"><div class="avatar avatar-lg" style="background:#1E7A50">D</div><div><div style="font-weight:700;">Dedi Kurniawan</div><div style="font-size:12px; color:var(--text-muted);">Junior · 8 bln</div></div></div></td>
+                <td style="text-align:center;" class="matrix-cell"><input value="22">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="—" style="color:var(--text-muted)"></td>
+                <td style="text-align:center;" class="matrix-cell"><input value="30">%</td>
+                <td style="text-align:center;" class="matrix-cell"><input value="—" style="color:var(--text-muted)"></td>
+                <td style="text-align:center;"><span class="badge badge-paid">AKTIF</span></td>
+                <td><button class="btn btn-ghost btn-sm">⋯</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="card card-pad" style="margin-top:20px; background:var(--surface-alt); border-style:dashed;">
+          <div style="display:flex; gap:14px; align-items:center;">
+            <div style="font-size:24px;">💡</div>
+            <div>
+              <div style="font-weight:700; margin-bottom:4px;">Cara Rate Komisi Kerja</div>
+              <div style="font-size:13px; color:var(--text-secondary); line-height:1.6;">
+                Setiap mekanik punya % berbeda untuk tiap kategori. Komisi dihitung dari <strong>(nominal jasa − biaya material) × share% × rate%</strong>. Contoh: Budi pegang jasa Rp200rb dengan material Rp50rb → komisi (200rb − 50rb) × 100% × 30% = <strong>Rp45.000</strong>.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== LAPORAN JASA DETAIL =========== -->
+    <div id="page-laporan-jasa" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Laporan #3</div>
+          <div style="font-weight:700; font-size:15px;">Jasa &amp; Mekanik</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Export CSV</button>
+          <button class="btn btn-secondary">Cetak / PDF</button>
+        </div>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">LAPORAN JASA</h1>
+          <p class="page-subtitle">Rincian setiap jasa: customer, mekanik yang ngerjain, dan nominalnya</p>
+        </div>
+
+        <!-- Filters -->
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+          <div style="display:flex; gap:6px;">
+            <button class="filter-pill">Hari Ini</button>
+            <button class="filter-pill active">Minggu Ini</button>
+            <button class="filter-pill">Bulan Ini</button>
+            <button class="filter-pill">Custom</button>
+          </div>
+          <div style="display:flex; gap:6px; margin-left:auto;">
+            <button class="filter-pill active">Semua Mekanik</button>
+            <button class="filter-pill"><span class="avatar" style="width:18px; height:18px; font-size:9px; margin-right:4px;">B</span>Budi</button>
+            <button class="filter-pill"><span class="avatar" style="width:18px; height:18px; font-size:9px; background:#2055A8; margin-right:4px;">A</span>Ahmad</button>
+            <button class="filter-pill"><span class="avatar" style="width:18px; height:18px; font-size:9px; background:#7028C2; margin-right:4px;">J</span>Joko</button>
+            <button class="filter-pill"><span class="avatar" style="width:18px; height:18px; font-size:9px; background:#1E7A50; margin-right:4px;">D</span>Dedi</button>
+          </div>
+        </div>
+
+        <!-- Summary per mekanik -->
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:24px;">
+          <div class="kpi" style="border-left:4px solid var(--text);">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar avatar-lg">B</div><div><div style="font-weight:700; font-size:14px;">Budi Santoso</div><div style="font-size:11px; color:var(--text-muted);">22 jasa minggu ini</div></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Nominal</span><span class="font-mono" style="font-weight:600;">Rp 4.250.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Basis</span><span class="font-mono" style="font-weight:600;">Rp 2.450.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; padding-top:8px; margin-top:8px; border-top:1px dashed var(--border);"><span style="font-weight:700;">Komisi</span><span class="font-mono" style="font-weight:700; color:var(--accent);">Rp 612.500</span></div>
+          </div>
+          <div class="kpi" style="border-left:4px solid #2055A8;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar avatar-lg" style="background:#2055A8">A</div><div><div style="font-weight:700; font-size:14px;">Ahmad Rizki</div><div style="font-size:11px; color:var(--text-muted);">19 jasa minggu ini</div></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Nominal</span><span class="font-mono" style="font-weight:600;">Rp 3.620.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Basis</span><span class="font-mono" style="font-weight:600;">Rp 2.112.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; padding-top:8px; margin-top:8px; border-top:1px dashed var(--border);"><span style="font-weight:700;">Komisi</span><span class="font-mono" style="font-weight:700; color:var(--accent);">Rp 528.000</span></div>
+          </div>
+          <div class="kpi" style="border-left:4px solid #7028C2;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar avatar-lg" style="background:#7028C2">J</div><div><div style="font-weight:700; font-size:14px;">Joko Prasetyo</div><div style="font-size:11px; color:var(--text-muted);">15 jasa minggu ini</div></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Nominal</span><span class="font-mono" style="font-weight:600;">Rp 2.890.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Basis</span><span class="font-mono" style="font-weight:600;">Rp 1.873.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; padding-top:8px; margin-top:8px; border-top:1px dashed var(--border);"><span style="font-weight:700;">Komisi</span><span class="font-mono" style="font-weight:700; color:var(--accent);">Rp 412.000</span></div>
+          </div>
+          <div class="kpi" style="border-left:4px solid #1E7A50;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><div class="avatar avatar-lg" style="background:#1E7A50">D</div><div><div style="font-weight:700; font-size:14px;">Dedi Kurniawan</div><div style="font-size:11px; color:var(--text-muted);">12 jasa minggu ini</div></div></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Nominal</span><span class="font-mono" style="font-weight:600;">Rp 2.100.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px;"><span style="color:var(--text-muted);">Total Basis</span><span class="font-mono" style="font-weight:600;">Rp 1.318.000</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:13px; padding-top:8px; margin-top:8px; border-top:1px dashed var(--border);"><span style="font-weight:700;">Komisi</span><span class="font-mono" style="font-weight:700; color:var(--accent);">Rp 290.000</span></div>
+          </div>
+        </div>
+
+        <!-- Detail table -->
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="font-display" style="font-size:22px;">RINCIAN PER JASA</h3>
+            <span style="font-size:12px; color:var(--text-muted);">68 jasa · semua kategori jasa</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Tgl</th>
+                <th>No Ref</th>
+                <th>Customer</th>
+                <th>Kategori</th>
+                <th>Mekanik</th>
+                <th style="text-align:right;">Nominal</th>
+                <th style="text-align:right;">Material</th>
+                <th style="text-align:right;">Basis</th>
+                <th style="text-align:right;">Komisi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>10 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...007</span></td>
+                <td>Rio Pratama</td>
+                <td><span class="badge badge-income">Dyno</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px;">B</div><span style="font-size:13px;">Budi <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">500.000</td>
+                <td style="text-align:right; color:var(--text-muted);" class="font-mono">0</td>
+                <td style="text-align:right;" class="font-mono">500.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">125.000</strong></td>
+              </tr>
+              <tr>
+                <td>10 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...006</span></td>
+                <td>Andi Wijaya</td>
+                <td><span class="badge badge-income">Jasa</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px;">B</div><span style="font-size:13px;">Budi <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">200.000</td>
+                <td style="text-align:right;" class="font-mono">50.000</td>
+                <td style="text-align:right;" class="font-mono">150.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">45.000</strong></td>
+              </tr>
+              <tr>
+                <td>10 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...005</span></td>
+                <td>Pak Hendro</td>
+                <td><span class="badge badge-income">Bubut Luar</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px; background:#2055A8;">A</div><span style="font-size:13px;">Ahmad <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">650.000</td>
+                <td style="text-align:right;" class="font-mono">400.000</td>
+                <td style="text-align:right;" class="font-mono">250.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">45.000</strong></td>
+              </tr>
+              <tr>
+                <td>10 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...004</span></td>
+                <td>Ferdian Maulana</td>
+                <td><span class="badge badge-income">Jasa</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px; background:#7028C2;">J</div><span style="font-size:13px;">Joko <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">120.000</td>
+                <td style="text-align:right; color:var(--text-muted);" class="font-mono">0</td>
+                <td style="text-align:right;" class="font-mono">120.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">26.400</strong></td>
+              </tr>
+              <tr>
+                <td>10 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...003</span></td>
+                <td>CV Maju Jaya</td>
+                <td><span class="badge badge-income">Bubut Dalam</span></td>
+                <td>
+                  <div style="display:flex; flex-direction:column; gap:4px;">
+                    <div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px;">B</div><span style="font-size:13px;">Budi <span style="color:var(--text-muted); font-family:monospace;">60%</span></span></div>
+                    <div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px; background:#2055A8;">A</div><span style="font-size:13px;">Ahmad <span style="color:var(--text-muted); font-family:monospace;">40%</span></span></div>
+                  </div>
+                </td>
+                <td style="text-align:right;" class="font-mono">1.450.000</td>
+                <td style="text-align:right; color:var(--text-muted);" class="font-mono">0</td>
+                <td style="text-align:right;" class="font-mono">1.450.000</td>
+                <td style="text-align:right;" class="font-mono">
+                  <div style="font-size:11px; color:var(--text-muted);">B: 261rb · A: 145rb</div>
+                  <strong style="color:var(--accent);">406.000</strong>
+                </td>
+              </tr>
+              <tr>
+                <td>10 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...002</span></td>
+                <td>Dimas Aryo</td>
+                <td><span class="badge badge-income">Jasa</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px; background:#1E7A50;">D</div><span style="font-size:13px;">Dedi <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">150.000</td>
+                <td style="text-align:right; color:var(--text-muted);" class="font-mono">0</td>
+                <td style="text-align:right;" class="font-mono">150.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">33.000</strong></td>
+              </tr>
+              <tr>
+                <td>9 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...014</span></td>
+                <td>CV Maju Jaya</td>
+                <td><span class="badge badge-income">Bubut Dalam</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px;">B</div><span style="font-size:13px;">Budi <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">800.000</td>
+                <td style="text-align:right; color:var(--text-muted);" class="font-mono">0</td>
+                <td style="text-align:right;" class="font-mono">800.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">320.000</strong></td>
+              </tr>
+              <tr>
+                <td>9 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...012</span></td>
+                <td>Bagas Saputra</td>
+                <td><span class="badge badge-income">Jasa</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px; background:#2055A8;">A</div><span style="font-size:13px;">Ahmad <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">320.000</td>
+                <td style="text-align:right;" class="font-mono">80.000</td>
+                <td style="text-align:right;" class="font-mono">240.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">60.000</strong></td>
+              </tr>
+              <tr>
+                <td>8 Mei</td>
+                <td><span class="font-mono" style="font-weight:600;">TRX-...009</span></td>
+                <td>Pak Hendro</td>
+                <td><span class="badge badge-income">Jasa</span></td>
+                <td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:24px; height:24px; font-size:10px;">B</div><span style="font-size:13px;">Budi <span style="color:var(--text-muted); font-family:monospace;">100%</span></span></div></td>
+                <td style="text-align:right;" class="font-mono">450.000</td>
+                <td style="text-align:right;" class="font-mono">100.000</td>
+                <td style="text-align:right;" class="font-mono">350.000</td>
+                <td style="text-align:right;" class="font-mono"><strong style="color:var(--accent);">105.000</strong></td>
+              </tr>
+              <tr style="background:var(--text); color:white;">
+                <td colspan="5" style="text-align:right; font-weight:700; padding:18px 16px; color:white;">TOTAL MINGGU INI · 68 jasa</td>
+                <td style="text-align:right; padding:18px 16px;" class="font-mono">12.860.000</td>
+                <td style="text-align:right; padding:18px 16px;" class="font-mono">2.105.000</td>
+                <td style="text-align:right; padding:18px 16px;" class="font-mono">7.753.000</td>
+                <td style="text-align:right; padding:18px 16px;" class="font-mono"><strong style="font-size:16px; color:var(--accent);">1.842.500</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========== LAPORAN DYNO =========== -->
+    <div id="page-laporan-dyno" class="page hidden">
+      <div class="topbar">
+        <div>
+          <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-muted);">Laporan #4</div>
+          <div style="font-weight:700; font-size:15px;">Dyno</div>
+        </div>
+        <button class="btn btn-secondary"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Export CSV</button>
+      </div>
+
+      <div class="page-container">
+        <div class="page-header">
+          <div class="accent-bar"></div>
+          <h1 class="page-title">LAPORAN DYNO</h1>
+          <p class="page-subtitle">Khusus kategori Dyno — tanggal, customer, nominal</p>
+        </div>
+
+        <!-- Hero summary card -->
+        <div class="card" style="background:var(--text); color:white; border-color:var(--text); padding:32px; margin-bottom:24px; position:relative; overflow:hidden;">
+          <div style="position:absolute; top:0; right:0; bottom:0; width:280px; background-image:radial-gradient(circle at 100% 50%, rgba(200,16,46,0.35) 0%, transparent 60%); pointer-events:none;"></div>
+          <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:32px; position:relative;">
+            <div>
+              <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:8px;">Total Sesi Dyno</div>
+              <div class="font-display" style="font-size:54px; line-height:1;">15</div>
+              <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:4px;">bulan Mei 2026</div>
+            </div>
+            <div>
+              <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:8px;">Total Pendapatan</div>
+              <div class="font-display" style="font-size:54px; line-height:1; color:var(--accent);">Rp 7,5jt</div>
+              <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:4px;">15% dari total revenue</div>
+            </div>
+            <div>
+              <div style="font-size:11px; font-weight:700; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.5); margin-bottom:8px;">Rata-rata Per Sesi</div>
+              <div class="font-display" style="font-size:54px; line-height:1;">Rp 500<span style="font-size:24px;">rb</span></div>
+              <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:4px;">tarif standar dyno</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filters -->
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+          <div style="display:flex; gap:6px;">
+            <button class="filter-pill">7 Hari</button>
+            <button class="filter-pill active">Bulan Ini</button>
+            <button class="filter-pill">3 Bulan</button>
+            <button class="filter-pill">Tahun Ini</button>
+            <button class="filter-pill">Custom</button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:18px 24px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+            <h3 class="font-display" style="font-size:22px;">RIWAYAT SESI DYNO</h3>
+            <span style="font-size:12px; color:var(--text-muted);">15 sesi · Mei 2026</span>
+          </div>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>No Referensi</th>
+                <th>Customer</th>
+                <th>Mekanik</th>
+                <th>Bayar</th>
+                <th style="text-align:right;">Nominal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>10 Mei 2026 · 14:32</td><td><span class="font-mono" style="font-weight:600;">TRX-20260510-007</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">R</div>Rio Pratama</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px;">B</div>Budi Santoso</div></td><td><span class="badge badge-qris">QRIS</span></td><td style="text-align:right;" class="big-money"><strong>Rp 500.000</strong></td></tr>
+              <tr><td>9 Mei 2026 · 11:20</td><td><span class="font-mono" style="font-weight:600;">TRX-20260509-008</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">M</div>Mirza Hakim</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px;">B</div>Budi Santoso</div></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right;" class="big-money"><strong>Rp 500.000</strong></td></tr>
+              <tr><td>7 Mei 2026 · 15:45</td><td><span class="font-mono" style="font-weight:600;">TRX-20260507-011</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">F</div>Fahri Aldebaran</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px; background:#2055A8;">A</div>Ahmad Rizki</div></td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right;" class="big-money"><strong>Rp 500.000</strong></td></tr>
+              <tr><td>5 Mei 2026 · 10:15</td><td><span class="font-mono" style="font-weight:600;">TRX-20260505-004</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">G</div>Galang Pranata</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px;">B</div>Budi Santoso</div></td><td><span class="badge badge-qris">QRIS</span></td><td style="text-align:right;" class="big-money"><strong>Rp 600.000</strong></td></tr>
+              <tr><td>3 Mei 2026 · 13:30</td><td><span class="font-mono" style="font-weight:600;">TRX-20260503-009</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">D</div>Dimas Pratama</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px; background:#2055A8;">A</div>Ahmad Rizki</div></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right;" class="big-money"><strong>Rp 500.000</strong></td></tr>
+              <tr><td>2 Mei 2026 · 11:00</td><td><span class="font-mono" style="font-weight:600;">TRX-20260502-006</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">CM</div>CV Maju Jaya</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px;">B</div>Budi Santoso</div></td><td><span class="badge badge-tf">Transfer</span></td><td style="text-align:right;" class="big-money"><strong>Rp 500.000</strong></td></tr>
+              <tr><td>1 Mei 2026 · 09:45</td><td><span class="font-mono" style="font-weight:600;">TRX-20260501-003</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">A</div>Agung Setiawan</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px;">B</div>Budi Santoso</div></td><td><span class="badge badge-cash">Cash</span></td><td style="text-align:right;" class="big-money"><strong>Rp 450.000</strong></td></tr>
+              <tr><td>28 Apr 2026 · 14:00</td><td><span class="font-mono" style="font-weight:600;">TRX-20260428-007</span></td><td><div style="display:flex; align-items:center; gap:8px;"><div class="avatar">B</div>Bagas Saputra</div></td><td><div style="display:flex; align-items:center; gap:6px;"><div class="avatar" style="width:22px; height:22px; font-size:10px; background:#2055A8;">A</div>Ahmad Rizki</div></td><td><span class="badge badge-qris">QRIS</span></td><td style="text-align:right;" class="big-money"><strong>Rp 500.000</strong></td></tr>
+              <tr style="background:var(--text); color:white;">
+                <td colspan="5" style="text-align:right; font-weight:700; padding:18px 16px; color:white;">TOTAL DYNO BULAN MEI · 15 sesi</td>
+                <td style="text-align:right; padding:18px 16px;" class="font-mono"><strong style="font-size:18px; color:var(--accent);">Rp 7.500.000</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Mini insight -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:20px;">
+          <div class="card card-pad">
+            <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:14px;">Top Operator Dyno Bulan Ini</div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="avatar avatar-lg">B</div>
+                <div style="flex:1;"><div style="font-weight:700; font-size:14px;">Budi Santoso</div><div style="font-size:11px; color:var(--text-muted);">10 sesi · 67%</div></div>
+                <div class="font-mono" style="font-weight:700;">Rp 5.050.000</div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="avatar avatar-lg" style="background:#2055A8;">A</div>
+                <div style="flex:1;"><div style="font-weight:700; font-size:14px;">Ahmad Rizki</div><div style="font-size:11px; color:var(--text-muted);">5 sesi · 33%</div></div>
+                <div class="font-mono" style="font-weight:700;">Rp 2.450.000</div>
+              </div>
+            </div>
+          </div>
+          <div class="card card-pad">
+            <div style="font-size:11px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:14px;">Sesi Dyno per Tanggal (Mei 2026)</div>
+            <div class="bar-chart" style="height:80px;">
+              <div style="flex:1;"><div class="bar" style="height:100%;"></div><div class="bar-label">1</div></div>
+              <div style="flex:1;"><div class="bar" style="height:100%;"></div><div class="bar-label">2</div></div>
+              <div style="flex:1;"><div class="bar" style="height:100%;"></div><div class="bar-label">3</div></div>
+              <div style="flex:1;"><div class="bar" style="height:0;"></div><div class="bar-label">4</div></div>
+              <div style="flex:1;"><div class="bar" style="height:100%; background:var(--accent);"></div><div class="bar-label">5</div></div>
+              <div style="flex:1;"><div class="bar" style="height:0;"></div><div class="bar-label">6</div></div>
+              <div style="flex:1;"><div class="bar" style="height:100%;"></div><div class="bar-label">7</div></div>
+              <div style="flex:1;"><div class="bar" style="height:0;"></div><div class="bar-label">8</div></div>
+              <div style="flex:1;"><div class="bar" style="height:100%;"></div><div class="bar-label">9</div></div>
+              <div style="flex:1;"><div class="bar" style="height:100%; background:var(--accent);"></div><div class="bar-label">10</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+  const navItems = document.querySelectorAll('.sidebar-link');
+
+  function showPage(pageId) {
+    // Show app shell or login
+    if (pageId === 'login') {
+      document.getElementById('page-login').classList.remove('hidden');
+      document.getElementById('app-shell').classList.add('hidden');
+      return;
+    }
+    document.getElementById('page-login').classList.add('hidden');
+    document.getElementById('app-shell').classList.remove('hidden');
+
+    // Hide all sub-pages
+    document.querySelectorAll('main .page').forEach(p => p.classList.add('hidden'));
+    const target = document.getElementById('page-' + pageId);
+    if (target) target.classList.remove('hidden');
+
+    // Update nav active
+    navItems.forEach(n => n.classList.toggle('active', n.dataset.nav === pageId));
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
+
+  function setType(btn, type) {
+    btn.parentNode.querySelectorAll('button').forEach(b => b.classList.remove('active', 'income', 'expense'));
+    btn.classList.add('active', type);
+    document.getElementById('party-label').textContent = type === 'income' ? 'Customer' : 'Supplier';
+  }
+
+  function togglePill(btn, selector) {
+    const group = btn.parentNode.querySelectorAll('button');
+    group.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function showToast(message) {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = 'toast success';
+    toast.innerHTML = `<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width:18px; height:18px; color:var(--success);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>${message}`;
+    container.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(8px)'; toast.style.transition = 'all 0.3s'; }, 2400);
+    setTimeout(() => toast.remove(), 2800);
+  }
+
+  // Start at login
+  showPage('login');
+</script>
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Color tokens — NQ21 Design System (LOCKED) */
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --surface-alt: #F5F3EE;
+    --surface-deep: #EFEBE0;
+    --border: #E5E1D8;
+    --border-strong: #C9C3B6;
+    --text: #0A0908;
+    --text-secondary: #4A4540;
+    --text-muted: #8B857A;
+    --accent: #C8102E;
+    --accent-dark: #A00D24;
+    --accent-tint: #FBE9EC;
+    --success: #1E7A50;
+    --success-tint: #E6F2EC;
+    --warning: #B86E00;
+    --warning-tint: #FBF1D9;
+
+    /* Font stacks (LOCKED) */
+    --display: 'Anton', 'Bebas Neue', sans-serif;
+    --body: 'Manrope', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+}
