@@ -35,13 +35,14 @@
 
 - [x] **M001-T1**: Project scaffold — React + Vite + TypeScript strict + Tailwind v3 + shadcn/ui init
 - [x] **M001-T2**: Design system base — utility classes, Button/Badge/Card/Input NQ21 tokens, test page
-- [ ] **M001-T3**: App shell — sidebar 240px persistent + topbar 64px sticky (role-aware nav)
-  > _Next up_
+- [x] **M001-T3**: App shell — sidebar 240px persistent + topbar 64px sticky + React Router 18 routes
+  > Sidebar: brand glyph, 5 nav sections (UTAMA/TRANSAKSI/LAPORAN/KOMISI/MASTER), active states, footer
+  > Topbar: crumb, search bar, period pill, bell, CTA button
+  > router.tsx: all 18 routes with placeholder pages
 - [ ] **M001-T4**: Component library dasar — Button, Input, Card, Badge, Table, Modal (match design system)
 - [ ] **M001-T5**: Login page (visual ref: `design/project/login.jsx`)
 - [ ] **M001-T6**: Dashboard skeleton — app shell + placeholder cards (visual ref: `design/project/dashboard.jsx`)
 - [ ] **M001-T7**: Zustand store setup — mock data structure mirror schema plan.md Section 2
-- [ ] **M001-T8**: React Router setup — routes untuk semua 18 halaman (placeholder pages untuk M002+)
 
 ### Blockers
 _(none)_
