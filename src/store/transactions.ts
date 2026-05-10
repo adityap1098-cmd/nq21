@@ -123,41 +123,26 @@ const SEED_LINES: TransactionLine[] = [
   { id: 'ln-710a', transactionId: 'tx-710', categoryId: 'cat-06', nominal: 1_875_000, biayaMaterial: 0 },
 ]
 
+// All jasa lines assigned to Doni (mech-1) at 100% — owner adds more mekanik via Master Mekanik
 const SEED_LINE_MECHANICS: TransactionLineMechanic[] = [
-  // ln-101a (Jasa 600k): Budi 100%
-  { id: 'lm-1', transactionLineId: 'ln-101a', mechanicId: 'mech-1', sharePercent: 100 },
-  // ln-102a (Jasa 450k): Ahmad 100%
-  { id: 'lm-2', transactionLineId: 'ln-102a', mechanicId: 'mech-2', sharePercent: 100 },
-  // ln-103a (Dyno 750k): Joko 100%
-  { id: 'lm-3', transactionLineId: 'ln-103a', mechanicId: 'mech-3', sharePercent: 100 },
-  // ln-201a (Jasa 1.32jt): Budi 60% + Ahmad 40%
-  { id: 'lm-4', transactionLineId: 'ln-201a', mechanicId: 'mech-1', sharePercent: 60 },
-  { id: 'lm-5', transactionLineId: 'ln-201a', mechanicId: 'mech-2', sharePercent: 40 },
-  // ln-301a (Jasa 980k): Joko 100%
-  { id: 'lm-6', transactionLineId: 'ln-301a', mechanicId: 'mech-3', sharePercent: 100 },
-  // ln-302a (Bubut Dalam 1jt): Dedi 100%
-  { id: 'lm-7', transactionLineId: 'ln-302a', mechanicId: 'mech-4', sharePercent: 100 },
-  // ln-401a (Jasa 2.15jt): Budi 50% + Joko 50%
-  { id: 'lm-8',  transactionLineId: 'ln-401a', mechanicId: 'mech-1', sharePercent: 50 },
-  { id: 'lm-9',  transactionLineId: 'ln-401a', mechanicId: 'mech-3', sharePercent: 50 },
-  // ln-402b (Jasa 800k): Ahmad 100%
-  { id: 'lm-10', transactionLineId: 'ln-402b', mechanicId: 'mech-2', sharePercent: 100 },
-  // ln-501a (Dyno 2.32jt): Budi 100%
-  { id: 'lm-11', transactionLineId: 'ln-501a', mechanicId: 'mech-1', sharePercent: 100 },
-  // ln-502a (Jasa 2jt): Joko 100%
-  { id: 'lm-12', transactionLineId: 'ln-502a', mechanicId: 'mech-3', sharePercent: 100 },
-  // ln-601a (Jasa 3.28jt): Budi 70% + Ahmad 30%
-  { id: 'lm-13', transactionLineId: 'ln-601a', mechanicId: 'mech-1', sharePercent: 70 },
-  { id: 'lm-14', transactionLineId: 'ln-601a', mechanicId: 'mech-2', sharePercent: 30 },
-  // ln-602a (Bubut Dalam 2jt): Dedi 100%
-  { id: 'lm-15', transactionLineId: 'ln-602a', mechanicId: 'mech-4', sharePercent: 100 },
-  // Today lines
-  { id: 'lm-16', transactionLineId: 'ln-701a', mechanicId: 'mech-1', sharePercent: 100 },
-  { id: 'lm-17', transactionLineId: 'ln-704a', mechanicId: 'mech-3', sharePercent: 100 },
-  { id: 'lm-18', transactionLineId: 'ln-704b', mechanicId: 'mech-3', sharePercent: 100 },
-  { id: 'lm-19', transactionLineId: 'ln-705a', mechanicId: 'mech-4', sharePercent: 100 },
-  { id: 'lm-20', transactionLineId: 'ln-706a', mechanicId: 'mech-2', sharePercent: 100 },
-  { id: 'lm-21', transactionLineId: 'ln-708a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-01', transactionLineId: 'ln-101a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-02', transactionLineId: 'ln-102a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-03', transactionLineId: 'ln-103a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-04', transactionLineId: 'ln-201a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-05', transactionLineId: 'ln-301a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-06', transactionLineId: 'ln-302a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-07', transactionLineId: 'ln-401a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-08', transactionLineId: 'ln-402b', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-09', transactionLineId: 'ln-501a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-10', transactionLineId: 'ln-502a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-11', transactionLineId: 'ln-601a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-12', transactionLineId: 'ln-602a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-13', transactionLineId: 'ln-701a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-14', transactionLineId: 'ln-704a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-15', transactionLineId: 'ln-704b', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-16', transactionLineId: 'ln-705a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-17', transactionLineId: 'ln-706a', mechanicId: 'mech-1', sharePercent: 100 },
+  { id: 'lm-18', transactionLineId: 'ln-708a', mechanicId: 'mech-1', sharePercent: 100 },
 ]
 
 // ── Store ─────────────────────────────────────────────────────────────────────

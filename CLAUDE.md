@@ -80,6 +80,12 @@ Yang `is_jasa = true` (ada komisi mekanik): Jasa, Dyno, Bubut Luar, Bubut Dalam.
 Gaji, Beli Stok Oli, Beli Stok Sparepart, Listrik & Air, Sewa, Bayar Vendor Bubut, Lain-lain.
 Yang **tidak butuh supplier_id**: Gaji, Listrik & Air, Sewa, Lain-lain.
 
+### No Referensi Format (LOCKED)
+- Income: `TRX-YYYYMMDD-NNN` (e.g. `TRX-20260510-001`)
+- Expense: `EXP-YYYYMMDD-NNN` (e.g. `EXP-20260510-001`)
+- Counter `NNN`: per-hari, 3 digit, reset setiap hari
+- Auto-linked expense (Bubut Luar): `<asli>-VENDOR` (e.g. `TRX-20260510-001-VENDOR`)
+
 ### Code Conventions
 - Files: `kebab-case.ts` / `kebab-case.tsx`
 - Components: `PascalCase`

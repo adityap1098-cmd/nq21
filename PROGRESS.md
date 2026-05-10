@@ -4,7 +4,7 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M001 — Design Foundation
+**Milestone aktif**: M002 — Master Data UI
 **Phase**: FE-only (M001-M005)
 **Last updated**: 2026-05-10
 
@@ -86,14 +86,31 @@ _(none)_
 Semua task M001 selesai. Dashboard render live dari Zustand stores.
 KPI verified: Pendapatan 28.79jt ✅ Pengeluaran 9.22jt ✅ Laba Kotor 19.57jt ✅ Komisi 2.19jt ✅
 
+**Commits**: T3 `248e8fc` · T6 `86b07fc` · T7 `4cbe77e` · closer (pending)
+**Tag**: vM001 (pending commit)
+
+**Key decisions locked (plan.md Section 13):**
+- `no_referensi` format: `TRX-YYYYMMDD-NNN` (income) / `EXP-YYYYMMDD-NNN` (expense), counter per-hari
+- Mekanik awal: **Doni** — 1 mekanik, rates: Jasa 30% · Dyno 25% · Bubut Luar 20% · Bubut Dalam 40%
+- Logo mark: SVG teks "NQ" 36×36px, corner radius 6px, bg `--accent`
+- Target resolusi: 1366×768 minimum, 1920×1080 optimal
+- Input device: mouse + keyboard, tablet touch sekunder
+- Kategori Gaji: no supplier_id, aman (internal expense)
+- Export PDF: gen client-side via browser print (`window.print()`), scope M005
+- Periode komisi: default Senin–Minggu (sudah terkonfirmasi)
+
+**Formula komisi (verified):**
+`basis = nominal − biayaMaterial; komisi = Math.round(basis × (share/100) × (rate/100))`
+Test case: 200k − 50k = 150k × 100% × 30% = **Rp 45.000 ✅**
+
 ---
 
 ## M002 — Master Data UI ⏳
 
-Tasks akan di-breakdown saat M001 selesai.
-
 **Halaman**: Master Customer, Supplier, Kategori, Mekanik & Rate, User/Akun
 **Visual ref**: `demo.html`
+
+Tasks akan di-breakdown saat siap mulai M002.
 
 ---
 

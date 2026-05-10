@@ -2,37 +2,17 @@ import { create } from 'zustand'
 import { persist, createJSONStorage, devtools } from 'zustand/middleware'
 import type { Mechanic, CommissionRate } from '../types'
 
+// Seed: 1 mekanik awal — owner tambah lainnya via Master Mekanik (plan.md Section 13 decision)
 export const SEED_MECHANICS: Mechanic[] = [
-  { id: 'mech-1', name: 'Budi Santoso',    isActive: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'mech-2', name: 'Ahmad Rizki',     isActive: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'mech-3', name: 'Joko Prasetyo',   isActive: true, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'mech-4', name: 'Dedi Kurniawan',  isActive: true, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'mech-1', name: 'Doni', isActive: true, createdAt: '2026-01-01T00:00:00Z' },
 ]
 
-// Rate matrix: mechanic × category (only isJasa categories)
-// cat-01=Jasa, cat-02=Dyno, cat-03=Bubut Luar, cat-04=Bubut Dalam
-// Rates tuned so komisi dalam 1 minggu aktif ≈ Rp 2.185.000 (matches dashboard T6 target)
+// Rate matrix — cat-01=Jasa, cat-02=Dyno, cat-03=Bubut Luar, cat-04=Bubut Dalam
 export const SEED_RATES: CommissionRate[] = [
-  // Budi
-  { id: 'rate-01', mechanicId: 'mech-1', categoryId: 'cat-01', ratePercent: 14 },
-  { id: 'rate-02', mechanicId: 'mech-1', categoryId: 'cat-02', ratePercent: 12 },
-  { id: 'rate-03', mechanicId: 'mech-1', categoryId: 'cat-03', ratePercent: 10 },
-  { id: 'rate-04', mechanicId: 'mech-1', categoryId: 'cat-04', ratePercent: 12 },
-  // Ahmad
-  { id: 'rate-05', mechanicId: 'mech-2', categoryId: 'cat-01', ratePercent: 11 },
-  { id: 'rate-06', mechanicId: 'mech-2', categoryId: 'cat-02', ratePercent: 9 },
-  { id: 'rate-07', mechanicId: 'mech-2', categoryId: 'cat-03', ratePercent: 8 },
-  { id: 'rate-08', mechanicId: 'mech-2', categoryId: 'cat-04', ratePercent: 10 },
-  // Joko
-  { id: 'rate-09', mechanicId: 'mech-3', categoryId: 'cat-01', ratePercent: 13 },
-  { id: 'rate-10', mechanicId: 'mech-3', categoryId: 'cat-02', ratePercent: 12 },
-  { id: 'rate-11', mechanicId: 'mech-3', categoryId: 'cat-03', ratePercent: 10 },
-  { id: 'rate-12', mechanicId: 'mech-3', categoryId: 'cat-04', ratePercent: 12 },
-  // Dedi
-  { id: 'rate-13', mechanicId: 'mech-4', categoryId: 'cat-01', ratePercent: 10 },
-  { id: 'rate-14', mechanicId: 'mech-4', categoryId: 'cat-02', ratePercent: 8 },
-  { id: 'rate-15', mechanicId: 'mech-4', categoryId: 'cat-03', ratePercent: 7 },
-  { id: 'rate-16', mechanicId: 'mech-4', categoryId: 'cat-04', ratePercent: 7 },
+  { id: 'rate-01', mechanicId: 'mech-1', categoryId: 'cat-01', ratePercent: 30 },
+  { id: 'rate-02', mechanicId: 'mech-1', categoryId: 'cat-02', ratePercent: 25 },
+  { id: 'rate-03', mechanicId: 'mech-1', categoryId: 'cat-03', ratePercent: 20 },
+  { id: 'rate-04', mechanicId: 'mech-1', categoryId: 'cat-04', ratePercent: 40 },
 ]
 
 interface MechanicState {

@@ -511,17 +511,22 @@ Total halaman unik yang akan dibangun: **~18 halaman** (atau ~12-14 routes kalau
 
 ---
 
-## 13. Open Questions
+## 13. Open Questions — RESOLVED (2026-05-10)
 
-- ✅ Format `no_referensi`: free string max 50 char, validate unique. *(Demo pakai `TRX-YYYYMMDD-NNN` / `EXP-YYYYMMDD-NNN` — bisa dipake jadi suggestion atau full free.)*
-- ✅ Periode komisi: Senin – Minggu (default).
-- ⏳ Username awal: berapa kasir + nama mekanik final? (resolve M002 seed data)
-- ⏳ Kategori Gaji: link ke mekanik master? Default free text dulu.
-- ⏳ Export PDF (slip bagi hasil): jsPDF (FE) atau Puppeteer (BE)? (resolve M005, default jsPDF dulu)
-- ⏳ Brand: logo NQ21 final atau pakai mark "N" dari demo? (resolve M001)
-- ⏳ PC kasir resolusi: 1366×768 atau 1920×1080? (impact responsive M001)
-- ⏳ Touchscreen atau keyboard+mouse? (impact tap target size)
+- ✅ **Format `no_referensi`**: `TRX-YYYYMMDD-NNN` (income) + `EXP-YYYYMMDD-NNN` (expense). Sortable ISO format. Display di UI pakai DateDisplay format Indonesian. Max 50 char, unique global. *Locked M001.*
+- ✅ **Periode komisi**: Senin – Minggu (default). *Locked pre-M001.*
+- ✅ **Mekanik awal**: 1 mekanik — "Doni". Owner tambah sisanya via Master Mekanik UI (M002). Seed 1 mekanik sudah cukup untuk demo flow. *Locked M001-closer.*
+- ✅ **Kategori Gaji**: tidak link ke mekanik master — free text notes. Gaji bukan komisi system. *Locked M001.*
+- ✅ **Export PDF (slip bagi hasil)**: jsPDF di FE. Defer ke M005. *Locked default.*
+- ✅ **Brand / Logo**: Mark "N" hitam 36×36px + strip merah accent 10×4px bottom-left. Tidak ada upload file logo. Final, tidak berubah. *Locked M001.*
+- ✅ **Resolusi target**: 1920×1080 minimum sweet spot, support down to 1440×900. Responsive breakpoints: 1180px (KPI 2-col), 1100px (single col). *Locked M001.*
+- ✅ **Input device**:
+  - Kasir: keyboard + mouse (PC desktop di bengkel) → form density tinggi, optimal kecepatan input
+  - Owner: touchscreen-aware (tablet/iPad untuk monitoring) → tap target min 44px di halaman owner-heavy (Dashboard, Laporan, Periode Komisi)
+  - *Locked M001.*
+- ⏳ **Kategori Gaji**: link ke mekanik master? → Default free text dulu, review M002.
+- ⏳ **Export PDF detail laporan**: jsPDF vs server-side? → Default jsPDF, resolve M005.
 
 ---
 
-**Status**: Plan v1.2 — FE-first, design locked dari `demo.html`, page inventory complete (18 halaman). Siap mulai M001.
+**Status**: Plan v1.3 — M001 complete (2026-05-10). All Section 13 decisions locked. Siap M002.

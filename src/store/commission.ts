@@ -9,16 +9,10 @@ const SEED_PERIODS: CommissionPeriod[] = [
 ]
 
 const SEED_PAYOUTS: CommissionPayout[] = [
-  // Period 2 payouts (closed, all paid)
-  { id: 'pay-1', periodId: 'period-2', mechanicId: 'mech-1', totalBasis: 3_200_000, totalKomisi: 800_000, status: 'paid', paidAt: '2026-05-04T10:00:00Z' },
-  { id: 'pay-2', periodId: 'period-2', mechanicId: 'mech-2', totalBasis: 2_600_000, totalKomisi: 580_000, status: 'paid', paidAt: '2026-05-04T10:00:00Z' },
-  { id: 'pay-3', periodId: 'period-2', mechanicId: 'mech-3', totalBasis: 2_900_000, totalKomisi: 740_000, status: 'paid', paidAt: '2026-05-04T10:00:00Z' },
-  { id: 'pay-4', periodId: 'period-2', mechanicId: 'mech-4', totalBasis: 1_800_000, totalKomisi: 360_000, status: 'paid', paidAt: '2026-05-04T10:00:00Z' },
-  // Period 3 payouts (closed, all paid)
-  { id: 'pay-5', periodId: 'period-3', mechanicId: 'mech-1', totalBasis: 3_500_000, totalKomisi: 875_000, status: 'paid', paidAt: '2026-04-27T09:00:00Z' },
-  { id: 'pay-6', periodId: 'period-3', mechanicId: 'mech-2', totalBasis: 2_800_000, totalKomisi: 630_000, status: 'paid', paidAt: '2026-04-27T09:00:00Z' },
-  { id: 'pay-7', periodId: 'period-3', mechanicId: 'mech-3', totalBasis: 3_100_000, totalKomisi: 790_000, status: 'paid', paidAt: '2026-04-27T09:00:00Z' },
-  { id: 'pay-8', periodId: 'period-3', mechanicId: 'mech-4', totalBasis: 1_900_000, totalKomisi: 380_000, status: 'paid', paidAt: '2026-04-27T09:00:00Z' },
+  // Period 2 payouts (closed, paid) — Doni only
+  { id: 'pay-1', periodId: 'period-2', mechanicId: 'mech-1', totalBasis: 8_500_000, totalKomisi: 1_980_000, status: 'paid', paidAt: '2026-05-04T10:00:00Z' },
+  // Period 3 payouts (closed, paid) — Doni only
+  { id: 'pay-2', periodId: 'period-3', mechanicId: 'mech-1', totalBasis: 9_100_000, totalKomisi: 2_340_000, status: 'paid', paidAt: '2026-04-27T09:00:00Z' },
 ]
 
 interface CommissionState {
