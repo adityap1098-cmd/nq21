@@ -8,6 +8,7 @@ import TestMasterCRUDPage from './pages/_test-master-crud'
 import MasterMekanikPage from './pages/master/MasterMekanikPage'
 import MasterCustomerPage from './pages/master/MasterCustomerPage'
 import MasterSupplierPage from './pages/master/MasterSupplierPage'
+import MasterKategoriPage from './pages/master/MasterKategoriPage'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -41,7 +42,7 @@ export const router = createBrowserRouter([
           { path: 'komisi/mekanik',                  element: ph('MEKANIK & KOMISI') },
           { path: 'master/customer',                 element: <MasterCustomerPage /> },
           { path: 'master/supplier',                 element: <MasterSupplierPage /> },
-          { path: 'master/kategori',                 element: ph('MASTER KATEGORI') },
+          { path: 'master/kategori',                 element: <MasterKategoriPage /> },
           { path: 'master/mekanik',                  element: <MasterMekanikPage /> },
           { path: 'master/user',                     element: ph('MASTER USER / AKUN') },
           { path: 'test',                            element: <TestPage /> },
