@@ -1,9 +1,6 @@
-"use client"
-
-import * as React from "react"
-import * as TabsPrimitive from "@radix-ui/react-tabs"
-
-import { cn } from "@/lib/utils"
+import * as React from 'react'
+import * as TabsPrimitive from '@radix-ui/react-tabs'
+import { cn } from '@/lib/utils'
 
 const Tabs = TabsPrimitive.Root
 
@@ -14,7 +11,7 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-md bg-oklch(0.97 0 0) p-1 text-oklch(0.556 0 0) dark:bg-oklch(0.269 0 0) dark:text-oklch(0.708 0 0)",
+      'inline-flex h-9 items-center justify-center rounded-btn bg-[var(--surface-alt)] p-1 text-[var(--text-muted)]',
       className
     )}
     {...props}
@@ -29,7 +26,7 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-oklch(1 0 0) transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oklch(0.708 0 0) focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-oklch(1 0 0) data-[state=active]:text-oklch(0.145 0 0) data-[state=active]:shadow-sm dark:ring-offset-oklch(0.145 0 0) dark:focus-visible:ring-oklch(0.556 0 0) dark:data-[state=active]:bg-oklch(0.145 0 0) dark:data-[state=active]:text-oklch(0.985 0 0)",
+      'inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--text)] disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-[var(--surface)] data-[state=active]:text-[var(--text)] data-[state=active]:shadow-sm',
       className
     )}
     {...props}
@@ -43,10 +40,7 @@ const TabsContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
     ref={ref}
-    className={cn(
-      "mt-2 ring-offset-oklch(1 0 0) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-oklch(0.708 0 0) focus-visible:ring-offset-2 dark:ring-offset-oklch(0.145 0 0) dark:focus-visible:ring-oklch(0.556 0 0)",
-      className
-    )}
+    className={cn('mt-2 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--text)]', className)}
     {...props}
   />
 ))
