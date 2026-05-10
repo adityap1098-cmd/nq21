@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Layout from './Layout'
 import TestPage from './test'
 import PlaceholderPage from './pages/PlaceholderPage'
+import Login from './pages/Login'
+import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
   <PlaceholderPage heading={heading} sub={sub} />
@@ -10,31 +12,36 @@ const ph = (heading: string, sub?: string) => (
 export const router = createBrowserRouter([
   {
     path: '/login',
-    element: ph('LOGIN', 'Halaman login akan dibangun di M001-T5.'),
+    element: <Login />,
   },
   {
-    element: <Layout />,
+    element: <ProtectedRoute />,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard',                element: ph('DASHBOARD OWNER') },
-      { path: 'transaksi',                element: ph('DAFTAR TRANSAKSI') },
-      { path: 'transaksi/baru',           element: ph('INPUT TRANSAKSI') },
-      { path: 'transaksi/:id',            element: ph('DETAIL TRANSAKSI') },
-      { path: 'transaksi/:id/edit',       element: ph('EDIT TRANSAKSI') },
-      { path: 'laporan/kategori',         element: ph('PER KATEGORI') },
-      { path: 'laporan/cash-flow',        element: ph('CASH FLOW') },
-      { path: 'laporan/jasa',             element: ph('JASA & MEKANIK') },
-      { path: 'laporan/dyno',             element: ph('DYNO') },
-      { path: 'komisi/periode',           element: ph('PERIODE MINGGUAN') },
-      { path: 'komisi/periode/:id',       element: ph('DETAIL PERIODE') },
-      { path: 'komisi/slip/:periodId/:mekanikId', element: ph('SLIP BAGI HASIL') },
-      { path: 'komisi/mekanik',           element: ph('MEKANIK & KOMISI') },
-      { path: 'master/customer',          element: ph('MASTER CUSTOMER') },
-      { path: 'master/supplier',          element: ph('MASTER SUPPLIER') },
-      { path: 'master/kategori',          element: ph('MASTER KATEGORI') },
-      { path: 'master/mekanik',           element: ph('MEKANIK & RATE KOMISI') },
-      { path: 'master/user',              element: ph('MASTER USER / AKUN') },
-      { path: 'test',                     element: <TestPage /> },
+      {
+        element: <Layout />,
+        children: [
+          { index: true, element: <Navigate to="/dashboard" replace /> },
+          { path: 'dashboard',                       element: ph('DASHBOARD OWNER') },
+          { path: 'transaksi',                       element: ph('DAFTAR TRANSAKSI') },
+          { path: 'transaksi/baru',                  element: ph('INPUT TRANSAKSI') },
+          { path: 'transaksi/:id',                   element: ph('DETAIL TRANSAKSI') },
+          { path: 'transaksi/:id/edit',              element: ph('EDIT TRANSAKSI') },
+          { path: 'laporan/kategori',                element: ph('PER KATEGORI') },
+          { path: 'laporan/cash-flow',               element: ph('CASH FLOW') },
+          { path: 'laporan/jasa',                    element: ph('JASA & MEKANIK') },
+          { path: 'laporan/dyno',                    element: ph('DYNO') },
+          { path: 'komisi/periode',                  element: ph('PERIODE MINGGUAN') },
+          { path: 'komisi/periode/:id',              element: ph('DETAIL PERIODE') },
+          { path: 'komisi/slip/:periodId/:mekanikId', element: ph('SLIP BAGI HASIL') },
+          { path: 'komisi/mekanik',                  element: ph('MEKANIK & KOMISI') },
+          { path: 'master/customer',                 element: ph('MASTER CUSTOMER') },
+          { path: 'master/supplier',                 element: ph('MASTER SUPPLIER') },
+          { path: 'master/kategori',                 element: ph('MASTER KATEGORI') },
+          { path: 'master/mekanik',                  element: ph('MEKANIK & RATE KOMISI') },
+          { path: 'master/user',                     element: ph('MASTER USER / AKUN') },
+          { path: 'test',                            element: <TestPage /> },
+        ],
+      },
     ],
   },
 ])

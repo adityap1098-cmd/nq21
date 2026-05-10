@@ -43,7 +43,7 @@
   > `src/components/nq21/`: PageHeader, KpiCard, Section, EmptyState, FormField, FilterPillGroup, PeriodSelector, CurrencyDisplay, DateDisplay, ConfirmDialog, AvatarStack
   > `src/hooks/use-toast.ts` + `src/components/ui/toaster.tsx` — module-level toast store, Toaster wired ke Layout
   > test.tsx updated — visual sanity check semua component di `/test`
-- [ ] **M001-T5**: Login page
+- [x] **M001-T5**: Login page
   > Visual ref: `design/project/NQ21 Performance.html` (seksi: Login)
   > Layout: split grid `1.05fr / 0.95fr`, min-height 100vh
   > Left panel: dark bg (`--text`), brand mark centered, tagline, version stamp

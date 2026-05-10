@@ -4,6 +4,7 @@ import {
   Wrench, Zap, Calendar, Users, User, Truck, Tag,
   UserCog, Settings, LogOut,
 } from 'lucide-react'
+import { useAuthStore } from '@/store/auth'
 
 interface NavItem {
   label: string
@@ -58,6 +59,7 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
 export default function Sidebar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const { user, logout } = useAuthStore()
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.to : pathname.startsWith(item.to)
@@ -263,7 +265,7 @@ export default function Sidebar() {
             flexShrink: 0,
           }}
         >
-          P
+          {user?.name?.[0]?.toUpperCase() ?? 'U'}
         </div>
         <div style={{ lineHeight: 1.2, minWidth: 0, flex: 1, overflow: 'hidden' }}>
           <div
@@ -276,7 +278,7 @@ export default function Sidebar() {
               whiteSpace: 'nowrap',
             }}
           >
-            Pak Nanang
+            {user?.name ?? '—'}
           </div>
           <div
             style={{
@@ -288,11 +290,11 @@ export default function Sidebar() {
               marginTop: 2,
             }}
           >
-            OWNER
+            {user?.role?.toUpperCase() ?? ''}
           </div>
         </div>
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => { logout(); navigate('/login') }}
           title="Keluar"
           style={{
             background: 'transparent',
