@@ -129,26 +129,26 @@ Test case: 200k − 50k = 150k × 100% × 30% = **Rp 45.000 ✅**
   > Komisi formula callout card (formula explanation + contoh Rp45.000)
   > Store: `useMechanicStore`
 
-- [ ] **M002-T3**: Master Customer
+- [x] **M002-T3**: Master Customer
   > Table: Nama, Tipe Motor (opsional, italic), Notes snippet, Tgl masuk
   > Add/Edit dialog: name (required), motorType (optional), notes (optional)
   > Search client-side by name
   > Store: `useCustomerStore`
 
-- [ ] **M002-T4**: Master Supplier
+- [x] **M002-T4**: Master Supplier
   > Table: Nama, Phone, badge VENDOR BUBUT (if isVendorBubut), Notes
   > Add/Edit dialog: name (required), phone (optional), isVendorBubut toggle, notes (optional)
   > Search by name
   > Store: `useSupplierStore`
 
-- [ ] **M002-T5**: Master Kategori
+- [x] **M002-T5**: Master Kategori
   > Table: Nama, Tipe badge (MASUK/KELUAR), Jasa indicator dot, Status AKTIF badge
   > Add dialog: name, type toggle (income/expense), isJasa checkbox (visible only if income)
   > Soft delete: isActive toggle via ⋯ menu
   > Guard: kategori default (seeded) tidak bisa dihapus (display-only lock)
   > Store: `useCategoryStore`
 
-- [ ] **M002-T6**: Master User/Akun
+- [x] **M002-T6**: Master User/Akun
   > Owner-only: if role !== 'owner' → EmptyState "Akses Terbatas"
   > Table: Nama, Username (mono), Role badge (OWNER/KASIR), Status AKTIF badge
   > Add dialog: name, username, role select, password (mock plaintext FE-only)

@@ -224,6 +224,9 @@ Saat input transaksi customer kategori "Bubut Luar":
 
 Catat keputusan teknis penting yang nggak obvious dari plan.md:
 
+- **Password plain di Zustand (M002)**: `AppUser.password` disimpan plain text di localStorage mock store — acceptable untuk FE-only prototype. Di M006 (BE), hash via bcrypt sebelum simpan ke DB. Jangan expose password field ke API response.
+- **Auth store User shape**: auth store hanya simpan `{ name, role }` — tidak ada `id` atau `username`. Match ke user store dilakukan via `name` (unique di seed). Di M006, auth session harus simpan `userId` untuk lookup yang proper.
+
 - (akan diisi seiring development)
 
 ---
