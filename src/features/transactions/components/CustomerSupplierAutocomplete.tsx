@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import { useCustomerStore } from '@/store/master/customers'
 import { useSupplierStore } from '@/store/master/suppliers'
 import { Badge } from '@/components/ui/badge'
-import { toast } from '@/hooks/use-toast'
+import { InlineCreateDialog } from './InlineCreateDialog'
 import type { Customer, Supplier } from '@/store/types'
 
 interface Props {
@@ -34,6 +34,8 @@ export function CustomerSupplierAutocomplete({
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [createInitialName, setCreateInitialName] = useState('')
 
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -109,16 +111,15 @@ export function CustomerSupplierAutocomplete({
   }
 
   function handleBuatBaru() {
-    const masterPath = type === 'customer' ? '/master/customer' : '/master/supplier'
-    const label = type === 'customer' ? 'Master Customer' : 'Master Supplier'
-    toast(`Tambah ${type === 'customer' ? 'customer' : 'supplier'} baru di ${label} dulu, ya.`, {
-      action: {
-        label: `Buka ${label}`,
-        onClick: () => window.open(masterPath, '_blank'),
-      },
-      duration: 6000,
-    })
+    setCreateInitialName(query.trim())
+    setCreateDialogOpen(true)
     setIsOpen(false)
+  }
+
+  function handleCreateSuccess(id: string) {
+    onChange(id)
+    setQuery('')
+    setCreateDialogOpen(false)
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -379,6 +380,15 @@ export function CustomerSupplierAutocomplete({
           )}
         </div>
       )}
+
+      {/* ── Inline Create Dialog ────────────────────────────────────────────── */}
+      <InlineCreateDialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+        type={type}
+        initialName={createInitialName}
+        onSuccess={handleCreateSuccess}
+      />
     </div>
   )
 }
