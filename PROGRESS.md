@@ -256,13 +256,16 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > `rateOverride` persisted to TransactionLineMechanic; `source` field added to AuditLog
   > Verified: 4 tx persisted in localStorage after hard reload incl. TRX-...-VENDOR dual-leg
 
-- [ ] **M003-T8**: Daftar Transaksi page
+- [x] **M003-T8**: Daftar Transaksi page
   > `src/app/pages/transaksi/DaftarTransaksiPage.tsx`
-  > Summary strip: 4 mini cards (tx count today, total pemasukan, total pengeluaran, net)
-  > Filter: search (noRef/customer name) + tipe pills (Semua/Pemasukan/Pengeluaran) + date range pills (Hari Ini/Minggu Ini/Bulan Ini)
-  > Table: noRef (mono), tgl, tipe badge, customer/supplier, total (mono), payment badge, → Detail link
-  > Client-side pagination (20/page)
-  > Route: /transaksi (swap dari PlaceholderPage)
+  > Summary strip: 3 KPI cards (pemasukan total, pengeluaran total, net) — live dari filtered result
+  > Filter: search (noRef/customer+supplier name) + tipe pills (Semua/Masuk/Keluar) + period pills (Hari Ini/Minggu Ini/Bulan Ini/Semua)
+  > Default period: Minggu Ini (Senin-based week via weekStartsOn: 1)
+  > Table: noRef (mono bold), tgl (DateDisplay), tipe badge, customer/supplier name, metode badge, total (CurrencyDisplay), DETAIL button
+  > Row hover effect + click-to-detail navigation
+  > Client-side pagination (20/page) with ellipsis for large sets
+  > Route: /transaksi (swapped from PlaceholderPage)
+  > Verified: search "bubut" → 2 results, KELUAR filter → 8 expense tx, Semua → 29 tx
 
 - [ ] **M003-T9**: Detail Transaksi page
   > `src/app/pages/transaksi/DetailTransaksiPage.tsx`
