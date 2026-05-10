@@ -10,10 +10,13 @@ import { useTransactionStore } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
 import { useCategoryStore } from '@/store/master/categories'
 import { useMechanicStore } from '@/store/master/mechanics'
+import { useCustomerStore } from '@/store/master/customers'
+import { useSupplierStore } from '@/store/master/suppliers'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { LineItemCard } from './LineItemCard'
-import { createEmptyLine, getBasisKomisi } from '../utils'
+import { TransactionSummary } from './TransactionSummary'
+import { createEmptyLine } from '../utils'
 import type { Line } from '../types'
 import type { TransactionType, PaymentMethod } from '@/store/types'
 
@@ -80,7 +83,9 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
   const { user } = useAuthStore()
   const { transactions } = useTransactionStore()
   const { categories } = useCategoryStore()
-  const { rates } = useMechanicStore()
+  const { mechanics, rates } = useMechanicStore()
+  const { customers } = useCustomerStore()
+  const { suppliers } = useSupplierStore()
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const form = useForm<HeaderForm>({
@@ -147,26 +152,59 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
     )
   }
 
-  // ── Total komisi from all jasa lines ────────────────────────────────────────
-  const totalKomisi = useMemo(() => {
-    return lines.reduce((sum, line) => {
-      const cat = categories.find((c) => c.id === line.categoryId)
-      if (!cat?.isJasa) return sum
-      const basis = getBasisKomisi(line)
-      return sum + line.mechanics.reduce((s, m) => {
-        const masterRate = rates.find(
-          (r) => r.mechanicId === m.mechanicId && r.categoryId === line.categoryId,
-        )?.ratePercent ?? 0
-        const effectiveRate = m.rateOverride !== undefined ? m.rateOverride : masterRate
-        return s + Math.round(basis * (m.sharePercent / 100) * (effectiveRate / 100))
-      }, 0)
-    }, 0)
-  }, [lines, categories, rates])
+  // ── Resolved party names ─────────────────────────────────────────────────────
+  const customerId = watch('customerId')
+  const supplierId = watch('supplierId')
 
-  const hasRateOverride = useMemo(
-    () => lines.some((l) => l.mechanics.some((m) => m.rateOverride !== undefined)),
-    [lines],
+  const customerName = useMemo(
+    () => customers.find((c) => c.id === customerId)?.name ?? null,
+    [customers, customerId],
   )
+  const supplierName = useMemo(
+    () => suppliers.find((s) => s.id === supplierId)?.name ?? null,
+    [suppliers, supplierId],
+  )
+
+  // ── Validation errors (T5 partial — full guards in T7) ────────────────────
+  const NO_SUPPLIER_CATS = new Set(['Gaji', 'Listrik & Air', 'Sewa', 'Lain-lain'])
+
+  const validationErrors = useMemo(() => {
+    const errors: string[] = []
+
+    if (!NO_REF_REGEX.test(noReferensi)) errors.push('Format no. referensi tidak valid')
+    if (noRefStatus === 'DUPLIKAT') errors.push('No. referensi sudah dipakai')
+
+    if (tipe === 'income' && !customerId) errors.push('Pilih customer')
+    if (tipe === 'expense' && !supplierId) {
+      const needsSupplier = lines.some((l) => {
+        const cat = categories.find((c) => c.id === l.categoryId)
+        return cat && !NO_SUPPLIER_CATS.has(cat.name)
+      })
+      if (needsSupplier) errors.push('Pilih supplier')
+    }
+
+    if (lines.length === 0) {
+      errors.push('Min 1 line item')
+    } else {
+      lines.forEach((line, i) => {
+        const lineLabel = `LINE ${String(i + 1).padStart(2, '0')}`
+        if (!line.categoryId) { errors.push(`${lineLabel}: pilih kategori`); return }
+        if (line.nominal <= 0) errors.push(`${lineLabel}: nominal harus > 0`)
+        const cat = categories.find((c) => c.id === line.categoryId)
+        if (cat?.isJasa) {
+          if (line.mechanics.length === 0) errors.push(`${lineLabel}: min 1 mekanik`)
+          else {
+            const totalShare = line.mechanics.reduce((s, m) => s + m.sharePercent, 0)
+            if (Math.abs(totalShare - 100) > 0.01)
+              errors.push(`${lineLabel}: share mekanik belum 100%`)
+          }
+        }
+      })
+    }
+
+    return errors
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [noReferensi, noRefStatus, tipe, customerId, supplierId, lines, categories])
 
   // ── Tipe toggle with confirm ─────────────────────────────────────────────────
 
@@ -451,100 +489,21 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
         </div>
       </div>
 
-      {/* ── Right: Sticky Summary (T5 full impl) ──────────────────────────── */}
-      <div style={{ position: 'sticky', top: 80 }}>
-        <div style={{
-          background: 'var(--text)',
-          borderRadius: 12,
-          padding: '20px 24px',
-          color: '#fff',
-        }}>
-          <div style={{
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-            opacity: 0.45, marginBottom: 16,
-          }}>
-            RINGKASAN
-          </div>
-
-          <div style={{
-            fontFamily: 'var(--mono)', fontSize: 12,
-            opacity: 0.6, marginBottom: 4,
-          }}>
-            {noReferensi || '—'}
-          </div>
-
-          <div style={{ fontSize: 12, opacity: 0.35, marginBottom: 28 }}>
-            {tgl
-              ? format(new Date(tgl + 'T00:00:00'), 'EEEE, d MMMM yyyy', { locale: localeId })
-              : '—'}
-          </div>
-
-          <div style={{
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            paddingTop: 16,
-          }}>
-            <div style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-              opacity: 0.45, marginBottom: 6,
-            }}>
-              TOTAL
-            </div>
-            <div style={{
-              fontFamily: 'Anton, sans-serif',
-              fontSize: 28, letterSpacing: '0.02em',
-            }}>
-              Rp {lines.reduce((sum, l) => sum + l.nominal, 0).toLocaleString('id-ID')}
-            </div>
-          </div>
-
-          {totalKomisi > 0 && (
-            <div style={{
-              marginTop: 12,
-              padding: '10px 14px',
-              background: 'var(--accent-tint)',
-              borderRadius: 8,
-            }}>
-              <div style={{
-                fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-                color: 'var(--accent)', marginBottom: 3,
-              }}>
-                KOMISI
-              </div>
-              <div style={{
-                fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16,
-                color: 'var(--accent)',
-              }}>
-                Rp {totalKomisi.toLocaleString('id-ID')}
-              </div>
-              {hasRateOverride && (
-                <div style={{
-                  marginTop: 6, fontSize: 10,
-                  color: 'var(--warning)', fontFamily: 'var(--mono)',
-                  letterSpacing: '0.06em',
-                }}>
-                  ⚠ Ada rate override
-                </div>
-              )}
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled
-            style={{
-              marginTop: 20,
-              width: '100%', height: 44, borderRadius: 10,
-              background: 'rgba(255,255,255,0.12)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              color: 'rgba(255,255,255,0.4)',
-              fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
-              cursor: 'not-allowed',
-            }}
-          >
-            SIMPAN
-          </button>
-        </div>
-      </div>
+      {/* ── Right: Sticky Summary ─────────────────────────────────────────── */}
+      <TransactionSummary
+        noReferensi={noReferensi}
+        tgl={tgl}
+        tipe={tipe}
+        customerName={customerName}
+        supplierName={supplierName}
+        paymentMethod={paymentMethod}
+        lines={lines}
+        categories={categories}
+        mechanics={mechanics}
+        rates={rates}
+        validationErrors={validationErrors}
+        onSubmit={() => { /* T7 */ }}
+      />
 
       {/* ── Tipe change confirm ──────────────────────────────────────────────── */}
       <ConfirmDialog

@@ -1,5 +1,5 @@
 import type { Line } from './types'
-import type { TransactionLine } from '@/store/types'
+import type { Category, CommissionRate, TransactionLine } from '@/store/types'
 
 export function createEmptyLine(): Line {
   return {
@@ -27,6 +27,40 @@ export function parseRupiahInput(str: string): number {
 
 export function hasLineData(line: Line): boolean {
   return line.categoryId !== null || line.nominal > 0
+}
+
+export interface KomisiResult {
+  total: number
+  perMechanic: Map<string, { amount: number; hasOverride: boolean }>
+}
+
+export function computeKomisi(
+  lines: Line[],
+  categories: Category[],
+  rates: CommissionRate[],
+): KomisiResult {
+  const perMechanic = new Map<string, { amount: number; hasOverride: boolean }>()
+  let total = 0
+  for (const line of lines) {
+    const cat = categories.find((c) => c.id === line.categoryId)
+    if (!cat?.isJasa) continue
+    const basis = Math.max(0, line.nominal - line.biayaMaterial)
+    for (const m of line.mechanics) {
+      if (!m.mechanicId) continue
+      const masterRate =
+        rates.find((r) => r.mechanicId === m.mechanicId && r.categoryId === line.categoryId)
+          ?.ratePercent ?? 0
+      const effectiveRate = m.rateOverride !== undefined ? m.rateOverride : masterRate
+      const amount = Math.round(basis * (m.sharePercent / 100) * (effectiveRate / 100))
+      total += amount
+      const prev = perMechanic.get(m.mechanicId) ?? { amount: 0, hasOverride: false }
+      perMechanic.set(m.mechanicId, {
+        amount: prev.amount + amount,
+        hasOverride: prev.hasOverride || m.rateOverride !== undefined,
+      })
+    }
+  }
+  return { total, perMechanic }
 }
 
 export function getUniqueJasaNames(
