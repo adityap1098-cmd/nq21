@@ -62,7 +62,7 @@
   > Recent Transactions panel: tabel 5 baris, badge MASUK/KELUAR
   > Periode Komisi panel: card per periode + mekanik mini grid
   > Semua pakai hardcoded mock data (Zustand store belum di-setup, pakai const lokal dulu)
-- [ ] **M001-T7**: Zustand store setup
+- [x] **M001-T7**: Zustand store setup + Dashboard integration
   > File: `src/store/` — 1 store per domain
   > `useTransactionStore` — mock transactions + lines + line_mechanics
   > `useMechanicStore` — mock mechanics + commission_rates
@@ -81,6 +81,10 @@ _(none)_
 - T4 praktis done — cuma tinggal ToastProvider wiring (minor, bisa inline di T5 atau T6)
 - T5 dan T6 independent, bisa dikerjain dalam urutan apapun
 - T7 sebaiknya setelah T6 supaya store bisa langsung dipakai replace mock di dashboard
+
+### M001 COMPLETE ✅ — 2026-05-10
+Semua task M001 selesai. Dashboard render live dari Zustand stores.
+KPI verified: Pendapatan 28.79jt ✅ Pengeluaran 9.22jt ✅ Laba Kotor 19.57jt ✅ Komisi 2.19jt ✅
 
 ---
 
