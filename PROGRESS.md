@@ -54,7 +54,7 @@
   > Form: React Hook Form + Zod (username required, password min 4)
   > Mock auth: hardcoded `{ owner: 'nanang', kasir: 'sari' }` → redirect `/dashboard`
   > Route `/login` sudah ada di router.tsx, tinggal implement komponen
-- [ ] **M001-T6**: Dashboard skeleton
+- [x] **M001-T6**: Dashboard skeleton
   > Visual ref: `design/project/NQ21 Performance.html` (seksi: Dashboard)
   > KPI block (4 cards): Pendapatan, Pengeluaran, Laba Kotor, Komisi Pending
   > Cash Flow chart (Recharts bar): in vs out, 7 hari, filter 7H/30H/90H

@@ -3,6 +3,7 @@ import Layout from './Layout'
 import TestPage from './test'
 import PlaceholderPage from './pages/PlaceholderPage'
 import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -21,7 +22,7 @@ export const router = createBrowserRouter([
         element: <Layout />,
         children: [
           { index: true, element: <Navigate to="/dashboard" replace /> },
-          { path: 'dashboard',                       element: ph('DASHBOARD OWNER') },
+          { path: 'dashboard',                       element: <Dashboard /> },
           { path: 'transaksi',                       element: ph('DAFTAR TRANSAKSI') },
           { path: 'transaksi/baru',                  element: ph('INPUT TRANSAKSI') },
           { path: 'transaksi/:id',                   element: ph('DETAIL TRANSAKSI') },
