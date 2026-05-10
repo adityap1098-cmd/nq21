@@ -9,25 +9,194 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  PageHeader, KpiCard, Section, EmptyState,
+  FormField, FilterPillGroup, PeriodSelector,
+  CurrencyDisplay, DateDisplay, ConfirmDialog, AvatarStack,
+} from '@/components/nq21'
+import { toast } from '@/hooks/use-toast'
+import { Wrench, Users, TrendingUp, AlertCircle } from 'lucide-react'
 
 export default function TestPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [period, setPeriod] = useState('week')
+  const [filter, setFilter] = useState('semua')
+
+  const MECHANICS = [
+    { name: 'Budi', initial: 'B' },
+    { name: 'Agus', initial: 'A' },
+    { name: 'Joko', initial: 'J' },
+    { name: 'Doni', initial: 'D' },
+    { name: 'Riko', initial: 'R' },
+  ]
 
   return (
-    <div className="p-8 bg-[var(--bg)] min-h-screen space-y-8 max-w-[1400px]">
+    <div className="p-8 bg-[var(--bg)] min-h-screen space-y-10 max-w-[1400px]">
 
-      {/* Page Header Pattern */}
-      <div className="flex items-stretch gap-3.5">
-        <div className="accent-bar" />
-        <div>
-          <h1 className="page-title">NQ21 PERFORMANCE</h1>
-          <p className="page-subtitle">Design system test — M001-T2.5</p>
-        </div>
-      </div>
+      {/* ── PageHeader ─────────────────────────────── */}
+      <PageHeader
+        title="NQ21 PERFORMANCE"
+        subtitle="Design system test — M001-T4"
+        action={<Button variant="accent">Transaksi Baru</Button>}
+      />
 
       <Separator />
 
-      {/* Buttons */}
+      {/* ── KPI Cards ──────────────────────────────── */}
+      <Section title="KPI Cards" subtitle="4-column grid">
+        <div className="grid grid-cols-4 gap-4">
+          <KpiCard
+            label="Pendapatan Minggu Ini"
+            value={<CurrencyDisplay value={28790000} size="lg" />}
+            change={{ value: '+12.4%', up: true, context: 'vs minggu lalu' }}
+            icon={<TrendingUp size={14} />}
+          />
+          <KpiCard
+            label="Pengeluaran"
+            value={<CurrencyDisplay value={9220000} size="lg" />}
+            change={{ value: '+3.1%', up: false, context: 'vs minggu lalu' }}
+            icon={<AlertCircle size={14} />}
+          />
+          <KpiCard
+            label="Laba Kotor"
+            value={<CurrencyDisplay value={19570000} size="lg" />}
+            change={{ value: '+18.2%', up: true, context: 'vs minggu lalu' }}
+            icon={<TrendingUp size={14} />}
+          />
+          <KpiCard
+            label="Komisi Pending"
+            value={<CurrencyDisplay value={2185000} size="lg" />}
+            change={{ value: '4 mekanik', up: true, context: 'periode aktif' }}
+            icon={<Wrench size={14} />}
+            accent
+          />
+        </div>
+      </Section>
+
+      {/* ── Filter Pills + Period Selector ─────────── */}
+      <Card>
+        <CardHeader><CardTitle><span className="field-label">Filter Pills + Period Selector</span></CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="field-label">FilterPillGroup:</span>
+            <FilterPillGroup
+              options={[
+                { label: 'Semua', value: 'semua' },
+                { label: 'Income', value: 'income' },
+                { label: 'Expense', value: 'expense' },
+              ]}
+              value={filter}
+              onChange={setFilter}
+            />
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="field-label">PeriodSelector:</span>
+            <PeriodSelector value={period} onChange={setPeriod} />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── FormField ──────────────────────────────── */}
+      <Card>
+        <CardHeader><CardTitle><span className="field-label">FormField Wrapper</span></CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-3 gap-4">
+          <FormField label="No. Referensi" htmlFor="noref" required>
+            <Input id="noref" placeholder="TRX-20260510-001" className="font-mono" />
+          </FormField>
+          <FormField label="Kategori" helper="Pilih dari master kategori">
+            <Select>
+              <SelectTrigger><SelectValue placeholder="Pilih..." /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="jasa">Jasa</SelectItem>
+                <SelectItem value="oli">Oli</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
+          <FormField label="Nominal" error="Nominal harus lebih dari 0" htmlFor="nominal">
+            <Input id="nominal" placeholder="0" className="font-mono" />
+          </FormField>
+        </CardContent>
+      </Card>
+
+      {/* ── Currency + Date Display ─────────────────── */}
+      <Card>
+        <CardHeader><CardTitle><span className="field-label">CurrencyDisplay + DateDisplay</span></CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-8 items-baseline flex-wrap">
+            <div><span className="field-label block mb-2">SM</span><CurrencyDisplay value={500000} size="sm" /></div>
+            <div><span className="field-label block mb-2">MD</span><CurrencyDisplay value={1750000} size="md" /></div>
+            <div><span className="field-label block mb-2">LG</span><CurrencyDisplay value={28790000} size="lg" /></div>
+          </div>
+          <Separator />
+          <div className="flex gap-8 items-center flex-wrap">
+            <div><span className="field-label block mb-2">Short</span><DateDisplay value="2026-05-10" format="short" /></div>
+            <div><span className="field-label block mb-2">Long</span><DateDisplay value="2026-05-10" format="long" /></div>
+            <div><span className="field-label block mb-2">Datetime</span><DateDisplay value="2026-05-10T08:30:00" format="datetime" /></div>
+            <div><span className="field-label block mb-2">Invalid</span><DateDisplay value="invalid" /></div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── AvatarStack ─────────────────────────────── */}
+      <Card>
+        <CardHeader><CardTitle><span className="field-label">AvatarStack</span></CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="field-label">Compact (max 4):</span>
+            <AvatarStack items={MECHANICS} max={4} />
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="field-label">With names:</span>
+            <AvatarStack items={MECHANICS.slice(0, 3)} showNames />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── EmptyState ──────────────────────────────── */}
+      <Card>
+        <CardHeader><CardTitle><span className="field-label">EmptyState</span></CardTitle></CardHeader>
+        <CardContent>
+          <EmptyState
+            icon={<Users size={32} />}
+            message="Belum ada transaksi untuk periode ini."
+            action={<Button variant="accent" size="sm">Input Transaksi</Button>}
+          />
+        </CardContent>
+      </Card>
+
+      {/* ── ConfirmDialog + Toast ───────────────────── */}
+      <Card>
+        <CardHeader><CardTitle><span className="field-label">ConfirmDialog + Toast</span></CardTitle></CardHeader>
+        <CardContent className="flex gap-3 flex-wrap">
+          <Button variant="outline" onClick={() => setConfirmOpen(true)}>
+            Buka Confirm (Destructive)
+          </Button>
+          <Button variant="default" onClick={() => toast('Transaksi disimpan', { variant: 'success', description: 'TRX-20260510-001 berhasil.' })}>
+            Toast Success
+          </Button>
+          <Button variant="ghost" onClick={() => toast('Gagal menyimpan', { variant: 'destructive', description: 'Periksa koneksi.' })}>
+            Toast Error
+          </Button>
+          <Button variant="ghost" onClick={() => toast('Catatan', { description: 'Perubahan belum disimpan.' })}>
+            Toast Default
+          </Button>
+        </CardContent>
+      </Card>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Hapus Transaksi"
+        message="Transaksi TRX-20260510-001 akan dihapus permanen. Aksi ini tidak bisa dibatalkan."
+        confirmLabel="Hapus"
+        variant="destructive"
+        onConfirm={() => toast('Transaksi dihapus', { variant: 'destructive' })}
+      />
+
+      <Separator />
+
+      {/* ── Existing shadcn components ──────────────── */}
       <Card>
         <CardHeader><CardTitle><span className="field-label">Button Variants</span></CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-3">
@@ -43,7 +212,6 @@ export default function TestPage() {
         </CardContent>
       </Card>
 
-      {/* Badges */}
       <Card>
         <CardHeader><CardTitle><span className="field-label">Badge Variants</span></CardTitle></CardHeader>
         <CardContent className="flex flex-wrap gap-2">
@@ -59,30 +227,6 @@ export default function TestPage() {
         </CardContent>
       </Card>
 
-      {/* Filter Pills + Avatar row */}
-      <Card>
-        <CardHeader><CardTitle><span className="field-label">Filter Pills + Avatar</span></CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <button className="filter-pill active">Semua</button>
-            <button className="filter-pill">Income</button>
-            <button className="filter-pill">Expense</button>
-            <button className="filter-pill">Minggu Ini</button>
-          </div>
-          <div className="flex items-center gap-3">
-            {['B', 'A', 'J', 'D'].map((initial) => (
-              <div key={initial} className="flex items-center gap-2">
-                <Avatar>
-                  <AvatarFallback>{initial}</AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium">Mekanik {initial}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs */}
       <Card>
         <CardHeader><CardTitle><span className="field-label">Tabs</span></CardTitle></CardHeader>
         <CardContent>
@@ -105,75 +249,6 @@ export default function TestPage() {
         </CardContent>
       </Card>
 
-      {/* Form elements */}
-      <Card>
-        <CardHeader><CardTitle><span className="field-label">Form Elements</span></CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="field-label" htmlFor="noref">No. Referensi</Label>
-            <Input id="noref" placeholder="TRX-20260510-001" className="font-mono" />
-          </div>
-          <div>
-            <Label className="field-label" htmlFor="kategori">Kategori</Label>
-            <Select>
-              <SelectTrigger id="kategori">
-                <SelectValue placeholder="Pilih kategori..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="jasa">Jasa</SelectItem>
-                <SelectItem value="oli">Oli</SelectItem>
-                <SelectItem value="dyno">Dyno</SelectItem>
-                <SelectItem value="sparepart">Sparepart</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Dialog */}
-      <Card>
-        <CardHeader><CardTitle><span className="field-label">Dialog</span></CardTitle></CardHeader>
-        <CardContent>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">Buka Dialog</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Konfirmasi Hapus</DialogTitle>
-                <DialogDescription>
-                  Transaksi ini akan dihapus permanen. Lanjutkan?
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setDialogOpen(false)}>Batal</Button>
-                <Button variant="accent" onClick={() => setDialogOpen(false)}>Hapus</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardContent>
-      </Card>
-
-      {/* KPI Cards */}
-      <div>
-        <span className="field-label block mb-3">KPI Cards</span>
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: 'Revenue Minggu Ini', value: 'Rp 12,4jt', sub: '↑ 8% vs minggu lalu', color: '' },
-            { label: 'Total Komisi', value: 'Rp 2,1jt', sub: '4 mekanik', color: 'text-[var(--accent)]' },
-            { label: 'Pengeluaran', value: 'Rp 4,8jt', sub: '7 transaksi', color: '' },
-            { label: 'Laba Kotor', value: 'Rp 7,6jt', sub: 'Estimasi', color: 'text-[var(--success)]' },
-          ].map((kpi) => (
-            <div key={kpi.label} className="kpi-card">
-              <div className="kpi-label mb-3">{kpi.label}</div>
-              <div className={`kpi-value ${kpi.color}`}>{kpi.value}</div>
-              <div className="text-xs text-[var(--text-muted)] mt-2">{kpi.sub}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Typography */}
       <Card>
         <CardHeader><CardTitle><span className="field-label">Typography</span></CardTitle></CardHeader>
         <CardContent className="space-y-3">

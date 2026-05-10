@@ -39,9 +39,10 @@
   > Sidebar: brand glyph, 5 nav sections (UTAMA/TRANSAKSI/LAPORAN/KOMISI/MASTER), active states, footer
   > Topbar: crumb, search bar, period pill, bell, CTA button
   > router.tsx: all 18 routes with placeholder pages
-- [x] **M001-T4**: Component library dasar — semua shadcn components sudah NQ21-tokenized di T2/T2.5
-  > Done: Button (7 variants), Badge (9 variants), Card, Input, Select, Table, Tabs, Dialog, Separator, Avatar, Toast, DropdownMenu
-  > Sisa: wire up ToastProvider di Layout + tambah `useToast` hook + Toaster outlet
+- [x] **M001-T4**: Component library dasar — 11 custom NQ21 components + toast system
+  > `src/components/nq21/`: PageHeader, KpiCard, Section, EmptyState, FormField, FilterPillGroup, PeriodSelector, CurrencyDisplay, DateDisplay, ConfirmDialog, AvatarStack
+  > `src/hooks/use-toast.ts` + `src/components/ui/toaster.tsx` — module-level toast store, Toaster wired ke Layout
+  > test.tsx updated — visual sanity check semua component di `/test`
 - [ ] **M001-T5**: Login page
   > Visual ref: `design/project/NQ21 Performance.html` (seksi: Login)
   > Layout: split grid `1.05fr / 0.95fr`, min-height 100vh
