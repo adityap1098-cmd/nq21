@@ -218,7 +218,7 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > hasBubutLuar flag → disable Bubut Luar option di line lain + "(sudah ada)" label
   > Summary panel total = sum(line.nominal) real-time
 
-- [ ] **M003-T4**: MechanicChipRow + share% logic
+- [x] **M003-T4**: MechanicChipRow + share% logic
   > `src/features/transactions/components/MechanicChipRow.tsx`
   > Mechanic chip: avatar button (click → cycle next available) + name + share% input + rate% display + komisi Rp (real-time)
   > Even share redistribution saat add mekanik baru

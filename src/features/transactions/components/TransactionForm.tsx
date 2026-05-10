@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,10 +9,11 @@ import { Input } from '@/components/ui/input'
 import { useTransactionStore } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
 import { useCategoryStore } from '@/store/master/categories'
+import { useMechanicStore } from '@/store/master/mechanics'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { LineItemCard } from './LineItemCard'
-import { createEmptyLine } from '../utils'
+import { createEmptyLine, getBasisKomisi } from '../utils'
 import type { Line } from '../types'
 import type { TransactionType, PaymentMethod } from '@/store/types'
 
@@ -79,6 +80,7 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
   const { user } = useAuthStore()
   const { transactions } = useTransactionStore()
   const { categories } = useCategoryStore()
+  const { rates } = useMechanicStore()
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const form = useForm<HeaderForm>({
@@ -144,6 +146,21 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
       prev.map((l) => (l.id === id ? { ...l, ...updates } : l)),
     )
   }
+
+  // ── Total komisi from all jasa lines ────────────────────────────────────────
+  const totalKomisi = useMemo(() => {
+    return lines.reduce((sum, line) => {
+      const cat = categories.find((c) => c.id === line.categoryId)
+      if (!cat?.isJasa) return sum
+      const basis = getBasisKomisi(line)
+      return sum + line.mechanics.reduce((s, m) => {
+        const rate = rates.find(
+          (r) => r.mechanicId === m.mechanicId && r.categoryId === line.categoryId,
+        )?.ratePercent ?? 0
+        return s + Math.round(basis * (m.sharePercent / 100) * (rate / 100))
+      }, 0)
+    }, 0)
+  }, [lines, categories, rates])
 
   // ── Tipe toggle with confirm ─────────────────────────────────────────────────
 
@@ -473,6 +490,28 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
               Rp {lines.reduce((sum, l) => sum + l.nominal, 0).toLocaleString('id-ID')}
             </div>
           </div>
+
+          {totalKomisi > 0 && (
+            <div style={{
+              marginTop: 12,
+              padding: '10px 14px',
+              background: 'var(--accent-tint)',
+              borderRadius: 8,
+            }}>
+              <div style={{
+                fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
+                color: 'var(--accent)', marginBottom: 3,
+              }}>
+                KOMISI
+              </div>
+              <div style={{
+                fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16,
+                color: 'var(--accent)',
+              }}>
+                Rp {totalKomisi.toLocaleString('id-ID')}
+              </div>
+            </div>
+          )}
 
           <button
             type="button"

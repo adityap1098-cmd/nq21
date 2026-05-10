@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useCategoryStore } from '@/store/master/categories'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
+import { MechanicChipRow } from './MechanicChipRow'
 import { getBasisKomisi, formatRupiahInput, parseRupiahInput, hasLineData } from '../utils'
 import type { Line } from '../types'
 import type { TransactionType } from '@/store/types'
@@ -289,19 +290,15 @@ export function LineItemCard({
         )}
       </div>
 
-      {/* ── Mechanics placeholder (T4) ──────────────────────────────────────── */}
+      {/* ── Mekanik chip row ─────────────────────────────────────────────────── */}
       {isJasa && (
-        <div style={{
-          marginTop: 2,
-          padding: '12px 14px',
-          background: 'var(--surface)',
-          border: '1px dashed var(--border)',
-          borderRadius: 8,
-          fontSize: 12, color: 'var(--text-muted)',
-          fontFamily: 'var(--mono)', letterSpacing: '0.06em',
-        }}>
-          MEKANIK — implementasi di T4
-        </div>
+        <MechanicChipRow
+          lineId={line.id}
+          mechanics={line.mechanics}
+          basis={basis}
+          categoryId={line.categoryId}
+          onChange={(mechs) => onChange({ mechanics: mechs })}
+        />
       )}
 
       {/* ── Bubut Luar vendor placeholder (T6) ──────────────────────────────── */}
