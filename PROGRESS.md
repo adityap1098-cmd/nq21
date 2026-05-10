@@ -108,9 +108,68 @@ Test case: 200k − 50k = 150k × 100% × 30% = **Rp 45.000 ✅**
 ## M002 — Master Data UI ⏳
 
 **Halaman**: Master Customer, Supplier, Kategori, Mekanik & Rate, User/Akun
-**Visual ref**: `demo.html`
+**Visual ref**: `demo.html` (Mekanik ✅ full page · Customer/Supplier/Kategori/User → derive dari general NQ21 table pattern)
+**DoD**: Semua 5 master CRUD jalan dengan mock data, persisten di Zustand, routes live (bukan PlaceholderPage)
 
-Tasks akan di-breakdown saat siap mulai M002.
+### Tasks
+
+- [ ] **M002-T1**: Generic `MasterCRUDPage` shell component
+  > `src/features/master/components/MasterCRUDPage.tsx`
+  > Props: title, subtitle, CTA label, columns config, data[], renderRow, AddForm, EditForm
+  > Shell: PageHeader + "Tambah" CTA button + search input (client filter) + NQ21 table + EmptyState
+  > `AddEditDialog` wrapper: Dialog + form slot, controlled open/close
+  > Foundation untuk T2-T6 supaya nggak duplikasi layout
+
+- [ ] **M002-T2**: Master Mekanik & Rate ⭐
+  > Visual ref: `demo.html` page-mekanik (full design tersedia)
+  > Table: Avatar initial + Nama + rate matrix 4 kolom (Jasa/Dyno/Bubut Luar/Bubut Dalam) + Status badge + ⋯ menu
+  > Rate matrix: setiap cell = `<input>` inline, blur → `upsertRate()` ke store
+  > "Tambah Mekanik" dialog: name field saja (rates mulai 0, diisi inline)
+  > Deactivate: softDelete → badge AKTIF/NONAKTIF toggle
+  > Komisi formula callout card (formula explanation + contoh Rp45.000)
+  > Store: `useMechanicStore`
+
+- [ ] **M002-T3**: Master Customer
+  > Table: Nama, Tipe Motor (opsional, italic), Notes snippet, Tgl masuk
+  > Add/Edit dialog: name (required), motorType (optional), notes (optional)
+  > Search client-side by name
+  > Store: `useCustomerStore`
+
+- [ ] **M002-T4**: Master Supplier
+  > Table: Nama, Phone, badge VENDOR BUBUT (if isVendorBubut), Notes
+  > Add/Edit dialog: name (required), phone (optional), isVendorBubut toggle, notes (optional)
+  > Search by name
+  > Store: `useSupplierStore`
+
+- [ ] **M002-T5**: Master Kategori
+  > Table: Nama, Tipe badge (MASUK/KELUAR), Jasa indicator dot, Status AKTIF badge
+  > Add dialog: name, type toggle (income/expense), isJasa checkbox (visible only if income)
+  > Soft delete: isActive toggle via ⋯ menu
+  > Guard: kategori default (seeded) tidak bisa dihapus (display-only lock)
+  > Store: `useCategoryStore`
+
+- [ ] **M002-T6**: Master User/Akun
+  > Owner-only: if role !== 'owner' → EmptyState "Akses Terbatas"
+  > Table: Nama, Username (mono), Role badge (OWNER/KASIR), Status AKTIF badge
+  > Add dialog: name, username, role select, password (mock plaintext FE-only)
+  > Edit: name + role only (no password edit UI M002)
+  > Store: `useUserStore`
+
+- [ ] **M002-T7**: Route wiring + DoD verify
+  > Update `router.tsx`: swap PlaceholderPage → actual components untuk 5 master routes
+  > Manual test: CRUD flow (add → edit → deactivate) tiap halaman
+  > Screenshot tiap halaman
+  > Commit + update PROGRESS.md
+
+### Blockers
+- **Bundle v2** (design/v2/): URL `api.anthropic.com/v1/design/h/uEsF1DGyXKvCuNAECenGCA` → 404 (requires auth).
+  Customer/Supplier/Kategori/User pages tidak ada visual ref eksplisit → derive dari demo.html general table + NQ21 component patterns. **Action needed: user share bundle v2 file atau konfirmasi derive-only OK.**
+
+### Notes
+- Stores untuk semua 5 entity sudah exist di `src/store/master/` (tinggal wire ke UI)
+- T1 harus selesai sebelum T2-T6 (dependency)
+- T2-T6 independent setelah T1 selesai — bisa dikerjain berurutan atau paralel
+- `motorType` di CustomerStore dan `isVendorBubut` di SupplierStore = FE extension, belum di plan.md Section 2 DB schema — flag untuk konfirmasi M006
 
 ---
 
