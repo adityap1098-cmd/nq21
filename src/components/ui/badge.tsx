@@ -16,6 +16,7 @@ const badgeVariants = cva(
         pending:  'bg-[var(--warning-tint)] text-[var(--warning)]',
         open:     'bg-[var(--surface-alt)] text-[var(--text-secondary)] border border-[var(--border)]',
         closed:   'bg-[var(--text)] text-white',
+        vendor:   'bg-[#FEF3C7] text-[#92400E] border border-[#FCD34D]',
         default:  'bg-[var(--surface-alt)] text-[var(--text-secondary)]',
       },
     },
@@ -25,7 +26,7 @@ const badgeVariants = cva(
   }
 )
 
-export type BadgeVariant = 'income' | 'expense' | 'cash' | 'tf' | 'qris' | 'paid' | 'pending' | 'open' | 'closed' | 'default'
+export type BadgeVariant = 'income' | 'expense' | 'cash' | 'tf' | 'qris' | 'paid' | 'pending' | 'open' | 'closed' | 'vendor' | 'default'
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLSpanElement>,

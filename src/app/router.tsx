@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard'
 import TestMasterCRUDPage from './pages/_test-master-crud'
 import MasterMekanikPage from './pages/master/MasterMekanikPage'
 import MasterCustomerPage from './pages/master/MasterCustomerPage'
+import MasterSupplierPage from './pages/master/MasterSupplierPage'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -39,7 +40,7 @@ export const router = createBrowserRouter([
           { path: 'komisi/slip/:periodId/:mekanikId', element: ph('SLIP BAGI HASIL') },
           { path: 'komisi/mekanik',                  element: ph('MEKANIK & KOMISI') },
           { path: 'master/customer',                 element: <MasterCustomerPage /> },
-          { path: 'master/supplier',                 element: ph('MASTER SUPPLIER') },
+          { path: 'master/supplier',                 element: <MasterSupplierPage /> },
           { path: 'master/kategori',                 element: ph('MASTER KATEGORI') },
           { path: 'master/mekanik',                  element: <MasterMekanikPage /> },
           { path: 'master/user',                     element: ph('MASTER USER / AKUN') },
