@@ -155,15 +155,14 @@ Test case: 200k − 50k = 150k × 100% × 30% = **Rp 45.000 ✅**
   > Edit: name + role only (no password edit UI M002)
   > Store: `useUserStore`
 
-- [ ] **M002-T7**: Route wiring + DoD verify
+- [x] **M002-T7**: Route wiring + DoD verify
   > Update `router.tsx`: swap PlaceholderPage → actual components untuk 5 master routes
   > Manual test: CRUD flow (add → edit → deactivate) tiap halaman
   > Screenshot tiap halaman
   > Commit + update PROGRESS.md
 
 ### Blockers
-- **Bundle v2** (design/v2/): URL `api.anthropic.com/v1/design/h/uEsF1DGyXKvCuNAECenGCA` → 404 (requires auth).
-  Customer/Supplier/Kategori/User pages tidak ada visual ref eksplisit → derive dari demo.html general table + NQ21 component patterns. **Action needed: user share bundle v2 file atau konfirmasi derive-only OK.**
+_(none — bundle v2 resolved via manual placement di design/v2/)_
 
 ### Notes
 - Stores untuk semua 5 entity sudah exist di `src/store/master/` (tinggal wire ke UI)
@@ -197,6 +196,41 @@ Tasks akan di-breakdown saat M004 selesai.
 
 ---
 
+### M002 COMPLETE ✅ — 2026-05-11
+
+**7 task selesai (T1-T7)**. 5 master pages live, semua CRUD berfungsi dengan mock data Zustand.
+
+**Pages live:**
+- `/master/customer` — 5 seed customers, search/filter/CRUD
+- `/master/supplier` — 4 seed suppliers, VENDOR BUBUT badge amber, filter pills
+- `/master/kategori` — dual-section income↑/expense↓, JASA badges, delete guard by txn count
+- `/master/mekanik` — Doni + rate matrix inline edit, default rates auto-seed
+- `/master/user` — owner-only guard (AccessDenied kasir), role badges, self-delete + last-owner guards
+
+**Components added (M002):**
+- `MasterCRUDPage<T>` — generic CRUD table shell, searchable + sortable
+- `AddEditDialog` — reusable dialog wrapper dengan form slot
+- `RateMatrixTable` — inline editable rate matrix dengan click-to-edit cells
+- `AccessDenied` — reusable access control card dengan lock icon
+
+**Patterns established:**
+- Soft delete lintas semua master (isActive=false, data historis aman)
+- Role-based access via AccessDenied component
+- Delete guards: self-delete block, last-owner block, has-transaction block
+- Username unique check pattern (RHF setError inline)
+- Default rate auto-seed saat add mekanik baru
+- Cross-store reactivity confirmed: new isJasa category → auto-column di rate matrix
+
+**Key decisions locked:**
+- Password plain text di Zustand mock (M002), migrate bcrypt M006
+- Auth store User shape: `{ name, role }` — match ke user store by name; M006 perlu `userId` in session
+
+**Commits M002**: 10 commits · 17 files changed · +2347/-29 lines
+**Tag**: vM002
+
+---
+
 ## Milestone History
 
-_(kosong — belum ada milestone yang selesai)_
+- **M001** ✅ 2026-05-10 — Design foundation, app shell, dashboard live
+- **M002** ✅ 2026-05-11 — Master Data UI, 5 pages CRUD live
