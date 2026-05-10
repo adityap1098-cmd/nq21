@@ -227,7 +227,7 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **Password plain di Zustand (M002)**: `AppUser.password` disimpan plain text di localStorage mock store — acceptable untuk FE-only prototype. Di M006 (BE), hash via bcrypt sebelum simpan ke DB. Jangan expose password field ke API response.
 - **Auth store User shape**: auth store hanya simpan `{ name, role }` — tidak ada `id` atau `username`. Match ke user store dilakukan via `name` (unique di seed). Di M006, auth session harus simpan `userId` untuk lookup yang proper.
 
-- (akan diisi seiring development)
+- **M003 Decision D (REVISED)**: Inline create customer/supplier ENABLED di M003 — bukan defer ke M006. `InlineCreateDialog` opens dari autocomplete "+ Buat baru" option. Friction kasir terlalu tinggi kalau harus navigate ke /master dan lose form context. New entity langsung auto-selected setelah create.
 
 ---
 

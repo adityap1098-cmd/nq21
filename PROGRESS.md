@@ -192,11 +192,19 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > Auto-generate noRef on mount: scan store → TRX-YYYYMMDD-NNN / EXP-YYYYMMDD-NNN
   > Re-generate saat tipe toggle
 
-- [ ] **M003-T2**: CustomerSupplierAutocomplete component
+- [x] **M003-T2**: CustomerSupplierAutocomplete component
   > `src/features/transactions/components/CustomerSupplierAutocomplete.tsx`
   > Type-aware: income → search customers, expense → search suppliers
   > Dropdown: avatar initial + name + motor (customer) / phone (supplier)
-  > "+ Buat baru" option di akhir dropdown → buka Master page (defer actual in-place create ke M006)
+  > "+ Buat baru" option → opens InlineCreateDialog (T2.5)
+
+- [x] **M003-T2.5**: Inline Create Customer/Supplier Dialog
+  > `src/features/transactions/components/InlineCreateDialog.tsx`
+  > CustomerSubForm: nama (autofocus, pre-filled), motorType, phone
+  > SupplierSubForm: nama (autofocus, pre-filled), phone, isVendorBubut toggle
+  > Duplicate check: case-insensitive name match → inline error + "Pilih [name]" hint
+  > On success: add to store, audit log (source=inline-from-transaksi), toast, onSuccess(id)
+  > Autocomplete auto-selects new entity after create
   > Keyboard-friendly: arrow keys + enter, blur dismiss
 
 - [ ] **M003-T3**: LineItemCard component + add/remove lines
