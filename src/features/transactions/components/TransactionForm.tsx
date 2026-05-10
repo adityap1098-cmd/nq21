@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -12,11 +13,15 @@ import { useCategoryStore } from '@/store/master/categories'
 import { useMechanicStore } from '@/store/master/mechanics'
 import { useCustomerStore } from '@/store/master/customers'
 import { useSupplierStore } from '@/store/master/suppliers'
+import { useAuditStore } from '@/store/audit'
+import { useCommissionStore } from '@/store/commission'
+import { useUserStore } from '@/store/master/users'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { LineItemCard } from './LineItemCard'
 import { TransactionSummary } from './TransactionSummary'
-import { createEmptyLine } from '../utils'
+import { createEmptyLine, validateTransactionFull } from '../utils'
+import { toast } from '@/hooks/use-toast'
 import type { Line } from '../types'
 import type { TransactionType, PaymentMethod } from '@/store/types'
 
@@ -80,13 +85,19 @@ interface TransactionFormProps {
 }
 
 export function TransactionForm({ mode = 'add', transactionId }: TransactionFormProps) {
+  const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { transactions } = useTransactionStore()
+  const { transactions, addTransactionFull } = useTransactionStore()
   const { categories } = useCategoryStore()
   const { mechanics, rates } = useMechanicStore()
   const { customers } = useCustomerStore()
   const { suppliers } = useSupplierStore()
+  const { log: auditLog } = useAuditStore()
+  const { periods } = useCommissionStore()
+  const { users } = useUserStore()
   const today = format(new Date(), 'yyyy-MM-dd')
+
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<HeaderForm>({
     resolver: zodResolver(headerSchema),
@@ -232,6 +243,130 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
   }
 
   const isOwner = user?.role === 'owner'
+
+  // ── Submit helpers ───────────────────────────────────────────────────────────
+
+  function getUserId(): string {
+    if (!user) return 'unknown'
+    return users.find((u) => u.name === user.name)?.id ?? 'unknown'
+  }
+
+  function resetForm() {
+    const freshTx = useTransactionStore.getState().transactions
+    const currentTipe = form.getValues('tipe')
+    const newDate = format(new Date(), 'yyyy-MM-dd')
+    form.reset({
+      noReferensi: generateNextNoReferensi(currentTipe, newDate, freshTx),
+      tgl: newDate,
+      tipe: currentTipe,
+      paymentMethod: 'cash',
+      notes: '',
+      customerId: undefined,
+      supplierId: undefined,
+    })
+    setLines([createEmptyLine()])
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  async function handleSubmitForm(submitMode: 'single' | 'continue') {
+    setIsSubmitting(true)
+    try {
+      const formData = form.getValues()
+
+      // Fresh store state for race-condition checks
+      const freshTx = useTransactionStore.getState().transactions
+      const freshCats = useCategoryStore.getState().categories
+      const freshMechanics = useMechanicStore.getState().mechanics
+      const freshSuppliers = useSupplierStore.getState().suppliers
+
+      const errors = validateTransactionFull(
+        { noReferensi: formData.noReferensi, tipe: formData.tipe, customerId: formData.customerId, supplierId: formData.supplierId },
+        lines,
+        { transactions: freshTx, categories: freshCats, mechanics: freshMechanics, suppliers: freshSuppliers, currentId: transactionId },
+      )
+
+      if (errors.length > 0) {
+        const msg = errors.slice(0, 2).map((e) => e.message).join(' · ')
+        toast('Validasi gagal', { description: msg, variant: 'destructive' })
+        setIsSubmitting(false)
+        return
+      }
+
+      // Resolve "Bayar Vendor Bubut" category
+      const hasBubutLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.name === 'Bubut Luar')
+      const bayarVendorCat = freshCats.find((c) => c.name === 'Bayar Vendor Bubut')
+      if (hasBubutLine && !bayarVendorCat) {
+        toast('Setup error', { description: 'Kategori "Bayar Vendor Bubut" tidak ditemukan. Hubungi admin.', variant: 'destructive' })
+        console.error('[T7] Missing category: Bayar Vendor Bubut')
+        setIsSubmitting(false)
+        return
+      }
+
+      const userId = getUserId()
+
+      const result = addTransactionFull({
+        header: {
+          noReferensi: formData.noReferensi,
+          tglTransaksi: formData.tgl,
+          tipe: formData.tipe,
+          customerId: formData.tipe === 'income' ? formData.customerId : undefined,
+          supplierId: formData.tipe === 'expense' ? formData.supplierId : undefined,
+          paymentMethod: formData.paymentMethod,
+          notes: formData.notes || undefined,
+          createdBy: userId,
+        },
+        lines: lines.map((l) => ({
+          categoryId: l.categoryId!,
+          nominal: l.nominal,
+          biayaMaterial: l.biayaMaterial,
+          notes: l.notes,
+          jasaName: l.jasaName,
+          mechanics: l.mechanics
+            .filter((m) => m.mechanicId !== null)
+            .map((m) => ({ mechanicId: m.mechanicId!, sharePercent: m.sharePercent, rateOverride: m.rateOverride })),
+          bubutVendor: l.bubutVendor?.supplierId
+            ? { supplierId: l.bubutVendor.supplierId, vendorCost: l.bubutVendor.vendorCost }
+            : undefined,
+        })),
+        bayarVendorBubutCategoryId: bayarVendorCat?.id ?? null,
+      })
+
+      // Audit log
+      auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.transactionId, source: 'transaction-form', afterData: { noReferensi: formData.noReferensi, tipe: formData.tipe } })
+      if (result.expenseTransactionId) {
+        auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.expenseTransactionId, source: 'bubut-luar-auto-link', afterData: { linkedTo: result.transactionId } })
+      }
+
+      // Periode komisi warning for jasa lines with backdated tgl
+      const hasJasaLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.isJasa)
+      if (hasJasaLine) {
+        const txDate = formData.tgl
+        const openPeriod = periods.find((p) => p.status === 'open' && txDate >= p.weekStart && txDate <= p.weekEnd)
+        if (!openPeriod) {
+          toast('Peringatan periode komisi', {
+            description: `Periode ${txDate} sudah ditutup. Komisi jasa tidak masuk slip mingguan.`,
+            duration: 7000,
+          })
+        }
+      }
+
+      toast(`${formData.noReferensi} berhasil disimpan`, {
+        description: result.expenseTransactionId ? 'Expense vendor Bubut Luar auto-created.' : undefined,
+        variant: 'success',
+      })
+
+      if (submitMode === 'continue') {
+        resetForm()
+      } else {
+        navigate('/transaksi')
+      }
+    } catch (err) {
+      console.error('[T7] Save error:', err)
+      toast('Gagal menyimpan transaksi', { description: 'Terjadi kesalahan. Coba lagi.', variant: 'destructive' })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <div style={{
@@ -506,7 +641,9 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
         mechanics={mechanics}
         rates={rates}
         validationErrors={validationErrors}
-        onSubmit={() => { /* T7 */ }}
+        isSubmitting={isSubmitting}
+        onSubmit={() => handleSubmitForm('single')}
+        onSubmitContinue={() => handleSubmitForm('continue')}
       />
 
       {/* ── Tipe change confirm ──────────────────────────────────────────────── */}

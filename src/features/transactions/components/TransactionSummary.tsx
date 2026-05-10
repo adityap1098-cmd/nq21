@@ -19,6 +19,7 @@ export interface TransactionSummaryProps {
   validationErrors: string[]
   isSubmitting?: boolean
   onSubmit: () => void
+  onSubmitContinue?: () => void
 }
 
 function Divider() {
@@ -39,6 +40,7 @@ export function TransactionSummary({
   validationErrors,
   isSubmitting = false,
   onSubmit,
+  onSubmitContinue,
 }: TransactionSummaryProps) {
   const isValid = validationErrors.length === 0
   const isDisabled = !isValid || isSubmitting
@@ -279,25 +281,44 @@ export function TransactionSummary({
         </div>
       )}
 
-      {/* ── 6. Submit button ────────────────────────────────────────────── */}
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={isDisabled}
-        title={!isValid && tooltipText ? tooltipText : undefined}
-        style={{
-          width: '100%', height: 46, borderRadius: 10,
-          background: isDisabled ? 'rgba(255,255,255,0.1)' : 'var(--accent)',
-          border: 'none',
-          color: isDisabled ? 'rgba(255,255,255,0.35)' : '#fff',
-          fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
-          cursor: isDisabled ? 'not-allowed' : 'pointer',
-          transition: 'all 0.15s',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        }}
-      >
-        {isSubmitting ? 'MENYIMPAN...' : 'SIMPAN TRANSAKSI'}
-      </button>
+      {/* ── 6. Submit buttons ───────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={isDisabled}
+          title={!isValid && tooltipText ? tooltipText : undefined}
+          style={{
+            flex: 1, height: 46, borderRadius: 10,
+            background: isDisabled ? 'rgba(255,255,255,0.1)' : 'var(--accent)',
+            border: 'none',
+            color: isDisabled ? 'rgba(255,255,255,0.35)' : '#fff',
+            fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {isSubmitting ? 'MENYIMPAN...' : 'SIMPAN'}
+        </button>
+        <button
+          type="button"
+          onClick={onSubmitContinue}
+          disabled={isDisabled}
+          title={!isValid && tooltipText ? tooltipText : undefined}
+          style={{
+            flex: 1, height: 46, borderRadius: 10,
+            background: 'transparent',
+            border: `1.5px solid ${isDisabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.35)'}`,
+            color: isDisabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            transition: 'all 0.15s',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {isSubmitting ? '...' : '& INPUT LAGI'}
+        </button>
+      </div>
 
       {/* ── 7. Audit footer ─────────────────────────────────────────────── */}
       <div style={{

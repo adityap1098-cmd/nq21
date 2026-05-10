@@ -89,6 +89,7 @@ export interface TransactionLineMechanic {
   transactionLineId: string
   mechanicId: string
   sharePercent: number
+  rateOverride?: number
 }
 
 export interface BubutLuarLink {
@@ -104,6 +105,7 @@ export interface AuditLog {
   action: 'create' | 'update' | 'delete'
   entityType: string
   entityId: string
+  source?: string
   beforeData?: Record<string, unknown>
   afterData?: Record<string, unknown>
   createdAt: string

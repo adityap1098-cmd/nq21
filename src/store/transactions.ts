@@ -147,6 +147,27 @@ const SEED_LINE_MECHANICS: TransactionLineMechanic[] = [
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
+export interface AddTransactionLineInput {
+  categoryId: string
+  nominal: number
+  biayaMaterial: number
+  notes?: string
+  jasaName?: string
+  mechanics: Array<{ mechanicId: string; sharePercent: number; rateOverride?: number }>
+  bubutVendor?: { supplierId: string; vendorCost: number }
+}
+
+export interface AddTransactionFullInput {
+  header: Omit<Transaction, 'id' | 'createdAt' | 'updatedAt' | 'totalNominal'>
+  lines: AddTransactionLineInput[]
+  bayarVendorBubutCategoryId: string | null
+}
+
+export interface AddTransactionFullResult {
+  transactionId: string
+  expenseTransactionId?: string
+}
+
 interface TransactionState {
   transactions: Transaction[]
   lines: TransactionLine[]
@@ -158,6 +179,8 @@ interface TransactionState {
     lines: Omit<TransactionLine, 'id' | 'transactionId'>[],
     lineMechanics: Omit<TransactionLineMechanic, 'id' | 'transactionLineId'>[][],
   ) => string
+
+  addTransactionFull: (input: AddTransactionFullInput) => AddTransactionFullResult
 
   updateTransaction: (id: string, patch: Partial<Transaction>) => void
   softDelete: (id: string, deletedAt: string) => void
@@ -199,6 +222,88 @@ export const useTransactionStore = create<TransactionState>()(
             lineMechanics: [...s.lineMechanics, ...newLineMechanics],
           }))
           return txId
+        },
+
+        addTransactionFull: (input) => {
+          const base = Date.now()
+          const rand = Math.random().toString(36).slice(2, 5)
+          const txId = `tx-${base}-${rand}`
+          const now = new Date().toISOString()
+
+          const newLines: TransactionLine[] = input.lines.map((l, i) => ({
+            id: `ln-${base}-${i}`,
+            transactionId: txId,
+            categoryId: l.categoryId,
+            nominal: l.nominal,
+            biayaMaterial: l.biayaMaterial,
+            notes: l.notes,
+            jasaName: l.jasaName,
+          }))
+
+          const totalNominal = input.lines.reduce((s, l) => s + l.nominal, 0)
+
+          const newLineMechanics: TransactionLineMechanic[] = newLines.flatMap((line, i) =>
+            input.lines[i].mechanics.map((m, j) => ({
+              id: `lm-${base}-${i}-${j}`,
+              transactionLineId: line.id,
+              mechanicId: m.mechanicId,
+              sharePercent: m.sharePercent,
+              rateOverride: m.rateOverride,
+            }))
+          )
+
+          // Bubut Luar dual-leg auto-create
+          let expenseTransactionId: string | undefined
+          const expTxList: Transaction[] = []
+          const expLineList: TransactionLine[] = []
+          const newBubutLinks: BubutLuarLink[] = []
+
+          const bubutIdx = input.lines.findIndex((l) => l.bubutVendor)
+          if (bubutIdx >= 0 && input.bayarVendorBubutCategoryId) {
+            const bubutLine = input.lines[bubutIdx]
+            const vendor = bubutLine.bubutVendor!
+            const expId = `tx-${base + 1}-exp`
+            expenseTransactionId = expId
+            expTxList.push({
+              id: expId,
+              noReferensi: `${input.header.noReferensi}-VENDOR`,
+              tglTransaksi: input.header.tglTransaksi,
+              tipe: 'expense',
+              supplierId: vendor.supplierId,
+              paymentMethod: input.header.paymentMethod,
+              totalNominal: vendor.vendorCost,
+              notes: `Auto-link dari ${input.header.noReferensi} (Bubut Luar)`,
+              createdBy: input.header.createdBy,
+              createdAt: now,
+              updatedAt: now,
+            })
+            expLineList.push({
+              id: `ln-${base + 1}-exp`,
+              transactionId: expId,
+              categoryId: input.bayarVendorBubutCategoryId,
+              nominal: vendor.vendorCost,
+              biayaMaterial: 0,
+            })
+            newBubutLinks.push({
+              id: `bl-${base}`,
+              revenueLineId: newLines[bubutIdx].id,
+              expenseTransactionId: expId,
+              vendorCost: vendor.vendorCost,
+            })
+          }
+
+          set((s) => ({
+            transactions: [
+              ...s.transactions,
+              { ...input.header, id: txId, totalNominal, createdAt: now, updatedAt: now },
+              ...expTxList,
+            ],
+            lines: [...s.lines, ...newLines, ...expLineList],
+            lineMechanics: [...s.lineMechanics, ...newLineMechanics],
+            bubutLuarLinks: [...s.bubutLuarLinks, ...newBubutLinks],
+          }))
+
+          return { transactionId: txId, expenseTransactionId }
         },
 
         updateTransaction: (id, patch) => set((s) => ({
