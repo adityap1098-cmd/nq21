@@ -226,6 +226,13 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > Komisi per chip: `Math.round(basis × (share/100) × (rate/100))`
   > "+ TAMBAH MEKANIK" button (hidden kalau semua mekanik sudah ada)
 
+- [x] **M003-T3.5+T4.5**: Fix-ups — jasa name, share% hide, rate override
+  > T3.5: `jasaName?: string` di Line + TransactionLine; `JasaNameAutocomplete` (history dropdown); "Detail Jasa (opsional)" field di LineItemCard
+  > T4.5a: share% input + total-share badge hidden saat 1 mekanik; auto-100% saat delete 2→1
+  > T4.5b: rate override per chip — ✏ edit icon, inline input, strikethrough display, ↩ reset; `effectiveRate = rateOverride ?? masterRate`; "⚠ Ada rate override" di summary panel
+  > TransactionForm totalKomisi updated to use effectiveRate; hasRateOverride indicator
+  > Seed: jasaName pada jasa lines; Budi sebagai mekanik ke-2 dengan rates
+
 - [ ] **M003-T5**: TransactionSummary sticky panel
   > `src/features/transactions/components/TransactionSummary.tsx`
   > Dark bg (`var(--text)`) sticky di top: 80px
