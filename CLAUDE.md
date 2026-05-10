@@ -231,6 +231,7 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M003 Decision F — No "libur" mekanik button**: Form T4 tidak punya toggle absen. Kasir cukup tidak menambahkan mekanik yang tidak hadir ke line item. Mengurangi kompleksitas UI.
 - **M003 Decision G — Smart pre-fill mekanik (T4)**: Default mekanik pada line jasa baru = mechanics dari transaksi jasa terakhir kasir ybs (query store by userId + filter isJasa). Fallback: semua mekanik aktif. Implement di T4 saat MechanicChipRow dibuat.
 - **M003 Decision H — Audit log mekanik per-field (T4)**: Perubahan mekanik di transaksi (share%, rate override, add/remove chip) → audit log `beforeData`/`afterData` per-field, source `'mekanik-update-transaksi'`. Bukan snapshot full transaksi. Implement di T4.
+- **M003 Decision T7 — Bubut Luar dual-leg auto-create di FE phase**: Dilakukan via `addTransactionFull()` dalam Zustand transaction store — single call yang atomically creates income transaction + auto-expense (noRef `<asli>-VENDOR`) + `bubutLuarLinks` entry. No rollback needed (Zustand in-memory; kalau gagal = JS exception caught di handleSubmitForm). Di M006 (BE), logic ini dipindah ke backend dengan DB transaction untuk true atomicity.
 
 ---
 

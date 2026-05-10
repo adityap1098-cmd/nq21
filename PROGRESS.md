@@ -241,19 +241,20 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > SIMPAN TRANSAKSI: accent active, disabled+tooltip saat validasi gagal (7 guards), audit footer
   > computeKomisi() di utils.ts; TransactionForm resolves customerName/supplierName + validationErrors
 
-- [ ] **M003-T6**: Bubut Luar dual-leg UI + save logic
-  > Detect `lines.some(l => category.isJasa && category.name === 'Bubut Luar')`
-  > `bubut-extra` panel: gradient red tint bg, vendor select (isVendorBubut), biaya ke vendor input
-  > On save: create 2 Zustand entries (income + expense auto noRef `<asli>-VENDOR`)
-  > Push 1 entry ke `bubutLuarLinks` mock array
+- [x] **M003-T6**: Bubut Luar dual-leg UI + validation
+  > LineItemCard: `bubutVendor` state init/clear on category change; extra panel — gradient red tint bg, vendor autocomplete (filterSuppliers='vendor-bubut'), biaya ke vendor input, margin indicator (green/red+⚠)
+  > TransactionForm: 2 validation guards (pilih vendor + isi biaya > 0)
+  > TransactionSummary: BUBUT LUAR · DUAL-LEG section — customer/vendor/margin row, negative margin ⚠ in red
+  > NOTE: Save logic (Zustand auto-create expense + bubutLuarLinks) deferred to T7
 
-- [ ] **M003-T7**: Form validation + save logic
-  > Zod schema: header + lines[] validation
-  > Guards: noRef unique + format, min 1 line, nominal > 0, biayaMaterial ≤ nominal
-  > isJasa line: min 1 mekanik, sum(share%) = 100 ±0.01
-  > income: customerId required; expense: supplierId required (kecuali no-supplier categories)
-  > Submit: `useTransactionStore().addTransaction()` + auto-generate line IDs + lineMechanics entries
-  > Toast success + navigate ke Daftar Transaksi
+- [x] **M003-T7**: Submit logic + validation full + Zustand integration + Bubut Luar dual-leg save
+  > `validateTransactionFull()` in utils.ts — collect-all errors, runtime mechanic/vendor active checks
+  > `addTransactionFull()` in transactions store — atomic income + auto-expense + bubutLuarLinks
+  > `handleSubmitForm(mode)` in TransactionForm — double-validates, logs audit, warns backdated periode
+  > `resetForm()` — auto-increments noRef, resets lines, scrolls to top
+  > 2-button layout: SIMPAN (navigate /transaksi) + & INPUT LAGI (reset form)
+  > `rateOverride` persisted to TransactionLineMechanic; `source` field added to AuditLog
+  > Verified: 4 tx persisted in localStorage after hard reload incl. TRX-...-VENDOR dual-leg
 
 - [ ] **M003-T8**: Daftar Transaksi page
   > `src/app/pages/transaksi/DaftarTransaksiPage.tsx`
