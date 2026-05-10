@@ -518,7 +518,7 @@ Total halaman unik yang akan dibangun: **~18 halaman** (atau ~12-14 routes kalau
 - ✅ **Mekanik awal**: 1 mekanik — "Doni". Owner tambah sisanya via Master Mekanik UI (M002). Seed 1 mekanik sudah cukup untuk demo flow. *Locked M001-closer.*
 - ✅ **Kategori Gaji**: tidak link ke mekanik master — free text notes. Gaji bukan komisi system. *Locked M001.*
 - ✅ **Export PDF (slip bagi hasil)**: jsPDF di FE. Defer ke M005. *Locked default.*
-- ✅ **Brand / Logo**: Mark "N" hitam 36×36px + strip merah accent 10×4px bottom-left. Tidak ada upload file logo. Final, tidak berubah. *Locked M001.*
+- ✅ **Brand / Logo**: Mark "N" 36×36px, bg `--text` (hitam), teks Anton 18px putih, strip 3px `var(--accent)` di bawah, corner-radius 6. Tidak ada upload file logo. *Locked M001.*
 - ✅ **Resolusi target**: 1920×1080 minimum sweet spot, support down to 1440×900. Responsive breakpoints: 1180px (KPI 2-col), 1100px (single col). *Locked M001.*
 - ✅ **Input device**:
   - Kasir: keyboard + mouse (PC desktop di bengkel) → form density tinggi, optimal kecepatan input

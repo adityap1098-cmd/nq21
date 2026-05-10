@@ -92,9 +92,9 @@ KPI verified: Pendapatan 28.79jt ✅ Pengeluaran 9.22jt ✅ Laba Kotor 19.57jt �
 **Key decisions locked (plan.md Section 13):**
 - `no_referensi` format: `TRX-YYYYMMDD-NNN` (income) / `EXP-YYYYMMDD-NNN` (expense), counter per-hari
 - Mekanik awal: **Doni** — 1 mekanik, rates: Jasa 30% · Dyno 25% · Bubut Luar 20% · Bubut Dalam 40%
-- Logo mark: SVG teks "NQ" 36×36px, corner radius 6px, bg `--accent`
-- Target resolusi: 1366×768 minimum, 1920×1080 optimal
-- Input device: mouse + keyboard, tablet touch sekunder
+- Logo mark: "N" 36×36px, bg `--text` hitam, teks Anton 18px putih, strip 3px `var(--accent)` bawah, corner-radius 6
+- Target resolusi: 1920×1080 minimum (sweet spot), support down to 1440×900 graceful degradation
+- Input device: Kasir keyboard+mouse (density tinggi) · Owner touchscreen-aware, tap target min 44px di Dashboard/Laporan/Komisi
 - Kategori Gaji: no supplier_id, aman (internal expense)
 - Export PDF: gen client-side via browser print (`window.print()`), scope M005
 - Periode komisi: default Senin–Minggu (sudah terkonfirmasi)
