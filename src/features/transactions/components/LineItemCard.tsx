@@ -3,6 +3,7 @@ import { useCategoryStore } from '@/store/master/categories'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { MechanicChipRow } from './MechanicChipRow'
 import { JasaNameAutocomplete } from './JasaNameAutocomplete'
+import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { getBasisKomisi, formatRupiahInput, parseRupiahInput, hasLineData } from '../utils'
 import type { Line } from '../types'
 import type { TransactionType } from '@/store/types'
@@ -108,7 +109,15 @@ export function LineItemCard({
   }
 
   function handleCategoryChange(catId: string) {
-    onChange({ categoryId: catId || null, mechanics: [] })
+    const newCat = categories.find((c) => c.id === catId)
+    const newIsBubutLuar = newCat?.name === 'Bubut Luar'
+    onChange({
+      categoryId: catId || null,
+      mechanics: [],
+      bubutVendor: newIsBubutLuar
+        ? (line.bubutVendor ?? { supplierId: null, vendorCost: 0 })
+        : undefined,
+    })
   }
 
   return (
@@ -319,17 +328,110 @@ export function LineItemCard({
         />
       )}
 
-      {/* ── Bubut Luar vendor placeholder (T6) ──────────────────────────────── */}
+      {/* ── Bubut Luar extra panel ───────────────────────────────────────────── */}
       {isBubutLuar && (
         <div style={{
-          padding: '12px 14px',
-          background: 'var(--accent-tint)',
-          border: '1px dashed var(--accent)',
+          padding: 16,
+          background: 'linear-gradient(180deg, var(--accent-tint) 0%, var(--surface-alt) 100%)',
+          borderLeft: '3px solid var(--accent)',
           borderRadius: 8,
-          fontSize: 12, color: 'var(--accent)',
-          fontFamily: 'var(--mono)', letterSpacing: '0.06em',
         }}>
-          BUBUT LUAR · DUAL-LEG — vendor panel implementasi di T6
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+              padding: '3px 8px', borderRadius: 4,
+              background: 'var(--accent-tint)', color: 'var(--accent)',
+            }}>
+              BUBUT LUAR · DUAL-LEG
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Auto-create expense ke vendor saat simpan
+            </span>
+          </div>
+
+          {/* Helper text */}
+          <div style={{
+            fontSize: 11, color: 'var(--text-secondary)', marginBottom: 14,
+            lineHeight: 1.5,
+          }}>
+            Pilih vendor bubut + isi biaya yang dibayarkan ke vendor. Income (customer) dan expense (vendor) di-link otomatis.
+          </div>
+
+          {/* 2-col grid: vendor + biaya */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div>
+              <div style={{
+                fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: 'var(--text-muted)', marginBottom: 6,
+              }}>
+                Vendor Bubut Luar
+              </div>
+              <CustomerSupplierAutocomplete
+                type="supplier"
+                filterSuppliers="vendor-bubut"
+                value={line.bubutVendor?.supplierId ?? null}
+                onChange={(id) =>
+                  onChange({ bubutVendor: { supplierId: id, vendorCost: line.bubutVendor?.vendorCost ?? 0 } })
+                }
+              />
+            </div>
+
+            <div>
+              <div style={{
+                fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: 'var(--text-muted)', marginBottom: 6,
+              }}>
+                Biaya ke Vendor (Rp)
+              </div>
+              <CurrencyInput
+                value={line.bubutVendor?.vendorCost ?? 0}
+                onChange={(v) =>
+                  onChange({ bubutVendor: { supplierId: line.bubutVendor?.supplierId ?? null, vendorCost: v } })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Margin indicator */}
+          {line.nominal > 0 && (line.bubutVendor?.vendorCost ?? 0) > 0 && (() => {
+            const vendorCost = line.bubutVendor!.vendorCost
+            const margin = line.nominal - vendorCost
+            const isNegative = margin < 0
+            return (
+              <div style={{
+                marginTop: 12, padding: '10px 12px',
+                background: 'var(--surface)', borderRadius: 6,
+                fontFamily: 'var(--mono)', fontSize: 11,
+                border: `1px solid ${isNegative ? 'var(--accent)' : 'var(--border)'}`,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', marginBottom: 3 }}>
+                  <span>Nominal Customer</span>
+                  <span>Rp {formatRupiahInput(line.nominal)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', marginBottom: 6 }}>
+                  <span>Biaya Vendor</span>
+                  <span>− Rp {formatRupiahInput(vendorCost)}</span>
+                </div>
+                <div style={{
+                  borderTop: '1px solid var(--border)', paddingTop: 6,
+                  display: 'flex', justifyContent: 'space-between',
+                }}>
+                  <span style={{ fontWeight: 700 }}>Margin NQ21</span>
+                  <span style={{ fontWeight: 700, color: isNegative ? 'var(--accent)' : 'var(--success)' }}>
+                    {isNegative ? '− ' : ''}Rp {formatRupiahInput(Math.abs(margin))}
+                  </span>
+                </div>
+                {isNegative && (
+                  <div style={{ marginTop: 6, fontSize: 10, color: 'var(--accent)', letterSpacing: '0.04em' }}>
+                    ⚠ Margin negatif. Pastikan ini disengaja.
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
 

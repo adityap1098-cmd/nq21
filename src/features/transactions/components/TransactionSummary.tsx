@@ -53,6 +53,11 @@ export function TransactionSummary({
     [lines, categories, rates],
   )
 
+  const bubutLuarLines = useMemo(
+    () => activeLines.filter((l) => categories.find((c) => c.id === l.categoryId)?.name === 'Bubut Luar'),
+    [activeLines, categories],
+  )
+
   const tglFormatted = tgl
     ? format(new Date(tgl + 'T00:00:00'), 'EEEE, d MMMM yyyy', { locale: localeId })
     : '—'
@@ -173,6 +178,43 @@ export function TransactionSummary({
       )}
 
       <Divider />
+
+      {/* ── 4b. Bubut Luar info ─────────────────────────────────────────── */}
+      {bubutLuarLines.length > 0 && (
+        <div style={{
+          background: 'rgba(200,16,46,0.08)',
+          border: '1px solid rgba(200,16,46,0.2)',
+          borderRadius: 8, padding: '10px 12px',
+          display: 'flex', flexDirection: 'column', gap: 6,
+        }}>
+          <span style={{
+            fontFamily: 'var(--mono)', fontSize: 9,
+            letterSpacing: '0.18em', color: 'rgba(255,255,255,0.5)',
+          }}>
+            BUBUT LUAR · DUAL-LEG
+          </span>
+          {bubutLuarLines.map((line) => {
+            const vendorCost = line.bubutVendor?.vendorCost ?? 0
+            const margin = line.nominal - vendorCost
+            const marginColor = margin >= 0 ? 'var(--success)' : 'var(--accent)'
+            return (
+              <div key={line.id} style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>
+                <span>Customer: </span>
+                <span style={{ fontFamily: 'var(--mono)' }}>Rp {line.nominal.toLocaleString('id-ID')}</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}> · </span>
+                <span>Vendor: </span>
+                <span style={{ fontFamily: 'var(--mono)' }}>Rp {vendorCost.toLocaleString('id-ID')}</span>
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}> · </span>
+                <span>Margin: </span>
+                <span style={{ fontFamily: 'var(--mono)', color: marginColor, fontWeight: 600 }}>
+                  Rp {Math.abs(margin).toLocaleString('id-ID')}
+                  {margin < 0 ? ' ⚠' : ''}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* ── 4. TOTAL ────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

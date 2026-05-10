@@ -199,6 +199,10 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
               errors.push(`${lineLabel}: share mekanik belum 100%`)
           }
         }
+        if (cat?.name === 'Bubut Luar') {
+          if (!line.bubutVendor?.supplierId) errors.push(`${lineLabel}: pilih vendor bubut`)
+          if ((line.bubutVendor?.vendorCost ?? 0) <= 0) errors.push(`${lineLabel}: isi biaya ke vendor bubut`)
+        }
       })
     }
 
