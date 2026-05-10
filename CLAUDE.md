@@ -8,11 +8,12 @@ Back-office tracking app untuk bengkel motor NQ21. Standalone, fokus akurasi dat
 
 - Spec lengkap: lihat `plan.md`
 - **Page inventory & routing**: `plan.md` Section 7 — daftar lengkap 18 halaman dengan route + status (✅ udah ada di demo / ⏳ perlu dibangun) + mapping ke milestone
-- **Visual reference (LOCKED)**: 2 sumber — pakai sesuai halaman yang sedang dibangun:
-  - `design/project/NQ21 Performance.html` (+ JSX files) → Login, Dashboard, 4 Laporan
-  - `demo.html` → Input Transaksi, Master Data (Customer/Supplier/Kategori/Mekanik/User), Komisi
-  - Design tokens (color, typography, spacing): unified dari bundle, apply ke semua halaman
-  - Sebelum bikin component: baca source file relevan dari `design/project/` atau `demo.html` dan match pixel-perfect
+- **Visual reference (LOCKED)**: 3 sumber — pakai sesuai halaman yang sedang dibangun:
+  - `design/project/` (v1) — `login.jsx`, `dashboard.jsx`, `laporan.jsx`, `styles.css` → Login, Dashboard, 4 Laporan
+  - `design/v2/NQ21 PERFORMANCE/` (v2) — `pages-extra.jsx`, `styles-extra.css`, `data-pages.jsx` → Input Transaksi (M003), Periode Komisi + Slip (M005), Master Mekanik (M002)
+  - `demo.html` — fallback → Daftar/Detail/Edit Transaksi, Master Customer/Supplier/Kategori/User
+  - Design tokens: **identik di v1 dan v2** (color vars, Anton/Manrope/JetBrains Mono) — apply konsisten ke semua halaman
+  - Sebelum bikin komponen: baca source file relevan dan match pixel-perfect
 - **Design tokens (LOCKED)**: lihat `plan.md` Section 12 — color CSS variables, typography stack, spacing rules
 - Progress tracking: lihat `PROGRESS.md`
 - Schema source of truth (M006+): `src/db/schema.ts` (Drizzle)

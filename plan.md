@@ -524,9 +524,6 @@ Total halaman unik yang akan dibangun: **~18 halaman** (atau ~12-14 routes kalau
   - Kasir: keyboard + mouse (PC desktop di bengkel) → form density tinggi, optimal kecepatan input
   - Owner: touchscreen-aware (tablet/iPad untuk monitoring) → tap target min 44px di halaman owner-heavy (Dashboard, Laporan, Periode Komisi)
   - *Locked M001.*
-- ⏳ **Kategori Gaji**: link ke mekanik master? → Default free text dulu, review M002.
-- ⏳ **Export PDF detail laporan**: jsPDF vs server-side? → Default jsPDF, resolve M005.
-
 ---
 
 **Status**: Plan v1.3 — M001 complete (2026-05-10). All Section 13 decisions locked. Siap M002.

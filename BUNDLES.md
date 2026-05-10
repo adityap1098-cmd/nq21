@@ -13,15 +13,29 @@ Referensi visual untuk development NQ21 PERFORMANCE. Fetch bundle sebelum mulai 
 
 ---
 
-## Bundle v2 (M002–M005) — BELUM di-fetch ⏳
+## Bundle v2 (M002–M005) — sudah di-fetch manual ✅
 
-**URL:** https://api.anthropic.com/v1/design/h/uEsF1DGyXKvCuNAECenGCA?open_file=NQ21+Performance.html
+**URL:** `https://api.anthropic.com/v1/design/h/uEsF1DGyXKvCuNAECenGCA?open_file=NQ21+Performance.html`
+**Saved:** `design/v2/NQ21 PERFORMANCE/` (flat, tidak nested dalam `project/` seperti v1)
+**Fetched:** 2026-05-11 (manual download oleh user)
 
-**Coverage:** Input Transaksi (M003), Periode Komisi + Slip Bagi Hasil (M005), Master Mekanik & Rate (M002)
+**Struktur:**
+```
+design/v2/NQ21 PERFORMANCE/
+  NQ21 Performance.html   ← entry point
+  pages-extra.jsx         ← InputTransaksi + PeriodeKomisi + MasterMekanik
+  data-pages.jsx          ← mock data (customers, suppliers, kategori, mekanik, periodeList, slip)
+  styles-extra.css        ← styles untuk pages-extra
+  styles.css              ← base design system (identik v1)
+  dashboard.jsx, laporan.jsx, login.jsx, ...   ← shared dari v1 (updated)
+```
 
-**Target save:** `design/v2/`
+**Coverage:**
+- `InputTransaksi` → M003 (form multi-line, mekanik share%, Bubut Luar flow)
+- `PeriodeKomisi` → M005 (period list, tutup periode, slip per mekanik)
+- `MasterMekanik` → M002-T2 (inline rate matrix)
 
-**Action:** Fetch saat prep M002. Simpan ke `design/v2/`, compare tokens dengan Bundle v1, update plan.md kalau ada perbedaan.
+**Design system vs v1:** ✅ Identik — CSS vars sama, font stack Anton/Manrope/JetBrains Mono sama, komponen pattern sama. Tidak ada breaking difference.
 
 ---
 
