@@ -1,4 +1,5 @@
 import type { Line } from './types'
+import type { TransactionLine } from '@/store/types'
 
 export function createEmptyLine(): Line {
   return {
@@ -26,4 +27,19 @@ export function parseRupiahInput(str: string): number {
 
 export function hasLineData(line: Line): boolean {
   return line.categoryId !== null || line.nominal > 0
+}
+
+export function getUniqueJasaNames(
+  lines: TransactionLine[],
+  jasaCategoryIds: Set<string>,
+): string[] {
+  const freq = new Map<string, number>()
+  for (const line of lines) {
+    if (!jasaCategoryIds.has(line.categoryId) || !line.jasaName?.trim()) continue
+    const name = line.jasaName.trim()
+    freq.set(name, (freq.get(name) ?? 0) + 1)
+  }
+  return [...freq.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name]) => name)
 }

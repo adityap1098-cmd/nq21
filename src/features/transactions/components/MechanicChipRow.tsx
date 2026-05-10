@@ -5,6 +5,7 @@ import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store/master/users'
 import { useCategoryStore } from '@/store/master/categories'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
+import { toast } from '@/hooks/use-toast'
 import type { LineMechanic } from '../types'
 import type {
   Mechanic, CommissionRate, Transaction, TransactionLine, TransactionLineMechanic,
@@ -16,13 +17,18 @@ function getInitial(name: string): string {
   return name.trim().charAt(0).toUpperCase()
 }
 
-function getRate(
+function getMasterRate(
   mechanicId: string | null,
   categoryId: string | null,
   rates: CommissionRate[],
 ): number {
   if (!mechanicId || !categoryId) return 0
   return rates.find((r) => r.mechanicId === mechanicId && r.categoryId === categoryId)?.ratePercent ?? 0
+}
+
+function getEffectiveRate(chip: LineMechanic, categoryId: string | null, rates: CommissionRate[]): number {
+  if (chip.rateOverride !== undefined) return chip.rateOverride
+  return getMasterRate(chip.mechanicId, categoryId, rates)
 }
 
 function calcKomisi(basis: number, share: number, rate: number): number {
@@ -75,14 +81,17 @@ function proportionalRedistribute(existing: LineMechanic[], deleteIdx: number): 
 
   const totalRemaining = remaining.reduce((s, m) => s + m.sharePercent, 0)
 
+  if (remaining.length === 1) {
+    return [{ ...remaining[0], sharePercent: 100 }]
+  }
+
   if (totalRemaining === 0) {
     const base = parseFloat((100 / remaining.length).toFixed(2))
     return remaining.map((m, i) => ({
       ...m,
-      sharePercent:
-        i === remaining.length - 1
-          ? parseFloat((100 - base * (remaining.length - 1)).toFixed(2))
-          : base,
+      sharePercent: i === remaining.length - 1
+        ? parseFloat((100 - base * (remaining.length - 1)).toFixed(2))
+        : base,
     }))
   }
 
@@ -100,7 +109,7 @@ function proportionalRedistribute(existing: LineMechanic[], deleteIdx: number): 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface MechanicChipRowProps {
-  // lineId reserved for T7 audit log — not used in T4
+  // lineId reserved for T7 audit log
   lineId: string
   mechanics: LineMechanic[]
   basis: number
@@ -123,6 +132,8 @@ export function MechanicChipRow({
   const { categories } = useCategoryStore()
 
   const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
+  const [editingRateIdx, setEditingRateIdx] = useState<number | null>(null)
+  const [rateEditValue, setRateEditValue] = useState('')
 
   const activeMechanics = useMemo(
     () => allMechanics.filter((m) => m.isActive),
@@ -139,7 +150,7 @@ export function MechanicChipRow({
     [categories],
   )
 
-  // Initialize with default mechanic when category is set and mechanics is empty
+  // Initialize default mechanic when category is set and mechanics is empty
   useEffect(() => {
     if (mechanics.length > 0 || !categoryId) return
     const defaultId = getDefaultMechanicId(
@@ -156,20 +167,21 @@ export function MechanicChipRow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryId, mechanics.length])
 
-  // Derived state
+  // Derived
   const takenIds = new Set(mechanics.map((m) => m.mechanicId).filter(Boolean) as string[])
   const availableMechanics = activeMechanics.filter((m) => !takenIds.has(m.id))
   const canAddMore = availableMechanics.length > 0
+  const multiMechanic = mechanics.length > 1
 
   const totalShare = parseFloat(mechanics.reduce((s, m) => s + m.sharePercent, 0).toFixed(2))
   const shareOk = Math.abs(totalShare - 100) < 0.02
   const shareOver = totalShare > 100.01
 
   const lineKomisi = mechanics.reduce((s, m) => {
-    return s + calcKomisi(basis, m.sharePercent, getRate(m.mechanicId, categoryId, rates))
+    return s + calcKomisi(basis, m.sharePercent, getEffectiveRate(m, categoryId, rates))
   }, 0)
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   function handleAddMechanic() {
     if (!canAddMore) return
@@ -197,8 +209,8 @@ export function MechanicChipRow({
   function handleDeleteRequest(idx: number) {
     if (mechanics.length <= 1) return
     const chip = mechanics[idx]
-    const rate = getRate(chip.mechanicId, categoryId, rates)
-    const komisi = calcKomisi(basis, chip.sharePercent, rate)
+    const effectiveRate = getEffectiveRate(chip, categoryId, rates)
+    const komisi = calcKomisi(basis, chip.sharePercent, effectiveRate)
     if (chip.sharePercent > 10 || komisi > 0) {
       setConfirmDeleteIdx(idx)
     } else {
@@ -212,12 +224,38 @@ export function MechanicChipRow({
     setConfirmDeleteIdx(null)
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  function startRateEdit(idx: number) {
+    const masterRate = getMasterRate(mechanics[idx].mechanicId, categoryId, rates)
+    const current = mechanics[idx].rateOverride ?? masterRate
+    setEditingRateIdx(idx)
+    setRateEditValue(String(current))
+  }
+
+  function commitRateEdit(idx: number) {
+    const val = parseFloat(rateEditValue)
+    if (isNaN(val) || val < 0) {
+      setEditingRateIdx(null)
+      return
+    }
+    if (val > 100) {
+      toast('Rate override > 100% — pastikan ini disengaja.', { variant: 'destructive', duration: 3000 })
+    }
+    const masterRate = getMasterRate(mechanics[idx].mechanicId, categoryId, rates)
+    const override = Math.abs(val - masterRate) < 0.001 ? undefined : val
+    onChange(mechanics.map((m, i) => (i === idx ? { ...m, rateOverride: override } : m)))
+    setEditingRateIdx(null)
+  }
+
+  function resetRateOverride(idx: number) {
+    onChange(mechanics.map((m, i) => (i === idx ? { ...m, rateOverride: undefined } : m)))
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div style={{ marginTop: 2 }}>
 
-      {/* ── Section header ────────────────────────────────────────────────── */}
+      {/* ── Section header ──────────────────────────────────────────────────── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 8,
@@ -229,7 +267,9 @@ export function MechanicChipRow({
         }}>
           Mekanik
         </div>
-        {mechanics.length > 0 && (
+
+        {/* Share total badge — only when 2+ mechanics */}
+        {multiMechanic && mechanics.length > 0 && (
           <div style={{
             fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
             letterSpacing: '0.06em', padding: '2px 8px', borderRadius: 4,
@@ -245,14 +285,17 @@ export function MechanicChipRow({
         )}
       </div>
 
-      {/* ── Chip row ──────────────────────────────────────────────────────── */}
+      {/* ── Chip row ────────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
 
         {mechanics.map((chip, idx) => {
           const mech = allMechanics.find((m) => m.id === chip.mechanicId)
-          const rate = getRate(chip.mechanicId, categoryId, rates)
-          const komisi = calcKomisi(basis, chip.sharePercent, rate)
-          const rateIsZero = chip.mechanicId !== null && categoryId !== null && rate === 0
+          const masterRate = getMasterRate(chip.mechanicId, categoryId, rates)
+          const effectiveRate = getEffectiveRate(chip, categoryId, rates)
+          const komisi = calcKomisi(basis, chip.sharePercent, effectiveRate)
+          const hasOverride = chip.rateOverride !== undefined
+          const rateIsZero = chip.mechanicId !== null && categoryId !== null && effectiveRate === 0
+          const isEditingRate = editingRateIdx === idx
           const canCycle =
             activeMechanics.filter((m) =>
               !mechanics.filter((_, i) => i !== idx).some((o) => o.mechanicId === m.id),
@@ -270,7 +313,7 @@ export function MechanicChipRow({
                 fontSize: 12, fontWeight: 600,
               }}
             >
-              {/* Avatar — click to cycle */}
+              {/* Avatar */}
               <button
                 type="button"
                 onClick={() => handleCycleAvatar(idx)}
@@ -293,50 +336,111 @@ export function MechanicChipRow({
                 {mech?.name ?? '—'}
               </span>
 
-              {/* Share input */}
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 1,
-                background: 'var(--surface)', border: '1px solid var(--border)',
-                borderRadius: 4, padding: '2px 4px', fontFamily: 'var(--mono)',
-              }}>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.01}
-                  value={chip.sharePercent}
-                  onChange={(e) => handleShareChange(idx, e.target.value)}
-                  style={{
-                    width: 32, border: 'none', background: 'transparent',
-                    padding: 0, fontFamily: 'var(--mono)', fontSize: 11,
-                    fontWeight: 600, textAlign: 'right', outline: 'none',
-                    color: 'var(--text)',
-                  }}
-                />
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-                  %
-                </span>
-              </div>
+              {/* Share input — hidden when only 1 mechanic */}
+              {multiMechanic && (
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 1,
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 4, padding: '2px 4px', fontFamily: 'var(--mono)',
+                }}>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.01}
+                    value={chip.sharePercent}
+                    onChange={(e) => handleShareChange(idx, e.target.value)}
+                    style={{
+                      width: 32, border: 'none', background: 'transparent',
+                      padding: 0, fontFamily: 'var(--mono)', fontSize: 11,
+                      fontWeight: 600, textAlign: 'right', outline: 'none',
+                      color: 'var(--text)',
+                    }}
+                  />
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>%</span>
+                </div>
+              )}
 
               {/* Separator */}
               <span style={{ color: 'var(--border)', userSelect: 'none' }}>·</span>
 
-              {/* Rate */}
-              <span
-                style={{
-                  fontFamily: 'var(--mono)', fontSize: 10,
-                  color: rateIsZero ? 'var(--warning)' : 'var(--text-muted)',
-                  letterSpacing: '0.06em',
-                  cursor: rateIsZero ? 'help' : 'default',
-                }}
-                title={
-                  rateIsZero
-                    ? `Rate ${mech?.name ?? ''} untuk kategori ini = 0%. Atur di Master Mekanik.`
-                    : undefined
-                }
-              >
-                {rate}%{rateIsZero ? ' ⚠' : ''}
-              </span>
+              {/* Rate display — editing / override / normal */}
+              {isEditingRate ? (
+                <input
+                  type="number"
+                  min={0}
+                  step={0.1}
+                  value={rateEditValue}
+                  autoFocus
+                  onChange={(e) => setRateEditValue(e.target.value)}
+                  onBlur={() => commitRateEdit(idx)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitRateEdit(idx)
+                    if (e.key === 'Escape') setEditingRateIdx(null)
+                  }}
+                  style={{
+                    width: 38, border: '1px solid var(--accent)', borderRadius: 4,
+                    background: 'var(--surface)', padding: '1px 4px',
+                    fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600,
+                    textAlign: 'right', outline: 'none', color: 'var(--accent)',
+                  }}
+                />
+              ) : hasOverride ? (
+                <span
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}
+                  title={`Rate override aktif. Klik untuk reset ke default ${masterRate}%.`}
+                >
+                  <span style={{
+                    fontFamily: 'var(--mono)', fontSize: 10,
+                    color: 'var(--text-muted)', textDecoration: 'line-through',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {masterRate}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => resetRateOverride(idx)}
+                    style={{
+                      fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+                      color: 'var(--accent)', background: 'none', border: 'none',
+                      cursor: 'pointer', padding: 0, letterSpacing: '0.04em',
+                    }}
+                  >
+                    {chip.rateOverride}%
+                  </button>
+                  <span style={{ fontSize: 9, color: 'var(--accent)', opacity: 0.7 }}>↩</span>
+                </span>
+              ) : (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--mono)', fontSize: 10,
+                      color: rateIsZero ? 'var(--warning)' : 'var(--text-muted)',
+                      letterSpacing: '0.06em',
+                      cursor: rateIsZero ? 'help' : 'default',
+                    }}
+                    title={
+                      rateIsZero
+                        ? `Rate ${mech?.name ?? ''} untuk kategori ini = 0%. Atur di Master Mekanik.`
+                        : undefined
+                    }
+                  >
+                    {masterRate}%{rateIsZero ? ' ⚠' : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => startRateEdit(idx)}
+                    title="Override rate untuk transaksi ini"
+                    style={{
+                      fontSize: 9, background: 'none', border: 'none',
+                      color: 'var(--text-muted)', cursor: 'pointer', padding: 0,
+                      lineHeight: 1, opacity: 0.6,
+                    }}
+                  >
+                    ✏
+                  </button>
+                </span>
+              )}
 
               {/* Komisi */}
               <span style={{
@@ -378,11 +482,9 @@ export function MechanicChipRow({
           }
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
-            padding: '4px 10px',
-            background: 'transparent',
+            padding: '4px 10px', background: 'transparent',
             border: `1px dashed ${canAddMore ? 'var(--border-strong)' : 'var(--border)'}`,
-            borderRadius: 999,
-            fontFamily: 'var(--mono)', fontSize: 10.5, fontWeight: 600,
+            borderRadius: 999, fontFamily: 'var(--mono)', fontSize: 10.5, fontWeight: 600,
             letterSpacing: '0.04em',
             color: canAddMore ? 'var(--text-muted)' : 'var(--border)',
             cursor: canAddMore ? 'pointer' : 'not-allowed',
@@ -393,7 +495,7 @@ export function MechanicChipRow({
         </button>
       </div>
 
-      {/* ── Komisi line total ──────────────────────────────────────────────── */}
+      {/* ── Komisi line total ────────────────────────────────────────────────── */}
       {mechanics.length > 0 && (
         <div style={{ textAlign: 'right', marginTop: 8 }}>
           <div style={{
@@ -411,7 +513,7 @@ export function MechanicChipRow({
         </div>
       )}
 
-      {/* ── Confirm delete dialog ──────────────────────────────────────────── */}
+      {/* ── Confirm delete dialog ────────────────────────────────────────────── */}
       <ConfirmDialog
         open={confirmDeleteIdx !== null}
         onOpenChange={(open) => { if (!open) setConfirmDeleteIdx(null) }}

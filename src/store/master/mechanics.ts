@@ -2,9 +2,9 @@ import { create } from 'zustand'
 import { persist, createJSONStorage, devtools } from 'zustand/middleware'
 import type { Mechanic, CommissionRate } from '../types'
 
-// Seed: 1 mekanik awal — owner tambah lainnya via Master Mekanik (plan.md Section 13 decision)
 export const SEED_MECHANICS: Mechanic[] = [
   { id: 'mech-1', name: 'Doni', isActive: true, createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'mech-2', name: 'Budi', isActive: true, createdAt: '2026-01-01T00:00:00Z' },
 ]
 
 // Rate matrix — cat-01=Jasa, cat-02=Dyno, cat-03=Bubut Luar, cat-04=Bubut Dalam
@@ -13,6 +13,10 @@ export const SEED_RATES: CommissionRate[] = [
   { id: 'rate-02', mechanicId: 'mech-1', categoryId: 'cat-02', ratePercent: 25 },
   { id: 'rate-03', mechanicId: 'mech-1', categoryId: 'cat-03', ratePercent: 20 },
   { id: 'rate-04', mechanicId: 'mech-1', categoryId: 'cat-04', ratePercent: 40 },
+  { id: 'rate-05', mechanicId: 'mech-2', categoryId: 'cat-01', ratePercent: 30 },
+  { id: 'rate-06', mechanicId: 'mech-2', categoryId: 'cat-02', ratePercent: 25 },
+  { id: 'rate-07', mechanicId: 'mech-2', categoryId: 'cat-03', ratePercent: 20 },
+  { id: 'rate-08', mechanicId: 'mech-2', categoryId: 'cat-04', ratePercent: 40 },
 ]
 
 interface MechanicState {

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useCategoryStore } from '@/store/master/categories'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { MechanicChipRow } from './MechanicChipRow'
+import { JasaNameAutocomplete } from './JasaNameAutocomplete'
 import { getBasisKomisi, formatRupiahInput, parseRupiahInput, hasLineData } from '../utils'
 import type { Line } from '../types'
 import type { TransactionType } from '@/store/types'
@@ -217,6 +218,23 @@ export function LineItemCard({
           color: 'var(--warning)', letterSpacing: '0.04em',
           display: line.categoryId === null ? 'none' : 'none', // hidden unless category == BL attempted
         }} />
+      )}
+
+      {/* ── Detail Jasa field (jasa only) ───────────────────────────────────── */}
+      {isJasa && (
+        <div>
+          <div style={{
+            fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            color: 'var(--text-muted)', marginBottom: 6,
+          }}>
+            Detail Jasa <span style={{ fontWeight: 400, letterSpacing: 0, textTransform: 'none', color: 'var(--border)' }}>(opsional)</span>
+          </div>
+          <JasaNameAutocomplete
+            value={line.jasaName ?? ''}
+            onChange={(v) => onChange({ jasaName: v })}
+          />
+        </div>
       )}
 
       {/* ── Inputs ──────────────────────────────────────────────────────────── */}

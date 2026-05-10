@@ -154,13 +154,19 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
       if (!cat?.isJasa) return sum
       const basis = getBasisKomisi(line)
       return sum + line.mechanics.reduce((s, m) => {
-        const rate = rates.find(
+        const masterRate = rates.find(
           (r) => r.mechanicId === m.mechanicId && r.categoryId === line.categoryId,
         )?.ratePercent ?? 0
-        return s + Math.round(basis * (m.sharePercent / 100) * (rate / 100))
+        const effectiveRate = m.rateOverride !== undefined ? m.rateOverride : masterRate
+        return s + Math.round(basis * (m.sharePercent / 100) * (effectiveRate / 100))
       }, 0)
     }, 0)
   }, [lines, categories, rates])
+
+  const hasRateOverride = useMemo(
+    () => lines.some((l) => l.mechanics.some((m) => m.rateOverride !== undefined)),
+    [lines],
+  )
 
   // ── Tipe toggle with confirm ─────────────────────────────────────────────────
 
@@ -510,6 +516,15 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
               }}>
                 Rp {totalKomisi.toLocaleString('id-ID')}
               </div>
+              {hasRateOverride && (
+                <div style={{
+                  marginTop: 6, fontSize: 10,
+                  color: 'var(--warning)', fontFamily: 'var(--mono)',
+                  letterSpacing: '0.06em',
+                }}>
+                  ⚠ Ada rate override
+                </div>
+              )}
             </div>
           )}
 

@@ -81,6 +81,7 @@ export interface TransactionLine {
   nominal: number
   biayaMaterial: number
   notes?: string
+  jasaName?: string
 }
 
 export interface TransactionLineMechanic {
