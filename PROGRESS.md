@@ -120,7 +120,7 @@ Test case: 200k − 50k = 150k × 100% × 30% = **Rp 45.000 ✅**
   > `AddEditDialog` wrapper: Dialog + form slot, controlled open/close
   > Foundation untuk T2-T6 supaya nggak duplikasi layout
 
-- [ ] **M002-T2**: Master Mekanik & Rate ⭐
+- [x] **M002-T2**: Master Mekanik & Rate ⭐
   > Visual ref: `demo.html` page-mekanik (full design tersedia)
   > Table: Avatar initial + Nama + rate matrix 4 kolom (Jasa/Dyno/Bubut Luar/Bubut Dalam) + Status badge + ⋯ menu
   > Rate matrix: setiap cell = `<input>` inline, blur → `upsertRate()` ke store

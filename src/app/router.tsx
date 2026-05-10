@@ -5,6 +5,7 @@ import PlaceholderPage from './pages/PlaceholderPage'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import TestMasterCRUDPage from './pages/_test-master-crud'
+import MasterMekanikPage from './pages/master/MasterMekanikPage'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -39,7 +40,7 @@ export const router = createBrowserRouter([
           { path: 'master/customer',                 element: ph('MASTER CUSTOMER') },
           { path: 'master/supplier',                 element: ph('MASTER SUPPLIER') },
           { path: 'master/kategori',                 element: ph('MASTER KATEGORI') },
-          { path: 'master/mekanik',                  element: ph('MEKANIK & RATE KOMISI') },
+          { path: 'master/mekanik',                  element: <MasterMekanikPage /> },
           { path: 'master/user',                     element: ph('MASTER USER / AKUN') },
           { path: 'test',                            element: <TestPage /> },
           { path: 'test-master',                     element: <TestMasterCRUDPage /> },
