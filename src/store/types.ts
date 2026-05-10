@@ -50,6 +50,8 @@ export interface AppUser {
   username: string
   role: 'owner' | 'kasir'
   isActive: boolean
+  password?: string      // plain text M002 FE-only; bcrypt in M006
+  lastLoginAt?: string
   createdAt: string
 }
 
