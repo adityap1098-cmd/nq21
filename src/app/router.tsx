@@ -10,6 +10,7 @@ import MasterCustomerPage from './pages/master/MasterCustomerPage'
 import MasterSupplierPage from './pages/master/MasterSupplierPage'
 import MasterKategoriPage from './pages/master/MasterKategoriPage'
 import MasterUserPage from './pages/master/MasterUserPage'
+import InputTransaksiPage from './pages/transaksi/InputTransaksiPage'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -30,7 +31,7 @@ export const router = createBrowserRouter([
           { index: true, element: <Navigate to="/dashboard" replace /> },
           { path: 'dashboard',                       element: <Dashboard /> },
           { path: 'transaksi',                       element: ph('DAFTAR TRANSAKSI') },
-          { path: 'transaksi/baru',                  element: ph('INPUT TRANSAKSI') },
+          { path: 'transaksi/baru',                  element: <InputTransaksiPage /> },
           { path: 'transaksi/:id',                   element: ph('DETAIL TRANSAKSI') },
           { path: 'transaksi/:id/edit',              element: ph('EDIT TRANSAKSI') },
           { path: 'laporan/kategori',                element: ph('PER KATEGORI') },

@@ -282,6 +282,13 @@ _(none)_
 - T7 (validation+save) terakhir sebelum T8 (harus ada working form dulu)
 - T8-T10 independent dari T7 untuk UI shell; perlu T7 untuk integration test
 
+### Decisions (LOCKED)
+- **A — Form state**: RHF untuk header fields (noRef, tgl, tipe, customerId, supplierId, paymentMethod, notes); `useState` untuk `lines[]` + nested mechs. Hybrid approach approved.
+- **B — Remove line confirm**: ConfirmDialog untuk remove line item (bukan langsung hilang). Mencegah misclick.
+- **C — Bubut Luar max 1**: Hanya boleh 1 line Bubut Luar per transaksi. Kalau user coba add kedua → toast error. Simpel, sesuai realitas bengkel.
+- **D — Duplicate noRef handling**: Opsi 1 — toast error dengan link ke transaksi existing ("No. Referensi sudah ada. Lihat transaksi [TRX-...]"). Bukan hard-block, bisa override manual tapi warn.
+- **E — Backdated tgl**: Owner bisa backdate (editable date input), kasir readonly (auto = hari ini). Handling: noRef generated pakai tgl field value, bukan always today.
+
 ---
 
 ## M004 — Laporan & Dashboard UI ⏳

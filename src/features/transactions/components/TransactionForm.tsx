@@ -1,0 +1,404 @@
+import { useEffect, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { format } from 'date-fns'
+import { id as localeId } from 'date-fns/locale'
+import { RefreshCw } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { useTransactionStore } from '@/store/transactions'
+import { useAuthStore } from '@/store/auth'
+import type { TransactionType, PaymentMethod } from '@/store/types'
+
+// ─── Schema (header only — full schema added in T7) ──────────────────────────
+
+const headerSchema = z.object({
+  noReferensi: z.string().min(1, 'Wajib diisi'),
+  tgl: z.string().min(1, 'Wajib diisi'),
+  tipe: z.enum(['income', 'expense']),
+  customerId: z.string().optional(),
+  supplierId: z.string().optional(),
+  paymentMethod: z.enum(['cash', 'transfer', 'qris']),
+  notes: z.string().optional(),
+})
+
+type HeaderForm = z.infer<typeof headerSchema>
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const NO_REF_REGEX = /^(TRX|EXP)-\d{8}-\d{3}$/
+
+function generateNextNoReferensi(
+  tipe: TransactionType,
+  dateStr: string,
+  transactions: Array<{ noReferensi: string; tipe: TransactionType }>,
+): string {
+  const prefix = tipe === 'income' ? 'TRX' : 'EXP'
+  const compact = dateStr.replace(/-/g, '')
+  const dayPattern = `${prefix}-${compact}-`
+  const existing = transactions
+    .filter((t) => t.noReferensi.startsWith(dayPattern) && !t.noReferensi.endsWith('-VENDOR'))
+    .map((t) => parseInt(t.noReferensi.slice(-3), 10))
+    .filter((n) => !isNaN(n))
+  const max = existing.length > 0 ? Math.max(...existing) : 0
+  return `${dayPattern}${String(max + 1).padStart(3, '0')}`
+}
+
+type NoRefStatus = 'UNIK' | 'DUPLIKAT' | 'INVALID FORMAT'
+
+function getNoRefStatus(
+  noRef: string,
+  transactions: Array<{ noReferensi: string; id: string }>,
+  currentId?: string,
+): NoRefStatus {
+  if (!NO_REF_REGEX.test(noRef)) return 'INVALID FORMAT'
+  const dup = transactions.some((t) => t.noReferensi === noRef && t.id !== currentId)
+  return dup ? 'DUPLIKAT' : 'UNIK'
+}
+
+const STATUS_STYLES: Record<NoRefStatus, { color: string; bg: string }> = {
+  UNIK: { color: 'var(--success)', bg: 'var(--success-tint)' },
+  DUPLIKAT: { color: 'var(--accent)', bg: 'var(--accent-tint)' },
+  'INVALID FORMAT': { color: 'var(--warning)', bg: 'var(--warning-tint)' },
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
+interface TransactionFormProps {
+  mode?: 'add' | 'edit'
+  transactionId?: string
+}
+
+export function TransactionForm({ mode = 'add', transactionId }: TransactionFormProps) {
+  const { user } = useAuthStore()
+  const { transactions } = useTransactionStore()
+  const today = format(new Date(), 'yyyy-MM-dd')
+
+  const form = useForm<HeaderForm>({
+    resolver: zodResolver(headerSchema),
+    defaultValues: {
+      noReferensi: '',
+      tgl: today,
+      tipe: 'income',
+      paymentMethod: 'cash',
+      notes: '',
+    },
+  })
+
+  const { watch, setValue, register } = form
+  const tipe = watch('tipe') as TransactionType
+  const tgl = watch('tgl')
+  const noReferensi = watch('noReferensi')
+  const paymentMethod = watch('paymentMethod') as PaymentMethod
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_lines, _setLines] = useState<unknown[]>([])
+
+  // Auto-generate noRef on mount and whenever tipe or tgl changes (Decision E: use tgl, not today)
+  useEffect(() => {
+    if (mode === 'add') {
+      setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
+    }
+  // regenerate when tipe or tgl changes; omit transactions to avoid loop on save
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipe, tgl, mode])
+
+  const noRefStatus: NoRefStatus = noReferensi
+    ? getNoRefStatus(noReferensi, transactions, transactionId)
+    : 'INVALID FORMAT'
+
+  const { color: statusColor, bg: statusBg } = STATUS_STYLES[noRefStatus]
+
+  function handleRegenNoRef() {
+    setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
+  }
+
+  const isOwner = user?.role === 'owner'
+
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 360px',
+      gap: 24,
+      padding: '24px 32px',
+      alignItems: 'start',
+    }}>
+
+      {/* ── Left: Form steps ──────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* ── Step 01 — Identitas ─────────────────────────────────────────── */}
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: '20px 24px',
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+            color: 'var(--text-muted)', marginBottom: 20,
+          }}>
+            LANGKAH 01 — IDENTITAS TRANSAKSI
+          </div>
+
+          {/* No Referensi */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              No. Referensi
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <Input
+                {...register('noReferensi')}
+                style={{ fontFamily: 'var(--mono)', flex: 1 }}
+                placeholder="TRX-YYYYMMDD-NNN"
+              />
+              <button
+                type="button"
+                onClick={handleRegenNoRef}
+                title="Generate ulang"
+                style={{
+                  width: 36, height: 36, borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-alt)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                <RefreshCw size={14} style={{ color: 'var(--text-secondary)' }} />
+              </button>
+              <div style={{
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                padding: '4px 10px', borderRadius: 6,
+                background: statusBg, color: statusColor,
+                flexShrink: 0, whiteSpace: 'nowrap',
+              }}>
+                {noRefStatus}
+              </div>
+            </div>
+          </div>
+
+          {/* Tgl + Tipe row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+
+            {/* Tanggal */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                Tanggal
+              </div>
+              {isOwner ? (
+                <Input type="date" {...register('tgl')} />
+              ) : (
+                <div style={{
+                  height: 36, padding: '0 12px', borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-alt)',
+                  display: 'flex', alignItems: 'center',
+                  fontSize: 13, color: 'var(--text)',
+                  fontFamily: 'var(--mono)',
+                }}>
+                  {tgl
+                    ? format(new Date(tgl + 'T00:00:00'), 'd MMMM yyyy', { locale: localeId })
+                    : '—'}
+                </div>
+              )}
+            </div>
+
+            {/* Tipe toggle */}
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                Tipe
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {(['income', 'expense'] as const).map((t) => {
+                  const active = tipe === t
+                  const isIncome = t === 'income'
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setValue('tipe', t)}
+                      style={{
+                        flex: 1, height: 36, borderRadius: 8, cursor: 'pointer',
+                        fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
+                        border: `1.5px solid ${active
+                          ? isIncome ? 'var(--success)' : 'var(--accent)'
+                          : 'var(--border)'}`,
+                        background: active
+                          ? isIncome ? 'var(--success-tint)' : 'var(--accent-tint)'
+                          : 'transparent',
+                        color: active
+                          ? isIncome ? 'var(--success)' : 'var(--accent)'
+                          : 'var(--text-muted)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {isIncome ? '↑ MASUK' : '↓ KELUAR'}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Customer / Supplier — T2 stub */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              {tipe === 'income' ? 'Customer' : 'Supplier'}
+            </div>
+            <Input
+              disabled
+              placeholder="Implementasi di T2"
+              style={{ background: 'var(--surface-alt)', color: 'var(--text-muted)' }}
+            />
+          </div>
+
+          {/* Payment method pills */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+              Metode Pembayaran
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {(['cash', 'transfer', 'qris'] as const).map((m) => {
+                const label = m === 'cash' ? 'Cash' : m === 'transfer' ? 'Transfer' : 'QRIS'
+                const active = paymentMethod === m
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setValue('paymentMethod', m)}
+                    style={{
+                      flex: 1, height: 36, borderRadius: 8, cursor: 'pointer',
+                      fontSize: 12, fontWeight: 600,
+                      border: `1.5px solid ${active ? 'var(--text)' : 'var(--border)'}`,
+                      background: active ? 'var(--text)' : 'transparent',
+                      color: active ? '#fff' : 'var(--text-secondary)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── Step 02 — Line Items (T3 stub) ──────────────────────────────── */}
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px dashed var(--border-strong)',
+          borderRadius: 12,
+          padding: '20px 24px',
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+            color: 'var(--text-muted)', marginBottom: 12,
+          }}>
+            LANGKAH 02 — ITEM TRANSAKSI
+          </div>
+          <div style={{
+            fontSize: 13, color: 'var(--text-muted)',
+            textAlign: 'center', padding: '20px 0',
+          }}>
+            Line items — implementasi di T3
+          </div>
+        </div>
+
+        {/* ── Step 03 — Catatan ───────────────────────────────────────────── */}
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: '20px 24px',
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+            color: 'var(--text-muted)', marginBottom: 16,
+          }}>
+            LANGKAH 03 — CATATAN
+          </div>
+          <textarea
+            {...register('notes')}
+            rows={3}
+            placeholder="Catatan tambahan (opsional)..."
+            style={{
+              width: '100%', borderRadius: 8, padding: '10px 12px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+              color: 'var(--text)',
+              fontSize: 13,
+              resize: 'vertical',
+              outline: 'none',
+              fontFamily: 'inherit',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+      </div>
+
+      {/* ── Right: Sticky Summary (T5 full impl) ──────────────────────────── */}
+      <div style={{ position: 'sticky', top: 80 }}>
+        <div style={{
+          background: 'var(--text)',
+          borderRadius: 12,
+          padding: '20px 24px',
+          color: '#fff',
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+            opacity: 0.45, marginBottom: 16,
+          }}>
+            RINGKASAN
+          </div>
+
+          <div style={{
+            fontFamily: 'var(--mono)', fontSize: 12,
+            opacity: 0.6, marginBottom: 4,
+          }}>
+            {noReferensi || '—'}
+          </div>
+
+          <div style={{ fontSize: 12, opacity: 0.35, marginBottom: 28 }}>
+            {tgl
+              ? format(new Date(tgl + 'T00:00:00'), 'EEEE, d MMMM yyyy', { locale: localeId })
+              : '—'}
+          </div>
+
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.1)',
+            paddingTop: 16,
+          }}>
+            <div style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+              opacity: 0.45, marginBottom: 6,
+            }}>
+              TOTAL
+            </div>
+            <div style={{
+              fontFamily: 'Anton, sans-serif',
+              fontSize: 28, letterSpacing: '0.02em',
+            }}>
+              Rp 0
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled
+            style={{
+              marginTop: 20,
+              width: '100%', height: 44, borderRadius: 10,
+              background: 'rgba(255,255,255,0.12)',
+              border: '1px solid rgba(255,255,255,0.18)',
+              color: 'rgba(255,255,255,0.4)',
+              fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
+              cursor: 'not-allowed',
+            }}
+          >
+            SIMPAN
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
