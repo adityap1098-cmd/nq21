@@ -2,12 +2,18 @@ import { useState, useEffect } from 'react'
 
 export type ToastVariant = 'default' | 'success' | 'destructive'
 
+export interface ToastAction {
+  label: string
+  onClick: () => void
+}
+
 export interface ToastItem {
   id: string
   title: string
   description?: string
   variant?: ToastVariant
   duration?: number
+  action?: ToastAction
 }
 
 // Module-level store — fine for single SPA
@@ -20,7 +26,7 @@ function _notify() {
 
 export function toast(
   title: string,
-  opts?: { description?: string; variant?: ToastVariant; duration?: number }
+  opts?: { description?: string; variant?: ToastVariant; duration?: number; action?: ToastAction }
 ) {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2)
   const duration = opts?.duration ?? 4000

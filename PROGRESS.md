@@ -4,9 +4,9 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M002 — Master Data UI
+**Milestone aktif**: M003 — Transaksi UI
 **Phase**: FE-only (M001-M005)
-**Last updated**: 2026-05-10
+**Last updated**: 2026-05-11
 
 ---
 
@@ -184,7 +184,7 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
 
 ### Tasks
 
-- [ ] **M003-T1**: TransactionForm shell + Step 01 Header
+- [x] **M003-T1**: TransactionForm shell + Step 01 Header
   > Layout: tx-layout grid (form 1fr + sticky summary 360px)
   > Step 01: no referensi field + UNIK/DUPLIKAT status pill, tgl (readonly auto-today), tipe toggle income/expense, payment method pills (Cash/Transfer/QRIS)
   > Step 03: catatan textarea

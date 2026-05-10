@@ -8,6 +8,7 @@ import { RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useTransactionStore } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
+import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import type { TransactionType, PaymentMethod } from '@/store/types'
 
 // ─── Schema (header only — full schema added in T7) ──────────────────────────
@@ -94,12 +95,13 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [_lines, _setLines] = useState<unknown[]>([])
 
-  // Auto-generate noRef on mount and whenever tipe or tgl changes (Decision E: use tgl, not today)
+  // Auto-generate noRef on tipe/tgl change; also clear customer/supplier selection (Decision E)
   useEffect(() => {
     if (mode === 'add') {
       setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
     }
-  // regenerate when tipe or tgl changes; omit transactions to avoid loop on save
+    setValue('customerId', undefined)
+    setValue('supplierId', undefined)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipe, tgl, mode])
 
@@ -240,15 +242,21 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
             </div>
           </div>
 
-          {/* Customer / Supplier — T2 stub */}
+          {/* Customer / Supplier autocomplete */}
           <div style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
               {tipe === 'income' ? 'Customer' : 'Supplier'}
+              <span style={{ color: 'var(--accent)', marginLeft: 2 }}>*</span>
             </div>
-            <Input
-              disabled
-              placeholder="Implementasi di T2"
-              style={{ background: 'var(--surface-alt)', color: 'var(--text-muted)' }}
+            <CustomerSupplierAutocomplete
+              type={tipe === 'income' ? 'customer' : 'supplier'}
+              value={tipe === 'income'
+                ? (watch('customerId') ?? null)
+                : (watch('supplierId') ?? null)}
+              onChange={(id) => {
+                if (tipe === 'income') setValue('customerId', id ?? undefined)
+                else setValue('supplierId', id ?? undefined)
+              }}
             />
           </div>
 

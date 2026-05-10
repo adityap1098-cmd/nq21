@@ -15,6 +15,20 @@ export function Toaster() {
             <ToastTitle>{t.title}</ToastTitle>
             {t.description && <ToastDescription>{t.description}</ToastDescription>}
           </div>
+          {t.action && (
+            <button
+              onClick={() => { t.action!.onClick(); dismissToast(t.id) }}
+              style={{
+                padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                border: '1px solid rgba(255,255,255,0.25)',
+                background: 'rgba(255,255,255,0.12)',
+                color: '#fff', fontSize: 12, fontWeight: 600,
+                whiteSpace: 'nowrap', flexShrink: 0,
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
           <ToastClose onClick={() => dismissToast(t.id)} />
         </Toast>
       ))}
