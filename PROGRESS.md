@@ -233,15 +233,13 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > TransactionForm totalKomisi updated to use effectiveRate; hasRateOverride indicator
   > Seed: jasaName pada jasa lines; Budi sebagai mekanik ke-2 dengan rates
 
-- [ ] **M003-T5**: TransactionSummary sticky panel
-  > `src/features/transactions/components/TransactionSummary.tsx`
-  > Dark bg (`var(--text)`) sticky di top: 80px
-  > RINGKASAN header + noRef display
-  > Meta grid (tipe, customer/supplier, metode, line count)
-  > Line list scrollable (kategori + nominal per line)
-  > TOTAL (Anton 32px)
-  > Komisi section (red tint bg) — hanya muncul kalau totalKomisi > 0
-  > SIMPAN button (full width)
+- [x] **M003-T5**: TransactionSummary sticky panel
+  > `src/features/transactions/components/TransactionSummary.tsx` — pure render component
+  > Dark card sticky top-88px; header noRef+tanggal; meta grid 2×2 (tipe/customer/metode/line count)
+  > Line list scrollable (max 200px): "Kategori — jasaName" untuk jasa, "Kategori — notes" untuk non-jasa
+  > TOTAL section Anton 32px; komisi section red-tint bg with per-mekanik breakdown + ⚠ override indicator
+  > SIMPAN TRANSAKSI: accent active, disabled+tooltip saat validasi gagal (7 guards), audit footer
+  > computeKomisi() di utils.ts; TransactionForm resolves customerName/supplierName + validationErrors
 
 - [ ] **M003-T6**: Bubut Luar dual-leg UI + save logic
   > Detect `lines.some(l => category.isJasa && category.name === 'Bubut Luar')`
