@@ -109,9 +109,9 @@ export default function MekanikKomisiPage() {
   async function handleConfirmMarkPaid(paidNotes?: string) {
     if (!markPaidTarget || !user) return
     const { payout, period } = markPaidTarget
-    markPaid(payout.id, new Date().toISOString(), user.username, paidNotes)
+    markPaid(payout.id, new Date().toISOString(), user.name, paidNotes)
     logAudit({
-      userId: user.username,
+      userId: user.name,
       action: 'update',
       entityType: 'payout',
       entityId: payout.id,

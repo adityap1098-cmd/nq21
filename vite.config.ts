@@ -51,6 +51,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase': ['@supabase/supabase-js'],
           'recharts': ['recharts'],
           'date-fns': ['date-fns'],
           'zustand': ['zustand'],

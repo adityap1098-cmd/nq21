@@ -160,7 +160,7 @@ export default function PeriodeKomisiPage() {
     if (!selectedPeriod || !user) return
     const result = closeAndGeneratePayouts(
       selectedPeriod.id,
-      user.username,
+      user.name,
       computedPayouts.map(p => ({
         mechanicId: p.mechanicId,
         totalJobs: p.totalJobs,
@@ -168,9 +168,9 @@ export default function PeriodeKomisiPage() {
         totalKomisi: p.totalKomisi,
       }))
     )
-    logAudit({ userId: user.username, action: 'update', entityType: 'period', entityId: selectedPeriod.id, source: 'close-period', afterData: { status: 'closed' } })
+    logAudit({ userId: user.name, action: 'update', entityType: 'period', entityId: selectedPeriod.id, source: 'close-period', afterData: { status: 'closed' } })
     computedPayouts.forEach(p => {
-      logAudit({ userId: user.username, action: 'create', entityType: 'payout', entityId: `${selectedPeriod.id}:${p.mechanicId}`, source: 'close-period' })
+      logAudit({ userId: user.name, action: 'create', entityType: 'payout', entityId: `${selectedPeriod.id}:${p.mechanicId}`, source: 'close-period' })
     })
     toast(`Periode ${fmtPeriodFull(selectedPeriod.weekStart, selectedPeriod.weekEnd)} berhasil ditutup`, {
       description: `${computedPayouts.length} payout di-generate.`,
@@ -189,9 +189,9 @@ export default function PeriodeKomisiPage() {
     if (!selectedPayout || !user) return
     const stored = getStoredPayout(selectedPayout.mechanicId)
     if (!stored) return
-    markPaid(stored.id, new Date().toISOString(), user.username, paidNotes)
+    markPaid(stored.id, new Date().toISOString(), user.name, paidNotes)
     logAudit({
-      userId: user.username,
+      userId: user.name,
       action: 'update',
       entityType: 'payout',
       entityId: stored.id,

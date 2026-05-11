@@ -5,7 +5,6 @@ import {
   UserCog, Settings, LogOut,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
-import { useUserStore } from '@/store/master/users'
 
 interface NavItem {
   label: string
@@ -61,9 +60,7 @@ export default function Sidebar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
-  const { users } = useUserStore()
-  const liveUser = users.find((u) => u.username === user?.username && u.isActive)
-  const displayName = liveUser?.name ?? user?.name ?? '—'
+  const displayName = user?.name ?? '—'
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.to : pathname.startsWith(item.to)

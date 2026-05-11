@@ -1,44 +1,48 @@
 import { useState } from 'react'
-import { useNavigate, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Shield, User, Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useAuthStore } from '@/store/auth'
 
 const schema = z.object({
-  username: z.string().min(1, 'Username wajib diisi'),
+  email: z.string().email('Format email tidak valid'),
   password: z.string().min(1, 'Password wajib diisi'),
 })
 type LoginForm = z.infer<typeof schema>
 
 export default function Login() {
-  const [role, setRole] = useState<'owner' | 'kasir'>('owner')
   const [showPw, setShowPw] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { user, login } = useAuthStore()
-  const navigate = useNavigate()
 
   if (user) return <Navigate to="/" replace />
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
-    defaultValues: { username: '', password: '' },
+    defaultValues: { email: '', password: '' },
   })
 
-  const handleRoleToggle = (r: 'owner' | 'kasir') => {
-    setRole(r)
-    setValue('username', r)
-  }
-
-  const onSubmit = (data: LoginForm) => {
-    login(data.username)
-    navigate('/')
+  const onSubmit = async (data: LoginForm) => {
+    setIsSubmitting(true)
+    setSubmitError(null)
+    const error = await login(data.email, data.password)
+    if (error) {
+      setSubmitError(
+        error.includes('Invalid login credentials')
+          ? 'Email atau password salah'
+          : error
+      )
+      setIsSubmitting(false)
+    }
+    // success: onAuthStateChange fires → user set → Navigate to "/" fires
   }
 
   return (
@@ -197,70 +201,48 @@ export default function Login() {
             Selamat Datang
           </h2>
           <p style={{ color: 'var(--text-muted)', margin: '0 0 36px', fontSize: 14 }}>
-            Pilih peran kamu dan masuk untuk mulai pencatatan.
+            Masukkan akun kamu untuk masuk ke sistem NQ21.
           </p>
 
-          {/* Role picker */}
-          <div
-            style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr',
-              gap: 8, margin: '4px 0 22px',
-              background: 'var(--surface-alt)',
-              border: '1px solid var(--border)',
-              borderRadius: 8, padding: 4,
-            }}
-          >
-            {(['owner', 'kasir'] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => handleRoleToggle(r)}
-                style={{
-                  border: 'none',
-                  background: role === r ? 'var(--surface)' : 'transparent',
-                  padding: 10,
-                  borderRadius: 6,
-                  fontFamily: 'var(--mono)',
-                  fontSize: 11,
-                  letterSpacing: '0.16em',
-                  textTransform: 'uppercase',
-                  color: role === r
-                    ? r === 'owner' ? 'var(--accent)' : 'var(--text)'
-                    : 'var(--text-muted)',
-                  display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', gap: 8,
-                  boxShadow: role === r ? '0 1px 2px rgba(0,0,0,0.04)' : 'none',
-                  cursor: 'pointer', transition: 'all 0.1s',
-                }}
-              >
-                {r === 'owner' ? <Shield size={13} /> : <User size={13} />}
-                {r === 'owner' ? 'OWNER' : 'KASIR'}
-              </button>
-            ))}
-          </div>
+          {/* Server error */}
+          {submitError && (
+            <div
+              style={{
+                marginBottom: 18, padding: '12px 14px',
+                background: 'var(--accent-tint)',
+                border: '1px solid var(--accent)',
+                borderRadius: 8, fontSize: 13,
+                color: 'var(--accent)', fontWeight: 500,
+              }}
+            >
+              {submitError}
+            </div>
+          )}
 
-          {/* Username */}
+          {/* Email */}
           <div style={{ marginBottom: 18 }}>
             <label
-              htmlFor="username"
+              htmlFor="email"
               style={{
                 fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em',
-                textTransform: 'uppercase', color: errors.username ? 'var(--accent)' : 'var(--text-secondary)',
+                textTransform: 'uppercase', color: errors.email ? 'var(--accent)' : 'var(--text-secondary)',
                 display: 'block', marginBottom: 8,
               }}
             >
-              USERNAME
+              EMAIL
             </label>
             <Input
-              id="username"
-              {...register('username')}
-              placeholder="masukkan username"
+              id="email"
+              type="email"
+              {...register('email')}
+              placeholder="akun@nq21.app"
               autoFocus
+              autoComplete="email"
               style={{ padding: '13px 14px', height: 'auto', fontSize: 14 }}
             />
-            {errors.username && (
+            {errors.email && (
               <div style={{ color: 'var(--accent)', fontSize: 11.5, marginTop: 4 }}>
-                {errors.username.message}
+                {errors.email.message}
               </div>
             )}
           </div>
@@ -283,6 +265,7 @@ export default function Login() {
                 {...register('password')}
                 type={showPw ? 'text' : 'password'}
                 placeholder="••••••••"
+                autoComplete="current-password"
                 style={{ padding: '13px 42px 13px 14px', height: 'auto', fontSize: 14 }}
               />
               <button
@@ -310,27 +293,21 @@ export default function Login() {
           {/* Submit */}
           <button
             type="submit"
+            disabled={isSubmitting}
             className="login-btn-primary"
+            style={{ opacity: isSubmitting ? 0.6 : 1, cursor: isSubmitting ? 'wait' : 'pointer' }}
           >
-            MASUK KE DASHBOARD{' '}
-            <span className="login-btn-arrow">→</span>
+            {isSubmitting ? 'MEMVERIFIKASI...' : 'MASUK KE DASHBOARD'}{' '}
+            {!isSubmitting && <span className="login-btn-arrow">→</span>}
           </button>
 
           {/* Helper row */}
           <div
             style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
               marginTop: 24, fontSize: 12, color: 'var(--text-muted)',
             }}
           >
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                defaultChecked
-                style={{ accentColor: 'var(--accent)' }}
-              />
-              <span>Ingat saya</span>
-            </label>
             <span
               style={{
                 color: 'var(--text-secondary)', fontSize: 12,
@@ -342,7 +319,7 @@ export default function Login() {
             </span>
           </div>
 
-          {/* Demo creds — DEV only */}
+          {/* DEV reminder */}
           {import.meta.env.DEV && (
             <div
               style={{
@@ -358,22 +335,11 @@ export default function Login() {
                   textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6,
                 }}
               >
-                PROTOTYPE — MOCK AUTH
+                DEV — SUPABASE AUTH ACTIVE
               </div>
-              Login otomatis sebagai{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  background: 'var(--surface)',
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  border: '1px solid var(--border)',
-                  fontSize: 11,
-                }}
-              >
-                {role === 'owner' ? 'Owner' : 'Kasir'}
-              </code>
-              . Password tidak divalidasi di mode demo.
+              <code style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>owner@nq21.app</code> · Owner
+              <br />
+              <code style={{ fontFamily: 'var(--mono)', fontSize: 11 }}>kasir@nq21.app</code> · Kasir
             </div>
           )}
         </form>

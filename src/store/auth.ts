@@ -1,36 +1,39 @@
 import { create } from 'zustand'
-import { persist, createJSONStorage } from 'zustand/middleware'
+import { supabase } from '@/lib/supabase'
 
-interface User {
+export interface AuthProfile {
+  id: string
   name: string
-  username: string
   role: 'owner' | 'kasir'
+  isActive: boolean
+  email: string
 }
 
 interface AuthState {
-  user: User | null
-  login: (username: string) => void
-  logout: () => void
+  user: AuthProfile | null
+  loading: boolean
+  login: (email: string, password: string) => Promise<string | null>
+  logout: () => Promise<void>
+  _setUser: (user: AuthProfile | null) => void
+  _setLoading: (loading: boolean) => void
 }
 
-const MOCK_USERS: Record<string, User> = {
-  owner: { name: 'Pak Nanang', username: 'owner', role: 'owner' },
-  kasir: { name: 'Adit', username: 'kasir', role: 'kasir' },
-}
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  loading: true,
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      login: (username) => {
-        const user = MOCK_USERS[username.toLowerCase()]
-        if (user) set({ user })
-      },
-      logout: () => set({ user: null }),
-    }),
-    {
-      name: 'nq21-auth',
-      storage: createJSONStorage(() => sessionStorage),
-    }
-  )
-)
+  login: async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) return error.message
+    return null
+    // success: onAuthStateChange in App.tsx handles profile fetch + _setUser
+  },
+
+  logout: async () => {
+    await supabase.auth.signOut()
+    set({ user: null })
+  },
+
+  _setUser: (user) => set({ user }),
+  _setLoading: (loading) => set({ loading }),
+}))
