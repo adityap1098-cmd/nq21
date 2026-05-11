@@ -32,3 +32,16 @@ npm-debug.log*
 
 # TypeScript
 *.tsbuildinfo
+
+# Vercel
+.vercel/
+
+# Vite cache
+.vite-cache/
+
+# Playwright test artifacts
+.playwright-mcp/
+
+# Root-level screenshots from testing
+*.png
+*.jpg

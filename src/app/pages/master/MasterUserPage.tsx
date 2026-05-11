@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
-import type { AppUser } from '@/store/types'
+import type { AppUser, AuditLog } from '@/store/types'
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ interface ContentProps {
   add: (u: Omit<AppUser, 'id' | 'createdAt'>) => void
   update: (id: string, patch: Partial<AppUser>) => void
   softDelete: (id: string) => void
-  auditLog: ReturnType<typeof useAuditStore>['log']
+  auditLog: (entry: Omit<AuditLog, 'id' | 'createdAt'>) => void
   authUser: { name: string; role: 'owner' | 'kasir' }
 }
 
@@ -201,14 +201,14 @@ function MasterUserContent({ users, add, update, softDelete, auditLog, authUser 
   function handleDelete(u: AppUser) {
     // Guard: can't delete yourself
     if (u.name === authUser.name) {
-      toast('Tidak bisa', { description: 'Tidak bisa menghapus akun sendiri.', variant: 'error' })
+      toast('Tidak bisa', { description: 'Tidak bisa menghapus akun sendiri.', variant: 'destructive' })
       return
     }
     // Guard: last active owner
     if (u.role === 'owner') {
       const activeOwners = users.filter(x => x.role === 'owner' && x.isActive)
       if (activeOwners.length <= 1) {
-        toast('Tidak bisa', { description: 'Minimal harus ada 1 Owner aktif.', variant: 'error' })
+        toast('Tidak bisa', { description: 'Minimal harus ada 1 Owner aktif.', variant: 'destructive' })
         return
       }
     }
