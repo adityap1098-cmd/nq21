@@ -655,7 +655,14 @@ _(none)_
 - "CETAK SEMUA SLIP" button: disabled placeholder (needs batch print logic — M007)
 - Backdated warning toast on closed period input: tested visually, acceptable behavior
 
-### Patch: Print Overflow Fix (2026-05-11)
+### Patch v2: Landscape + Compact Header (2026-05-11)
+**Commit**: 8cff857 · "M005 patch v2: slip print landscape + compact header"
+- `print.css`: orientation switched to A4 landscape (1.2cm/1.5cm margins), slip-header flex compact layout, mechanic-section max-width 200px (no overflow)
+- `SlipPaper.tsx`: added class names — `slip-header`, `brand-section`, `mechanic-section`, `title`, `subtitle`, `label`, `name`, `role`
+- `SlipTable.tsx`: added TH alignment classes (`text-right`/`text-center`), `col-kategori` + `item-name` on KATEGORI cell, `rate-override-old` on strikethrough span
+- All 10 columns fit A4 landscape width ✅ · Header mechanic name contained ✅
+
+### Patch v1: Print Overflow Fix (2026-05-11)
 **Commit**: 37f8862 · "M005 patch: fix slip print overflow — compress columns + shorten non-critical"
 - `src/styles/print.css`: slip-table compression (9pt body, 8pt headers, 8.5pt mono, 4px/5px padding, 44px min TGL)
 - `SlipTable.tsx`: added classNames per cell (`col-tgl`, `col-noref-full/short`, `col-customer`, `meta-motor`, `col-mono`, `col-komisi`)
