@@ -27,7 +27,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
   })
 
   return (
-    <div className="slip-paper" style={{
+    <div className={`slip-paper${isStandalone ? ' slip-paper-detail' : ''}`} style={{
       background: 'var(--surface)', border: isStandalone ? 'none' : '1px solid var(--border)',
       borderRadius: isStandalone ? 0 : 12, padding: '32px 36px',
       position: 'relative', overflow: 'hidden',

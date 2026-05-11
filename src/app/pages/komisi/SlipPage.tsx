@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useCommissionStore } from '@/store/commission'
 import { useTransactionStore } from '@/store/transactions'
@@ -8,11 +8,21 @@ import { useCategoryStore } from '@/store/master/categories'
 import { getPayoutsForPeriod } from '@/store/selectors'
 import { PrintLayout } from '@/app/layout/PrintLayout'
 import { SlipPaper } from '@/features/komisi/components/SlipPaper'
+import { SlipPaperCompact } from '@/features/komisi/components/SlipPaperCompact'
 import '@/styles/print.css'
+
+type PrintMode = 'compact' | 'detail'
 
 export default function SlipPage() {
   const { periodId, mechanicId } = useParams<{ periodId: string; mechanicId: string }>()
   const navigate = useNavigate()
+  const [printMode, setPrintMode] = useState<PrintMode>('compact')
+
+  // Sync print mode to body attribute so @page CSS can target it
+  useEffect(() => {
+    document.body.dataset.printMode = printMode
+    return () => { delete document.body.dataset.printMode }
+  }, [printMode])
 
   const periods = useCommissionStore(s => s.periods)
   const storedPayouts = useCommissionStore(s => s.payouts)
@@ -35,7 +45,6 @@ export default function SlipPage() {
     [period, transactions, lines, lineMechanics, rates, mechanics, customers, categoryMap]
   )
 
-  // For closed periods with no live transactions, fall back to stored payout stub
   const payout = useMemo(() => {
     const live = computedPayouts.find(p => p.mechanicId === mechanicId)
     if (live) return live
@@ -94,10 +103,10 @@ export default function SlipPage() {
 
   return (
     <PrintLayout>
-      {/* Print action bar — hidden when printing */}
+      {/* Action bar — hidden when printing */}
       <div data-print-hide style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 16, gap: 12,
       }}>
         <button
           onClick={() => navigate(-1)}
@@ -110,6 +119,33 @@ export default function SlipPage() {
         >
           ← KEMBALI
         </button>
+
+        {/* Mode toggle */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          background: 'var(--surface-alt)', borderRadius: 8, padding: 4,
+          border: '1px solid var(--border)',
+        }}>
+          {(['compact', 'detail'] as PrintMode[]).map(mode => (
+            <button
+              key={mode}
+              onClick={() => setPrintMode(mode)}
+              style={{
+                padding: '6px 14px', borderRadius: 5,
+                fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+                background: printMode === mode ? 'var(--surface)' : 'transparent',
+                border: 'none',
+                color: printMode === mode ? 'var(--text)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                boxShadow: printMode === mode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              {mode === 'compact' ? '📄 RINGKAS' : '📋 DETAIL'}
+            </button>
+          ))}
+        </div>
+
         <button
           onClick={() => window.print()}
           style={{
@@ -123,22 +159,26 @@ export default function SlipPage() {
         </button>
       </div>
 
-      {/* Slip paper in standalone variant */}
-      <SlipPaper
-        period={period}
-        computed={payout}
-        storedPayout={storedPayout}
-        rates={rates}
-        isOwner={false}
-        variant="standalone"
-      />
+      {/* Slip paper — conditional on mode */}
+      {printMode === 'compact' ? (
+        <SlipPaperCompact period={period} payout={payout} />
+      ) : (
+        <SlipPaper
+          period={period}
+          computed={payout}
+          storedPayout={storedPayout}
+          rates={rates}
+          isOwner={false}
+          variant="standalone"
+        />
+      )}
 
-      {/* Hint — hidden when printing */}
+      {/* Footer hint — hidden when printing */}
       <div data-print-hide style={{
-        marginTop: 16, textAlign: 'center',
+        marginTop: 12, textAlign: 'center',
         fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)',
       }}>
-        Tekan Ctrl+P (atau Cmd+P di Mac) untuk cetak slip ini.
+        Mode: <strong>{printMode === 'compact' ? 'Ringkas (portrait)' : 'Detail (landscape)'}</strong> · Ctrl+P untuk cetak
       </div>
     </PrintLayout>
   )
