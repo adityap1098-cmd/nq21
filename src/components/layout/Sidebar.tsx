@@ -295,7 +295,7 @@ export default function Sidebar() {
           </div>
         </div>
         <button
-          onClick={() => { logout(); navigate('/login') }}
+          onClick={async () => { await logout(); navigate('/login', { replace: true }) }}
           title="Keluar"
           style={{
             background: 'transparent',
