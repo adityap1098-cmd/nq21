@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import type { CommissionPeriod, CommissionPayout, CommissionRate } from '@/store/types'
 import type { PayoutComputed } from '@/store/selectors'
 import { fmtPeriodFull, fmtRp, fmtClosedAt, getInitial, FMT } from '../utils'
@@ -11,31 +10,39 @@ interface Props {
   storedPayout: CommissionPayout | undefined
   rates: CommissionRate[]
   isOwner: boolean
+  variant?: 'embedded' | 'standalone'
 }
 
-export function SlipPaper({ period, computed, storedPayout, rates, isOwner }: Props) {
-  const navigate = useNavigate()
+export function SlipPaper({ period, computed, storedPayout, rates, isOwner, variant = 'embedded' }: Props) {
   const isOpen = period.status === 'open'
   const initial = getInitial(computed.mechanicName)
   const backdatedCount = computed.lines.filter(l => l.isBackdated).length
   const canMarkPaid = !isOpen && storedPayout?.status === 'pending' && isOwner
+  const isStandalone = variant === 'standalone'
+
+  const printedAt = new Date().toLocaleString('id-ID', {
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
 
   return (
-    <div style={{
-      background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 12, padding: '32px 36px',
+    <div className="slip-paper" style={{
+      background: 'var(--surface)', border: isStandalone ? 'none' : '1px solid var(--border)',
+      borderRadius: isStandalone ? 0 : 12, padding: '32px 36px',
       position: 'relative', overflow: 'hidden',
     }}>
-      {/* Watermark */}
-      <div style={{
-        position: 'absolute', top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%) rotate(-18deg)',
-        fontFamily: 'var(--display)', fontSize: 180,
-        color: 'rgba(200,16,46,0.04)', letterSpacing: '0.05em',
-        pointerEvents: 'none', userSelect: 'none', zIndex: 0,
-      }}>
-        {isOpen ? 'DRAFT' : 'FINAL'}
-      </div>
+      {/* Watermark — embedded only */}
+      {!isStandalone && (
+        <div style={{
+          position: 'absolute', top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%) rotate(-18deg)',
+          fontFamily: 'var(--display)', fontSize: 180,
+          color: 'rgba(200,16,46,0.04)', letterSpacing: '0.05em',
+          pointerEvents: 'none', userSelect: 'none', zIndex: 0,
+        }}>
+          {isOpen ? 'DRAFT' : 'FINAL'}
+        </div>
+      )}
 
       {/* Header */}
       <div style={{
@@ -87,7 +94,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner }: Pr
       </div>
 
       {/* Table */}
-      <div style={{ position: 'relative', zIndex: 1, overflowX: 'auto' }}>
+      <div className="slip-table" style={{ position: 'relative', zIndex: 1, overflowX: 'auto' }}>
         <SlipTable
           lines={computed.lines}
           mechanicId={computed.mechanicId}
@@ -97,7 +104,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner }: Pr
       </div>
 
       {/* Footer */}
-      <div style={{
+      <div className="slip-footer" style={{
         display: 'grid', gridTemplateColumns: '1fr auto', gap: 24,
         marginTop: 28, paddingTop: 20, borderTop: '2px solid var(--text)',
         alignItems: 'center', position: 'relative', zIndex: 1,
@@ -125,7 +132,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner }: Pr
         </div>
 
         {/* Right: Total Komisi Card */}
-        <div style={{
+        <div className="slip-total-card" style={{
           textAlign: 'right', padding: '18px 24px',
           background: 'var(--text)', color: '#fff',
           borderRadius: 10, borderLeft: '3px solid var(--accent)',
@@ -133,7 +140,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner }: Pr
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.6)' }}>
             TOTAL KOMISI DITERIMA
           </div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 44, letterSpacing: '0.012em', lineHeight: 1, marginTop: 4, color: 'var(--accent)' }}>
+          <div className="slip-komisi-accent" style={{ fontFamily: 'var(--display)', fontSize: 44, letterSpacing: '0.012em', lineHeight: 1, marginTop: 4, color: 'var(--accent)' }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginRight: 6, letterSpacing: '0.04em' }}>Rp</span>
             {FMT.format(computed.totalKomisi)}
           </div>
@@ -143,71 +150,110 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner }: Pr
         </div>
       </div>
 
-      {/* Actions */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginTop: 20, paddingTop: 16, borderTop: '1px dashed var(--border)',
-        position: 'relative', zIndex: 1,
-      }}>
-        {/* Payout status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {storedPayout ? (
-            <>
-              <KomisiBadge
-                variant={storedPayout.status === 'paid' ? 'paid' : 'pending'}
-                label={storedPayout.status === 'paid' ? 'DIBAYAR' : 'PENDING PAYOUT'}
-              />
-              {storedPayout.status === 'paid' && storedPayout.paidAt && (
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
-                  · DIBAYAR {fmtClosedAt(storedPayout.paidAt).toUpperCase()}
-                </span>
-              )}
-            </>
-          ) : (
-            <KomisiBadge variant="pending" label="PENDING PAYOUT" />
-          )}
-        </div>
+      {/* Standalone: signature lines + print metadata */}
+      {isStandalone && (
+        <>
+          <div style={{
+            marginTop: 36, paddingTop: 24, borderTop: '1px dashed var(--border)',
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32,
+          }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)' }}>
+                Diterima oleh:
+                <div style={{ marginTop: 24, borderBottom: '1px solid var(--text)', width: '100%' }} />
+              </div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)' }}>
+                Tanggal:
+                <div style={{ marginTop: 24, borderBottom: '1px solid var(--text)', width: '100%' }} />
+              </div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', color: 'var(--text-muted)' }}>
+                Tanda tangan:
+                <div style={{ marginTop: 24, borderBottom: '1px solid var(--text)', width: '100%' }} />
+              </div>
+            </div>
+          </div>
 
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => navigate(`/komisi/slip/${period.id}/${computed.mechanicId}`)}
-            style={{
-              padding: '8px 14px', borderRadius: 6,
-              fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-              background: 'transparent', border: '1px solid var(--border)',
-              color: 'var(--text)', cursor: 'pointer',
-            }}
-          >
-            CETAK
-          </button>
-          <button
-            disabled
-            style={{
-              padding: '8px 14px', borderRadius: 6,
-              fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-              background: 'transparent', border: '1px solid var(--border)',
-              color: 'var(--text-muted)', cursor: 'not-allowed', opacity: 0.6,
-            }}
-          >
-            PDF
-          </button>
-          {canMarkPaid && (
+          <div style={{
+            marginTop: 24, paddingTop: 12, borderTop: '1px solid var(--border)',
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              Dicetak: {printedAt}
+            </span>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+              Periode: {fmtPeriodFull(period.weekStart, period.weekEnd)} · NQ21 Performance · Internal Use
+            </span>
+          </div>
+        </>
+      )}
+
+      {/* Embedded: Actions */}
+      {!isStandalone && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginTop: 20, paddingTop: 16, borderTop: '1px dashed var(--border)',
+          position: 'relative', zIndex: 1,
+        }}>
+          {/* Payout status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {storedPayout ? (
+              <>
+                <KomisiBadge
+                  variant={storedPayout.status === 'paid' ? 'paid' : 'pending'}
+                  label={storedPayout.status === 'paid' ? 'DIBAYAR' : 'PENDING PAYOUT'}
+                />
+                {storedPayout.status === 'paid' && storedPayout.paidAt && (
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>
+                    · DIBAYAR {fmtClosedAt(storedPayout.paidAt).toUpperCase()}
+                  </span>
+                )}
+              </>
+            ) : (
+              <KomisiBadge variant="pending" label="PENDING PAYOUT" />
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
-              disabled
-              title="Coming in T4"
+              onClick={() => window.open(`/komisi/slip/${period.id}/${computed.mechanicId}`, '_blank')}
               style={{
-                padding: '8px 18px', borderRadius: 6,
+                padding: '8px 14px', borderRadius: 6,
                 fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-                background: 'var(--text)', border: '1px solid var(--text)',
-                color: '#fff', cursor: 'not-allowed', opacity: 0.7,
+                background: 'transparent', border: '1px solid var(--border)',
+                color: 'var(--text)', cursor: 'pointer',
               }}
             >
-              TANDAI DIBAYAR
+              CETAK
             </button>
-          )}
+            <button
+              disabled
+              style={{
+                padding: '8px 14px', borderRadius: 6,
+                fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: 'var(--text-muted)', cursor: 'not-allowed', opacity: 0.6,
+              }}
+            >
+              PDF
+            </button>
+            {canMarkPaid && (
+              <button
+                disabled
+                title="Coming in T4"
+                style={{
+                  padding: '8px 18px', borderRadius: 6,
+                  fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                  background: 'var(--text)', border: '1px solid var(--text)',
+                  color: '#fff', cursor: 'not-allowed', opacity: 0.7,
+                }}
+              >
+                TANDAI DIBAYAR
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

@@ -1,0 +1,60 @@
+@media print {
+  /* A4 page setup */
+  @page {
+    size: A4 portrait;
+    margin: 1.5cm 1.2cm;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide print action bar */
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  /* Slip paper — remove card chrome */
+  .slip-paper {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  /* Table fits page */
+  .slip-table {
+    page-break-inside: avoid;
+    font-size: 10pt;
+  }
+
+  .slip-table th,
+  .slip-table td {
+    padding: 4px 6px !important;
+  }
+
+  /* Keep footer on same page */
+  .slip-footer,
+  .slip-total-card {
+    page-break-inside: avoid;
+  }
+
+  /* thead repeats on each printed page */
+  thead {
+    display: table-header-group;
+  }
+
+  /* Force accent color to print */
+  .slip-komisi-accent {
+    color: #C8102E !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Dark total card */
+  .slip-total-card-bg {
+    background: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

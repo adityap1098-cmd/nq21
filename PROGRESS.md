@@ -549,20 +549,23 @@ _(none)_
   > router.tsx: `/komisi/periode` wired to `PeriodeKomisiPage`
   > Build clean ✅ · Verified: period switch ✓, mechanic switch ✓, DIBAYAR status ✓, TUTUP PERIODE visible for open ✓
 
-- [ ] **M005-T2**: Close Period workflow
-  > "TUTUP PERIODE" CTA button (owner only, open period)
-  > ClosePeriodDialog: preview komisi per mekanik before confirm
-  > On confirm: `closeAndGeneratePayouts(periodId, userId, computedPayouts)`
-  > Toast: "Periode ditutup · Periode {nextRange} dibuka otomatis"
-  > Redirect/refresh to closed period view
+- [x] **M005-T2**: Close Period workflow
+  > `ClosePeriodDialog` — komisi preview table (mechanic avatar, jobs, basis, komisi), backdated warning, 3-item warning card (next range auto-create, input cek, audit log)
+  > Button "TUTUP PERIODE": visible when open, disabled if no jasa or kasir login (tooltip)
+  > On confirm: `closeAndGeneratePayouts(periodId, user.username, payouts)` + audit log (period_close + N×payout_create)
+  > Toast success: "Periode berhasil ditutup · N payout di-generate" + toast "Periode baru dibuat"
+  > Loading state: "MENUTUP..." text, both buttons disabled
+  > Build clean ✅ · Commit: 6482bd8
 
-- [ ] **M005-T3**: Slip Bagi Hasil printable page (`/komisi/slip/:periodId/:mechanicId`)
-  > Dedicated route — full-page slip layout (no sidebar/topbar in print)
-  > Slip paper: NQ21 brand + mechanic avatar + detail table (TGL/REF/CUSTOMER/KAT/NOMINAL/MATERIAL/BASIS/SHARE/RATE/KOMISI)
-  > BACKDATED badge on rows where `isBackdated=true`
-  > Footer: total komisi dark card (Anton 44px) + backdated note if any
-  > `window.print()` button
-  > Basic `@media print` CSS: hide nav, A4 layout, repeat header
+- [x] **M005-T3**: Slip Bagi Hasil printable page (`/komisi/slip/:periodId/:mechanicId`)
+  > `SlipPage` — standalone no sidebar/topbar; inside ProtectedRoute outside Layout
+  > `PrintLayout` wrapper — white bg, max-width 794px (A4), centered
+  > `SlipPaper` `variant="standalone"` — no watermark, no action buttons, signature lines (Diterima/Tanggal/Tanda tangan), print metadata footer
+  > `src/styles/print.css` — @page A4 portrait, hide data-print-hide, thead repeat, slip-paper no border
+  > Action bar: KEMBALI (ghost) + 🖨 CETAK (`window.print()`) — hidden on print via `data-print-hide`
+  > Fallback to stored payout stub for closed periods with no live txs
+  > router.tsx: `/komisi/slip/:periodId/:mechanicId` → SlipPage (outside Layout)
+  > Build clean ✅
 
 - [ ] **M005-T4**: Mark As Paid workflow
   > "TANDAI DIBAYAR" button in slip viewer actions (owner only, pending status)

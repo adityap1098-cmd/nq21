@@ -19,6 +19,7 @@ import LaporanCashFlowPage from './pages/laporan/LaporanCashFlowPage'
 import LaporanJasaPage from './pages/laporan/LaporanJasaPage'
 import LaporanDynoPage from './pages/laporan/LaporanDynoPage'
 import PeriodeKomisiPage from './pages/komisi/PeriodeKomisiPage'
+import SlipPage from './pages/komisi/SlipPage'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -33,6 +34,8 @@ export const router = createBrowserRouter([
   {
     element: <ProtectedRoute />,
     children: [
+      // Standalone pages (no sidebar/topbar)
+      { path: 'komisi/slip/:periodId/:mechanicId', element: <SlipPage /> },
       {
         element: <Layout />,
         children: [
@@ -48,7 +51,6 @@ export const router = createBrowserRouter([
           { path: 'laporan/dyno',                    element: <LaporanDynoPage /> },
           { path: 'komisi/periode',                  element: <PeriodeKomisiPage /> },
           { path: 'komisi/periode/:id',              element: ph('DETAIL PERIODE') },
-          { path: 'komisi/slip/:periodId/:mekanikId', element: ph('SLIP BAGI HASIL') },
           { path: 'komisi/mekanik',                  element: ph('MEKANIK & KOMISI') },
           { path: 'master/customer',                 element: <MasterCustomerPage /> },
           { path: 'master/supplier',                 element: <MasterSupplierPage /> },
