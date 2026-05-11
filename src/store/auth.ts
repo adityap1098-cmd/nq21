@@ -24,17 +24,25 @@ export const useAuthStore = create<AuthState>()((set) => ({
   loading: true,
 
   loadSession: async () => {
+    console.log('[auth] loadSession START')
     try {
+      console.log('[auth] calling getSession...')
       const { data: { session }, error } = await supabase.auth.getSession()
+      console.log('[auth] getSession done:', { hasSession: !!session, error: error?.message })
+
       if (error || !session) {
         set({ user: null, loading: false })
         return
       }
+
+      console.log('[auth] fetching profile for', session.user.id)
       const { data, error: profileError } = await supabase
         .from('profiles')
         .select('id, name, role, is_active')
         .eq('id', session.user.id)
         .maybeSingle()
+      console.log('[auth] profile done:', { hasData: !!data, error: profileError?.message })
+
       if (profileError || !data || !data.is_active) {
         await supabase.auth.signOut().catch(() => {})
         set({ user: null, loading: false })
@@ -50,7 +58,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
         },
         loading: false,
       })
-    } catch {
+      console.log('[auth] loadSession SUCCESS')
+    } catch (err) {
+      console.error('[auth] loadSession CRASHED:', err)
       set({ user: null, loading: false })
     }
   },
