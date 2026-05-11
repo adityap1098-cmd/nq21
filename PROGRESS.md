@@ -395,11 +395,23 @@ _(none)_
   > Removed `Bell` import + button element from `Topbar.tsx`
   > Bell deferred to M006 (real-time notifications need BE infrastructure)
 
-- [ ] **M004-T2**: Selectors Extension
-  > `getReportJasa()` — per mekanik: total jasa income, basis komisi, komisi earned, tx count
-  > `getReportDyno()` — filter transactions by kategori Dyno, group by date/mekanik
-  > Extend `getReportPerKategori()` — split income/expense halves + percentage of total
-  > `getCashFlow()` week/month granularity (currently day-only)
+- [x] **M004-T2**: Selectors Extension
+  > New export type `DateRange { start, end }` — used across all new selectors
+  > `getReportPerKategori()` rewritten → `ReportPerKategoriResult { income[], expense[], summary }` — split halves, percentage of total per group, excludes 0-nominal categories
+  > `getCashFlow(txs, '7H'|'30H'|'90H'|DateRange, granularity?)` — full typed `CashFlowDataPoint[]`
+    · '7H' → 7 daily bars (SEN/SEL/…), isToday flag on 2026-05-10 ✅
+    · '30H' → 30 daily bars (DD MMM labels)
+    · '90H' → 13 weekly bars (Feb W2 … Mei W1) ✅
+  > `getReportJasa(txs, lines, lineMechanics, rates, catMap, customers, mechanics, range, filters?)` → `JasaReport`
+    · perMekanik stats (basis share, komisi, jobsCount, uniqueCategories)
+    · detailLines with full mechanic breakdown + effectiveRate/rateOverride
+    · optional filters by mechanicIds + categoryIds
+  > `getReportDyno(txs, lines, lineMechanics, catMap, customers, mechanics, range)` → `DynoReport`
+    · sessions + topOperators + sessionsByDate (14-day bar) + summary
+  > `getPeriodRange(preset)` + `getPrevPeriodRange(current)` period helpers
+  > New `src/lib/csv.ts`: `exportCSV<T>(rows, columns, filename)` — UTF-8 BOM, RFC 4180 quoting, \r\n
+    · Format helpers: `fmtRupiah`, `fmtDate`, `fmtPercent`
+  > Date math: all via pure string+manual arithmetic (no extra imports), timezone-safe (local Date)
 
 - [ ] **M004-T3**: Laporan Per Kategori
   > Route: `/laporan/kategori`
