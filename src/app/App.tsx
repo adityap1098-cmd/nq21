@@ -10,19 +10,19 @@ import { PWAUpdatePrompt } from './components/PWAUpdatePrompt'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore, type AuthProfile } from '@/store/auth'
 
-async function fetchProfile(userId: string): Promise<AuthProfile | null> {
+async function fetchProfile(userId: string, email: string): Promise<AuthProfile | null> {
   const { data, error } = await supabase
     .from('profiles')
     .select('id, name, role, is_active')
     .eq('id', userId)
-    .maybeSingle()  // single() throws PGRST116 on 0 rows; maybeSingle() returns null
-  if (error || !data) return null
+    .maybeSingle()
+  if (error || !data || !data.is_active) return null
   return {
     id: data.id as string,
     name: data.name as string,
     role: data.role as 'owner' | 'kasir',
     isActive: data.is_active as boolean,
-    email: '',
+    email,
   }
 }
 
@@ -30,44 +30,38 @@ export default function App() {
   const loading = useAuthStore((s) => s.loading)
 
   useEffect(() => {
-    const { _setUser, _setLoading } = useAuthStore.getState()
+    const { loadSession, _setUser } = useAuthStore.getState()
 
-    // Safety timeout: if INITIAL_SESSION never fires or hangs, dismiss splash after 5s
-    const safetyTimer = setTimeout(() => {
-      if (useAuthStore.getState().loading) {
-        console.warn('[auth] INITIAL_SESSION timeout — forcing loading=false')
-        _setLoading(false)
-      }
-    }, 5000)
+    // Proactive session restore — no dependency on INITIAL_SESSION event timing
+    loadSession()
 
+    // Listener for subsequent auth changes only (login, logout, token refresh, multi-tab)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        // Skip INITIAL_SESSION — loadSession() already handles initial state
+        if (event === 'INITIAL_SESSION') return
+
         try {
-          if (session) {
-            const profile = await fetchProfile(session.user.id)
-            if (!profile || !profile.isActive) {
+          if (!session || event === 'SIGNED_OUT') {
+            _setUser(null)
+            return
+          }
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+            const profile = await fetchProfile(session.user.id, session.user.email ?? '')
+            if (profile) {
+              _setUser(profile)
+            } else {
               await supabase.auth.signOut().catch(() => {})
               _setUser(null)
-            } else {
-              _setUser({ ...profile, email: session.user.email ?? '' })
             }
-          } else {
-            _setUser(null)
           }
         } catch {
           _setUser(null)
-        } finally {
-          if (event === 'INITIAL_SESSION') {
-            _setLoading(false)
-          }
         }
       }
     )
 
-    return () => {
-      clearTimeout(safetyTimer)
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   if (loading) return <SplashScreen />
