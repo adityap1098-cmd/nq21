@@ -5,8 +5,8 @@ export function PWAUpdatePrompt() {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r) { if (import.meta.env.DEV) console.log('SW registered:', r) },
-    onRegisterError(error) { console.error('SW registration error:', error) },
+    onRegistered(_r) { /* SW registered */ },
+    onRegisterError(error) { if (import.meta.env.DEV) console.error('SW error:', error) },
   })
 
   if (!needRefresh) return null

@@ -434,7 +434,6 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         }
       }
     } catch (err) {
-      console.error('[T10] Save error:', err)
       toast('Gagal menyimpan transaksi', { description: 'Terjadi kesalahan. Coba lagi.', variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
@@ -503,6 +502,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                   type="button"
                   onClick={handleRegenNoRef}
                   title="Generate ulang"
+                  aria-label="Generate ulang no referensi"
                   style={{
                     width: 36, height: 36, borderRadius: 8,
                     border: '1px solid var(--border)',

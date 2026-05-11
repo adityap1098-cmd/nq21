@@ -164,8 +164,8 @@ function CashFlowChart({ data, filter, onFilterChange }: {
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(10,9,8,0.04)' }} />
           <Bar dataKey="in" name="Masuk" fill="#0A0908" radius={[3, 3, 0, 0]} maxBarSize={28}>
-            {data.map((entry, i) => (
-              <Cell key={i} fill={entry.today ? '#1a1917' : '#0A0908'} />
+            {data.map((entry) => (
+              <Cell key={entry.date} fill={entry.today ? '#1a1917' : '#0A0908'} />
             ))}
           </Bar>
           <Bar dataKey="out" name="Keluar" fill="#C8102E" radius={[3, 3, 0, 0]} maxBarSize={28} />
