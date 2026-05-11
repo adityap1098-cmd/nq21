@@ -263,6 +263,8 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M007 — Lazy loading pattern**: `wrap()` helper function di router.tsx — `(el) => <Suspense fallback={<LoadingFallback />}>{el}</Suspense>`. Test/dev pages tetap eager (PlaceholderPage, TestPage) — ringan dan jarang dipakai kasir.
 - **M007 — Dexie.js deferred**: Plan.md menyebut Dexie untuk offline queue, tapi M007 implementation menggunakan Workbox CacheFirst untuk static assets saja (fonts, JS, CSS). Dexie untuk data sync defer ke M008 kalau BE sudah ada.
 
+- **M006 DEFERRED (2026-05-11)**: Backend integration di-rollback ke vM007 state setelah 3+ jam deployment infrastructure issues. Root causes: (1) Edge runtime incompatible dengan `bcryptjs`/`postgres` Node modules; (2) Node runtime + `"type":"module"` ESM + Vercel Node file-based routing tidak auto-catch-all `/api/index.ts` untuk semua `/api/*` paths. Re-strategy sebelum resume: pertimbangkan Vercel Edge + `@neondatabase/serverless` driver (no Node modules), atau host BE terpisah di Railway/Render. Schema Neon DB sudah ada, migration di git reflog commit `6b4de93`.
+
 ---
 
 ## Tech Stack (LOCKED — match plan.md Section 1)

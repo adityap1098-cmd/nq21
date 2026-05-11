@@ -4,8 +4,8 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M006 — Backend Integration (next)
-**Phase**: M001-M007 ✅ · M006 next
+**Milestone aktif**: — (M006 DEFERRED — FE-only demo phase)
+**Phase**: M001-M007 ✅ · M006 ⏸ DEFERRED
 **Last updated**: 2026-05-11
 
 ---
@@ -792,6 +792,25 @@ _(none)_
 
 **Commits M002**: 10 commits · 17 files changed · +2347/-29 lines
 **Tag**: vM002
+
+---
+
+---
+
+## M006 — Backend Integration ⏸ DEFERRED
+
+**Status**: Paused after T1 attempt (2026-05-11). Code rolled back to vM007 state.
+
+**Lesson learned**: Vercel Node serverless + ESM (`"type":"module"`) + Hono hit multiple infrastructure walls during T1 deployment: Edge runtime incompatible with bcryptjs/postgres Node modules → switched to Node runtime → ESM/CJS module format mismatch → fixed → ESM relative import `.js` extension requirement → fixed → PWA SW intercepting `/api/*` as SPA navigation → fixed → Vercel file-based routing not matching catch-all `/api/index.ts` → root cause unclear after 3+ hours.
+
+**Trigger to revisit**: After real user testing confirms multi-device sync is a critical pain point.
+
+**Re-strategy options when resuming**:
+1. Vercel Edge + Neon serverless driver (`@neondatabase/serverless`) — eliminates Node module constraint
+2. Separate BE host (Railway/Render/Fly.io) with simpler CJS Node + Express
+3. Accept localStorage limitation for single-device use case (owner + 1 kasir, same device)
+
+**Schema + Neon DB**: Already created (can be wiped or reused). Migration file archived in git reflog (`6b4de93` last M006 commit before rollback).
 
 ---
 
