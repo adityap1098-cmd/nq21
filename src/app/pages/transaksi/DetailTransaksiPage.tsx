@@ -270,6 +270,7 @@ export default function DetailTransaksiPage() {
   const creatorName = users.find((u) => u.id === tx.createdBy)?.name ?? tx.createdBy
   const paymentLabel = tx.paymentMethod === 'cash' ? 'Cash' : tx.paymentMethod === 'transfer' ? 'Transfer' : 'QRIS'
   const isOwner = user?.role === 'owner'
+  const hasNotes = !!(tx.notes?.trim())
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -280,17 +281,33 @@ export default function DetailTransaksiPage() {
         subtitle={tx.noReferensi}
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Ghost — escape action, lowest emphasis */}
             <button
               onClick={() => navigate('/transaksi')}
               style={{
                 fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
                 letterSpacing: '0.06em', padding: '8px 14px', borderRadius: 8,
-                border: '1.5px solid var(--border)', background: 'transparent',
+                border: 'none', background: 'transparent',
                 color: 'var(--text-muted)', cursor: 'pointer',
               }}
             >
               ← KEMBALI
             </button>
+            {/* Destructive outline — medium emphasis */}
+            {isOwner && !isDeleted && (
+              <button
+                onClick={() => setShowDelete(true)}
+                style={{
+                  fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
+                  letterSpacing: '0.06em', padding: '8px 14px', borderRadius: 8,
+                  border: '1.5px solid rgba(200,16,46,0.35)', background: 'transparent',
+                  color: 'var(--accent)', cursor: 'pointer',
+                }}
+              >
+                HAPUS
+              </button>
+            )}
+            {/* Accent solid — primary action, highest emphasis */}
             <button
               onClick={() => canEdit && navigate(`/transaksi/${tx.id}/edit`)}
               disabled={!canEdit}
@@ -306,19 +323,6 @@ export default function DetailTransaksiPage() {
             >
               EDIT
             </button>
-            {isOwner && !isDeleted && (
-              <button
-                onClick={() => setShowDelete(true)}
-                style={{
-                  fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-                  letterSpacing: '0.06em', padding: '8px 14px', borderRadius: 8,
-                  border: '1.5px solid rgba(200,16,46,0.35)', background: 'transparent',
-                  color: 'var(--accent)', cursor: 'pointer',
-                }}
-              >
-                HAPUS
-              </button>
-            )}
           </div>
         }
       />
@@ -381,7 +385,8 @@ export default function DetailTransaksiPage() {
 
         {/* ── Info card ── */}
         <Card>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px 24px' }}>
+          {/* Adaptive: 3-col compact when no notes, 2-col when notes present */}
+          <div style={{ display: 'grid', gridTemplateColumns: hasNotes ? '1fr 1fr' : '1fr 1fr 1fr', gap: '16px 24px' }}>
             {/* Party */}
             <div>
               <SectionLabel>{isIncome ? 'CUSTOMER' : 'SUPPLIER'}</SectionLabel>
@@ -421,13 +426,15 @@ export default function DetailTransaksiPage() {
               </div>
             </div>
 
-            {/* Notes */}
-            <div>
-              <SectionLabel>CATATAN</SectionLabel>
-              <div style={{ fontSize: 12, color: tx.notes ? 'var(--text)' : 'var(--text-muted)', fontStyle: tx.notes ? 'normal' : 'italic' }}>
-                {tx.notes || '—'}
+            {/* Notes — only rendered when has content (avoids wasted space in 2-col layout) */}
+            {hasNotes && (
+              <div>
+                <SectionLabel>CATATAN</SectionLabel>
+                <div style={{ fontSize: 12, color: 'var(--text)' }}>
+                  {tx.notes}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </Card>
 

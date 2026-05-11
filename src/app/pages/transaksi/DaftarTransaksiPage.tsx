@@ -16,6 +16,8 @@ const PAGE_SIZE = 20
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'all'
 type TipeFilter = 'all' | 'income' | 'expense'
+type SortKey = 'noReferensi' | 'tglTransaksi' | 'tipe' | 'party' | 'paymentMethod' | 'totalNominal'
+type SortDir = 'asc' | 'desc'
 
 function getInterval(period: PeriodFilter): { start: Date; end: Date } | null {
   const now = new Date('2026-05-10') // pinned to seed date for prototype
@@ -120,6 +122,8 @@ export default function DaftarTransaksiPage() {
   const [tipe, setTipe]       = useState<TipeFilter>('all')
   const [period, setPeriod]   = useState<PeriodFilter>('week')
   const [page, setPage]       = useState(1)
+  const [sortBy, setSortBy]   = useState<SortKey>('tglTransaksi')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const active = useMemo(
     () => transactions.filter(t => !t.deletedAt),
@@ -130,32 +134,63 @@ export default function DaftarTransaksiPage() {
     const interval = getInterval(period)
     const q = search.trim().toLowerCase()
 
-    return active
-      .filter(t => {
-        if (tipe !== 'all' && t.tipe !== tipe) return false
+    return active.filter(t => {
+      if (tipe !== 'all' && t.tipe !== tipe) return false
 
-        if (interval) {
-          const d = parseISO(t.tglTransaksi)
-          if (!isWithinInterval(d, interval)) return false
-        }
+      if (interval) {
+        const d = parseISO(t.tglTransaksi)
+        if (!isWithinInterval(d, interval)) return false
+      }
 
-        if (q) {
-          const noRef = t.noReferensi.toLowerCase()
-          const party = t.tipe === 'income'
-            ? (customers.find(c => c.id === t.customerId)?.name ?? '').toLowerCase()
-            : (suppliers.find(s => s.id === t.supplierId)?.name ?? '').toLowerCase()
-          const hasItem = lines.some(l => l.transactionId === t.id && l.itemName?.toLowerCase().includes(q))
-          if (!noRef.includes(q) && !party.includes(q) && !hasItem) return false
-        }
+      if (q) {
+        const noRef = t.noReferensi.toLowerCase()
+        const party = t.tipe === 'income'
+          ? (customers.find(c => c.id === t.customerId)?.name ?? '').toLowerCase()
+          : (suppliers.find(s => s.id === t.supplierId)?.name ?? '').toLowerCase()
+        const hasItem = lines.some(l => l.transactionId === t.id && l.itemName?.toLowerCase().includes(q))
+        if (!noRef.includes(q) && !party.includes(q) && !hasItem) return false
+      }
 
-        return true
-      })
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  }, [active, tipe, period, search, customers, suppliers])
+      return true
+    })
+  }, [active, tipe, period, search, customers, suppliers, lines])
+
+  const sortedFiltered = useMemo(() => {
+    const arr = [...filtered]
+    arr.sort((a, b) => {
+      let cmp: number
+      if (sortBy === 'party') {
+        const aName = (a.tipe === 'income'
+          ? (customers.find((c) => c.id === a.customerId)?.name ?? '')
+          : (suppliers.find((s) => s.id === a.supplierId)?.name ?? '')).toLowerCase()
+        const bName = (b.tipe === 'income'
+          ? (customers.find((c) => c.id === b.customerId)?.name ?? '')
+          : (suppliers.find((s) => s.id === b.supplierId)?.name ?? '')).toLowerCase()
+        cmp = aName < bName ? -1 : aName > bName ? 1 : 0
+      } else if (sortBy === 'totalNominal') {
+        cmp = a.totalNominal - b.totalNominal
+      } else {
+        const aVal = a[sortBy as 'noReferensi' | 'tglTransaksi' | 'tipe' | 'paymentMethod']
+        const bVal = b[sortBy as 'noReferensi' | 'tglTransaksi' | 'tipe' | 'paymentMethod']
+        cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+    return arr
+  }, [filtered, sortBy, sortDir, customers, suppliers])
+
+  function handleSort(key: SortKey) {
+    if (sortBy === key) {
+      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortBy(key)
+      setSortDir('desc')
+    }
+  }
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const safePage   = Math.min(page, totalPages)
-  const pageSlice  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageSlice  = sortedFiltered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   function handleSearchChange(val: string) {
     setSearch(val)
@@ -263,13 +298,35 @@ export default function DaftarTransaksiPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={headStyle} align="left">NO. REFERENSI</th>
-                <th style={headStyle} align="left">TANGGAL</th>
-                <th style={headStyle} align="center">TIPE</th>
-                <th style={headStyle} align="left">CUSTOMER / SUPPLIER</th>
-                <th style={headStyle} align="center">METODE</th>
-                <th style={headStyle} align="right">TOTAL</th>
-                <th style={{ ...headStyle, width: 60 }} align="center" />
+                {(
+                  [
+                    { label: 'NO. REFERENSI', col: 'noReferensi' as SortKey, align: 'left' },
+                    { label: 'TANGGAL',       col: 'tglTransaksi' as SortKey, align: 'left' },
+                    { label: 'TIPE',          col: 'tipe' as SortKey, align: 'center' },
+                    { label: 'CUSTOMER / SUPPLIER', col: 'party' as SortKey, align: 'left' },
+                    { label: 'METODE',        col: 'paymentMethod' as SortKey, align: 'center' },
+                    { label: 'TOTAL',         col: 'totalNominal' as SortKey, align: 'right' },
+                  ] as const
+                ).map(({ label, col, align }) => {
+                  const isActive = sortBy === col
+                  return (
+                    <th
+                      key={col}
+                      style={{ ...headStyle, textAlign: align as CSSProperties['textAlign'], cursor: 'pointer', userSelect: 'none' }}
+                      onClick={() => handleSort(col)}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        {label}
+                        {isActive && (
+                          <span style={{ color: 'var(--accent)', fontSize: 7, lineHeight: 1 }}>
+                            {sortDir === 'asc' ? '▲' : '▼'}
+                          </span>
+                        )}
+                      </span>
+                    </th>
+                  )
+                })}
+                <th style={{ ...headStyle, width: 60 }} />
               </tr>
             </thead>
             <tbody>

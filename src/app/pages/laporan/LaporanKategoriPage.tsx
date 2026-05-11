@@ -179,20 +179,6 @@ function Panel({
                 </td>
               </tr>
             ))}
-            {/* Grand total row */}
-            <tr style={{ background: 'var(--bg)', fontWeight: 700 }}>
-              <td style={{ padding: '10px 12px 10px 20px' }} />
-              <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.08em' }}>
-                GRAND TOTAL
-              </td>
-              <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                {totalTrx}
-              </td>
-              <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 13, color: totalColor }}>
-                {fmtRp(total)}
-              </td>
-              <td style={{ padding: '10px 20px 10px 12px' }} />
-            </tr>
             {showHint && (
               <tr>
                 <td
@@ -214,6 +200,25 @@ function Panel({
         </table>
         </div>
       )}
+
+      {/* Grand Total — outside table, always at bottom of flex column so both panels align */}
+      <div style={{
+        borderTop: '2px solid var(--border)', background: 'var(--bg)',
+        display: 'flex', alignItems: 'center', fontWeight: 700,
+        padding: '10px 20px 10px 0',
+      }}>
+        <div style={{ width: 52 }} />
+        <div style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.08em', paddingLeft: 12 }}>
+          GRAND TOTAL
+        </div>
+        <div style={{ width: 56, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+          {totalTrx}
+        </div>
+        <div style={{ width: 150, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 13, color: totalColor, paddingRight: 4 }}>
+          {fmtRp(total)}
+        </div>
+        <div style={{ width: 52 }} />
+      </div>
     </div>
   )
 }
