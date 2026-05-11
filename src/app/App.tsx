@@ -43,6 +43,15 @@ export default function App() {
 
         try {
           if (!session || event === 'SIGNED_OUT') {
+            // Defensive: if SIGNED_OUT arrives but a token still exists in localStorage,
+            // this is a spurious broadcast from another tab that failed to restore its session.
+            // Do NOT clear our valid session — ignore the event.
+            if (event === 'SIGNED_OUT') {
+              const hasToken = Object.keys(localStorage).some(
+                k => k.startsWith('sb-') && localStorage.getItem(k)
+              )
+              if (hasToken) return
+            }
             _setUser(null)
             return
           }
