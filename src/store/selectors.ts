@@ -119,6 +119,7 @@ export interface DynoSession {
   transactionId: string
   noReferensi: string
   tgl: string          // YYYY-MM-DD
+  createdAt: string    // ISO timestamp for time display
   customerName: string
   operatorMechanicId: string
   operatorName: string
@@ -563,6 +564,7 @@ export function getReportDyno(
         transactionId: tx.id,
         noReferensi: tx.noReferensi,
         tgl: tx.tglTransaksi,
+        createdAt: tx.createdAt,
         customerName: customer?.name ?? '—',
         operatorMechanicId: primary?.mechanicId ?? '',
         operatorName: primary ? (mechNameMap[primary.mechanicId] ?? primary.mechanicId) : '—',
