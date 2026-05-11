@@ -4,8 +4,8 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M007 — PWA & Polish (in progress)
-**Phase**: M001-M005 ✅ · M007 T1-T2 ✅ (T3-T5 next)
+**Milestone aktif**: M006 — Backend Integration (next)
+**Phase**: M001-M007 ✅ · M006 next
 **Last updated**: 2026-05-11
 
 ---
@@ -689,9 +689,57 @@ _(none)_
   > `App.tsx` — wires OfflineIndicator + PWAUpdatePrompt after RouterProvider
   > dist/sw.js + workbox-*.js generated ✅ · Build clean ✅
 
-- [ ] **M007-T3**: Lazy Loading + Code Splitting
-- [ ] **M007-T4**: Visual Polish + Bug Fixes
-- [ ] **M007-T5**: M007 Closer + Tag vM007
+- [x] **M007-T3**: Lazy Loading + Code Splitting
+  > `router.tsx` — 17 routes converted to React.lazy + Suspense with `<LoadingFallback />` wrapper
+  > `LoadingFallback.tsx` — spinner + "Memuat..." mono text
+  > `vite.config.ts` — manualChunks: react-vendor/recharts/date-fns/zustand/radix-ui
+  > Main entry: 239KB gzipped (was 1.19MB monolith). Recharts isolated to 101KB deferred chunk ✅
+  > 44 entries precached by Workbox · Build clean ✅
+
+- [x] **M007-T4**: Visual Polish + Bug Fixes
+  > `index.css` — `:focus-visible` ring (2px accent, offset 2px) + `:focus:not(:focus-visible)` suppress mouse ring
+  > `TransactionForm.tsx` — `aria-label` on icon-only refresh button; removed `console.error` prod leak
+  > `Dashboard.tsx` — Chart `<Cell key={entry.date}>` (was index — React key warning)
+  > `PWAUpdatePrompt.tsx` — cleaned console.log/error to DEV-only
+  > All empty state strings already in Indonesian ✅ · Toast variants consistent ✅ · Form reset on submit ✅
+
+- [x] **M007-T5**: M007 Closer + Tag vM007
+  > Smoke test: dashboard / komisi/periode / laporan/jasa / master/mekanik → 0 console errors ✅
+  > Tagged vM007 · Build clean ✅
+
+---
+
+## M007 — COMPLETED ✅
+
+**Completed**: 2026-05-11
+**Tag**: vM007
+
+### Tasks
+- T1 PWA Manifest + Icons + Splash Screen
+- T2 Service Worker + Offline Support
+- T3 Lazy Loading + Code Splitting
+- T4 Visual Polish + Bug Fixes
+- T5 Closer + Tag vM007
+
+### Key Features
+- Installable PWA (manifest + SVG icons + `display: standalone`)
+- Service worker (Workbox, CacheFirst fonts, autoUpdate)
+- Offline indicator badge + PWA update prompt
+- Hydration splash screen (300ms gate, dark NQ21 brand)
+- Route-level lazy loading — 17 routes, multiple vendor chunks
+- Main bundle: 239KB gzipped (was 1.19MB monolith); recharts deferred 101KB
+- `:focus-visible` ring for full keyboard nav accessibility
+- Chart key fix, aria-label on icon buttons, console.log cleanup
+
+### Decisions D1-D8 locked
+- D1: PWA installable + SW offline static cache ✅
+- D2: Offline badge top-right, yellow, pulse dot ✅
+- D3: CacheFirst static, Workbox generateSW ✅
+- D4: SVG icons (NQ21 "N" dark bg + red strip) ✅
+- D5: Splash screen dark bg, 300ms hydration gate ✅
+- D6: Polish only — no redesign of existing features ✅
+- D7: Manual chunks split — recharts/radix-ui/date-fns/zustand/react-vendor ✅
+- D8: Print CSS already landed M005 — no changes needed ✅
 
 ---
 

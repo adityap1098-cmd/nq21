@@ -258,6 +258,11 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M005-T5 — period filter 'all' lokal**: `usePeriodFilter` tidak support `'all'`. T5 pakai `useState<'all' | 'bulan-ini'>` lokal — cukup untuk MVP overview. Custom range defer M007.
 - **M005-T5 — MarkPaidDialog reuse di overview**: Buat `PayoutComputed` stub (`lines: []`) dari stored payout + mechanic lookup untuk passin ke MarkPaidDialog. Dialog hanya butuh totals, tidak perlu `lines`.
 
+- **M007 — PWA Icons SVG only**: PNG icons tidak dibuat (tool limitation). Manifest menggunakan SVG (`image/svg+xml`, `purpose: "any"` + `"maskable"`). Chrome Android dan modern browsers support SVG in manifest. Untuk iOS Apple Touch Icon, SVG referenced via `<link rel="apple-touch-icon">`. Kalau ada install issue di specific device, generate PNG dari `public/icons/icon.svg` via https://maskable.app.
+- **M007 — Service Worker dev disabled**: `devOptions.enabled: false` di VitePWA config — SW tidak aktif di `vite dev`. Untuk test SW, run `npm run build && npm run preview`.
+- **M007 — Lazy loading pattern**: `wrap()` helper function di router.tsx — `(el) => <Suspense fallback={<LoadingFallback />}>{el}</Suspense>`. Test/dev pages tetap eager (PlaceholderPage, TestPage) — ringan dan jarang dipakai kasir.
+- **M007 — Dexie.js deferred**: Plan.md menyebut Dexie untuk offline queue, tapi M007 implementation menggunakan Workbox CacheFirst untuk static assets saja (fonts, JS, CSS). Dexie untuk data sync defer ke M008 kalau BE sudah ada.
+
 ---
 
 ## Tech Stack (LOCKED — match plan.md Section 1)
