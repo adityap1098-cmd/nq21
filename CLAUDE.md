@@ -241,6 +241,8 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M004-D6 — Filter State**: `useState` lokal per halaman laporan. Tidak perlu Zustand global untuk filter UI state.
 - **M004-D7 — Empty State Copy**: Per laporan — lihat PROGRESS.md M004 Decision D7.
 - **M004-D8 — Print CSS**: Defer ke M007. M004 hanya browser view, tidak ada print styling.
+- **M004-T1.6 — itemName universal**: Field `itemName` (ex-`jasaName`) sekarang muncul untuk SEMUA kategori, bukan hanya isJasa. Label/placeholder dinamis per kategori (`getItemNameLabel()`). Zustand persist `version: 2` + `migrate()` untuk auto-rename key di localStorage lama.
+- **M004-T1.7 — Bell deferred**: Notification bell dihapus dari Topbar. Real-time notifikasi butuh BE/websocket infra — implement di M006+.
 
 ---
 

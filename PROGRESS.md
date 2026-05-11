@@ -373,7 +373,27 @@ _(none)_
   > Wire KPI card `change` props — replaced hardcoded `+12.4%` / `+3.1%` / `+18.2%`
   > Fix closed period komisi: `payouts.filter(po => po.periodId === p.id).reduce(...)` (was `1_980_000`)
   > `prevPeriod` useMemo + `prevKomisi` from payouts store
+  > Chart filter state lifted to Dashboard: `build30HData()` + `build90HData()` helpers
   > Browser verify: 8 scenarios
+
+- [x] **M004-T1.5**: Bug fixes (3 bugs dari T1 verify)
+  > Bug #1 — Sidebar username stale after master user edit: `auth.ts` + `User` interface get `username` field; Sidebar live-lookup from `useUserStore` by username, fallback ke `user.name`
+  > Bug #4 — "Minggu Ini" filter empty despite H-1 transactions: `DaftarTransaksiPage.getInterval()` pinned to `new Date('2026-05-10')` (was `new Date()` = real today)
+  > Bug #5 — Cash flow chart 7H/30H/90H toggle not reactive: chart filter state lifted to Dashboard, `CashFlowChart` now accepts `{ data, filter, onFilterChange }` props
+
+- [x] **M004-T1.6**: Input Transaksi UX — jasaName→itemName + universal field + compact layout
+  > Rename: `jasaName` → `itemName` across all store types, form, detail, edit pages
+  > Zustand persist `version: 2` + `migrate()`: localStorage auto-migrates old `jasaName` keys
+  > `getUniqueItemNames(lines, categoryId)` — category-aware history (replaces `getUniqueJasaNames`)
+  > `ItemNameAutocomplete.tsx` (new) — replaces JasaNameAutocomplete, disabled when no category selected
+  > `getItemNameLabel(cat)` — dynamic label/placeholder per category (Jasa/Oli/Sparepart/Bubut/internal/default)
+  > `itemName` field shown for ALL categories (not just isJasa)
+  > Compact LineItemCard: Row1 itemName+Nominal (3fr/2fr grid), Row2 biayaMaterial+basis (jasa only), Row3 mechs, Row4 bubut, Row5 notes collapsible
+  > `DaftarTransaksiPage` search now checks `line.itemName` across all categories
+
+- [x] **M004-T1.7**: Remove notification bell from Topbar
+  > Removed `Bell` import + button element from `Topbar.tsx`
+  > Bell deferred to M006 (real-time notifications need BE infrastructure)
 
 - [ ] **M004-T2**: Selectors Extension
   > `getReportJasa()` — per mekanik: total jasa income, basis komisi, komisi earned, tx count
