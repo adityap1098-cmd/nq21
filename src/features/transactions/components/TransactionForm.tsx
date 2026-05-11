@@ -8,6 +8,7 @@ import { id as localeId } from 'date-fns/locale'
 import { RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useTransactionStore } from '@/store/transactions'
+import type { UpdateTransactionFullInput } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
 import { useCategoryStore } from '@/store/master/categories'
 import { useMechanicStore } from '@/store/master/mechanics'
@@ -79,15 +80,31 @@ const STATUS_STYLES: Record<NoRefStatus, { color: string; bg: string }> = {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+export interface TransactionFormInitialData {
+  header: {
+    noReferensi: string
+    tglTransaksi: string
+    tipe: TransactionType
+    customerId?: string
+    supplierId?: string
+    paymentMethod: PaymentMethod
+    notes?: string
+  }
+  lines: Line[]
+}
+
 interface TransactionFormProps {
   mode?: 'add' | 'edit'
   transactionId?: string
+  initialData?: TransactionFormInitialData
+  onSuccess?: (txId: string) => void
+  onDirtyChange?: (dirty: boolean) => void
 }
 
-export function TransactionForm({ mode = 'add', transactionId }: TransactionFormProps) {
+export function TransactionForm({ mode = 'add', transactionId, initialData, onSuccess, onDirtyChange }: TransactionFormProps) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { transactions, addTransactionFull } = useTransactionStore()
+  const { transactions, addTransactionFull, updateTransactionFull } = useTransactionStore()
   const { categories } = useCategoryStore()
   const { mechanics, rates } = useMechanicStore()
   const { customers } = useCustomerStore()
@@ -98,10 +115,19 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [linesChanged, setLinesChanged] = useState(false)
 
   const form = useForm<HeaderForm>({
     resolver: zodResolver(headerSchema),
-    defaultValues: {
+    defaultValues: mode === 'edit' && initialData ? {
+      noReferensi: initialData.header.noReferensi,
+      tgl: initialData.header.tglTransaksi,
+      tipe: initialData.header.tipe,
+      customerId: initialData.header.customerId,
+      supplierId: initialData.header.supplierId,
+      paymentMethod: initialData.header.paymentMethod,
+      notes: initialData.header.notes ?? '',
+    } : {
       noReferensi: '',
       tgl: today,
       tipe: 'income',
@@ -117,20 +143,29 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
   const paymentMethod = watch('paymentMethod') as PaymentMethod
 
   // Line items state (hybrid approach — Decision A)
-  const [lines, setLines] = useState<Line[]>(() => [createEmptyLine()])
+  const [lines, setLines] = useState<Line[]>(() => {
+    if (mode === 'edit' && initialData?.lines.length) return initialData.lines
+    return [createEmptyLine()]
+  })
 
   // Tipe-change confirm dialog (when lines have data)
   const [pendingTipe, setPendingTipe] = useState<TransactionType | null>(null)
 
-  // Auto-generate noRef on tipe/tgl change; also clear customer/supplier selection (Decision E)
+  // Auto-generate noRef + clear party on tipe/tgl change (add mode only)
   useEffect(() => {
-    if (mode === 'add') {
-      setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
-    }
+    if (mode !== 'add') return
+    setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
     setValue('customerId', undefined)
     setValue('supplierId', undefined)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipe, tgl, mode])
+
+  // Notify parent of dirty state in edit mode
+  const { isDirty: rhfDirty } = form.formState
+  useEffect(() => {
+    if (mode !== 'edit') return
+    onDirtyChange?.(rhfDirty || linesChanged)
+  }, [rhfDirty, linesChanged, mode, onDirtyChange])
 
   const noRefStatus: NoRefStatus = noReferensi
     ? getNoRefStatus(noReferensi, transactions, transactionId)
@@ -151,16 +186,19 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
 
   function addLine() {
     setLines((prev) => [...prev, createEmptyLine()])
+    if (mode === 'edit') setLinesChanged(true)
   }
 
   function removeLine(id: string) {
     setLines((prev) => prev.filter((l) => l.id !== id))
+    if (mode === 'edit') setLinesChanged(true)
   }
 
   function updateLine(id: string, updates: Partial<Line>) {
     setLines((prev) =>
       prev.map((l) => (l.id === id ? { ...l, ...updates } : l)),
     )
+    if (mode === 'edit') setLinesChanged(true)
   }
 
   // ── Resolved party names ─────────────────────────────────────────────────────
@@ -268,6 +306,22 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function buildLinesInput() {
+    return lines.map((l) => ({
+      categoryId: l.categoryId!,
+      nominal: l.nominal,
+      biayaMaterial: l.biayaMaterial,
+      notes: l.notes,
+      jasaName: l.jasaName,
+      mechanics: l.mechanics
+        .filter((m) => m.mechanicId !== null)
+        .map((m) => ({ mechanicId: m.mechanicId!, sharePercent: m.sharePercent, rateOverride: m.rateOverride })),
+      bubutVendor: l.bubutVendor?.supplierId
+        ? { supplierId: l.bubutVendor.supplierId, vendorCost: l.bubutVendor.vendorCost }
+        : undefined,
+    }))
+  }
+
   async function handleSubmitForm(submitMode: 'single' | 'continue') {
     setIsSubmitting(true)
     try {
@@ -297,71 +351,90 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
       const bayarVendorCat = freshCats.find((c) => c.name === 'Bayar Vendor Bubut')
       if (hasBubutLine && !bayarVendorCat) {
         toast('Setup error', { description: 'Kategori "Bayar Vendor Bubut" tidak ditemukan. Hubungi admin.', variant: 'destructive' })
-        console.error('[T7] Missing category: Bayar Vendor Bubut')
         setIsSubmitting(false)
         return
       }
 
       const userId = getUserId()
 
-      const result = addTransactionFull({
-        header: {
-          noReferensi: formData.noReferensi,
-          tglTransaksi: formData.tgl,
-          tipe: formData.tipe,
-          customerId: formData.tipe === 'income' ? formData.customerId : undefined,
-          supplierId: formData.tipe === 'expense' ? formData.supplierId : undefined,
-          paymentMethod: formData.paymentMethod,
-          notes: formData.notes || undefined,
-          createdBy: userId,
-        },
-        lines: lines.map((l) => ({
-          categoryId: l.categoryId!,
-          nominal: l.nominal,
-          biayaMaterial: l.biayaMaterial,
-          notes: l.notes,
-          jasaName: l.jasaName,
-          mechanics: l.mechanics
-            .filter((m) => m.mechanicId !== null)
-            .map((m) => ({ mechanicId: m.mechanicId!, sharePercent: m.sharePercent, rateOverride: m.rateOverride })),
-          bubutVendor: l.bubutVendor?.supplierId
-            ? { supplierId: l.bubutVendor.supplierId, vendorCost: l.bubutVendor.vendorCost }
-            : undefined,
-        })),
-        bayarVendorBubutCategoryId: bayarVendorCat?.id ?? null,
-      })
+      if (mode === 'edit' && transactionId) {
+        // ── EDIT PATH ──────────────────────────────────────────────────────
+        const beforeTx = freshTx.find((t) => t.id === transactionId)
+        const editInput: UpdateTransactionFullInput = {
+          header: {
+            tglTransaksi: formData.tgl,
+            customerId: formData.tipe === 'income' ? formData.customerId : undefined,
+            supplierId: formData.tipe === 'expense' ? formData.supplierId : undefined,
+            paymentMethod: formData.paymentMethod,
+            notes: formData.notes || undefined,
+          },
+          lines: buildLinesInput(),
+          bayarVendorBubutCategoryId: bayarVendorCat?.id ?? null,
+        }
+        const result = updateTransactionFull(transactionId, editInput)
 
-      // Audit log
-      auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.transactionId, source: 'transaction-form', afterData: { noReferensi: formData.noReferensi, tipe: formData.tipe } })
-      if (result.expenseTransactionId) {
-        auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.expenseTransactionId, source: 'bubut-luar-auto-link', afterData: { linkedTo: result.transactionId } })
-      }
+        auditLog({
+          userId, action: 'update', entityType: 'transaction', entityId: transactionId,
+          source: 'edit-form',
+          beforeData: { totalNominal: beforeTx?.totalNominal, tglTransaksi: beforeTx?.tglTransaksi },
+          afterData: {
+            totalNominal: lines.reduce((s, l) => s + l.nominal, 0),
+            tglTransaksi: formData.tgl,
+          },
+        })
+        if (result.expenseTransactionId) {
+          auditLog({ userId, action: 'update', entityType: 'transaction', entityId: result.expenseTransactionId, source: 'bubut-luar-edit-cascade', afterData: { linkedTo: transactionId } })
+        }
 
-      // Periode komisi warning for jasa lines with backdated tgl
-      const hasJasaLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.isJasa)
-      if (hasJasaLine) {
-        const txDate = formData.tgl
-        const openPeriod = periods.find((p) => p.status === 'open' && txDate >= p.weekStart && txDate <= p.weekEnd)
-        if (!openPeriod) {
-          toast('Peringatan periode komisi', {
-            description: `Periode ${txDate} sudah ditutup. Komisi jasa tidak masuk slip mingguan.`,
-            duration: 7000,
-          })
+        toast(`${formData.noReferensi} berhasil diupdate`, { variant: 'success' })
+        if (onSuccess) onSuccess(transactionId)
+        else navigate(`/transaksi/${transactionId}`)
+      } else {
+        // ── ADD PATH ───────────────────────────────────────────────────────
+        const result = addTransactionFull({
+          header: {
+            noReferensi: formData.noReferensi,
+            tglTransaksi: formData.tgl,
+            tipe: formData.tipe,
+            customerId: formData.tipe === 'income' ? formData.customerId : undefined,
+            supplierId: formData.tipe === 'expense' ? formData.supplierId : undefined,
+            paymentMethod: formData.paymentMethod,
+            notes: formData.notes || undefined,
+            createdBy: userId,
+          },
+          lines: buildLinesInput(),
+          bayarVendorBubutCategoryId: bayarVendorCat?.id ?? null,
+        })
+
+        auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.transactionId, source: 'transaction-form', afterData: { noReferensi: formData.noReferensi, tipe: formData.tipe } })
+        if (result.expenseTransactionId) {
+          auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.expenseTransactionId, source: 'bubut-luar-auto-link', afterData: { linkedTo: result.transactionId } })
+        }
+
+        const hasJasaLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.isJasa)
+        if (hasJasaLine) {
+          const openPeriod = periods.find((p) => p.status === 'open' && formData.tgl >= p.weekStart && formData.tgl <= p.weekEnd)
+          if (!openPeriod) {
+            toast('Peringatan periode komisi', {
+              description: `Periode ${formData.tgl} sudah ditutup. Komisi jasa tidak masuk slip mingguan.`,
+              duration: 7000,
+            })
+          }
+        }
+
+        toast(`${formData.noReferensi} berhasil disimpan`, {
+          description: result.expenseTransactionId ? 'Expense vendor Bubut Luar auto-created.' : undefined,
+          variant: 'success',
+        })
+
+        if (submitMode === 'continue') {
+          resetForm()
+        } else {
+          navigate('/transaksi')
         }
       }
-
-      toast(`${formData.noReferensi} berhasil disimpan`, {
-        description: result.expenseTransactionId ? 'Expense vendor Bubut Luar auto-created.' : undefined,
-        variant: 'success',
-      })
-
-      if (submitMode === 'continue') {
-        resetForm()
-      } else {
-        navigate('/transaksi')
-      }
     } catch (err) {
-      console.error('[T7] Save error:', err)
+      console.error('[T10] Save error:', err)
       toast('Gagal menyimpan transaksi', { description: 'Terjadi kesalahan. Coba lagi.', variant: 'destructive' })
     } finally {
       setIsSubmitting(false)
@@ -399,35 +472,57 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
               No. Referensi
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <Input
-                {...register('noReferensi')}
-                style={{ fontFamily: 'var(--mono)', flex: 1 }}
-                placeholder="TRX-YYYYMMDD-NNN"
-              />
-              <button
-                type="button"
-                onClick={handleRegenNoRef}
-                title="Generate ulang"
-                style={{
-                  width: 36, height: 36, borderRadius: 8,
+            {mode === 'edit' ? (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{
+                  flex: 1, height: 36, padding: '0 12px', borderRadius: 8,
                   border: '1px solid var(--border)',
                   background: 'var(--surface-alt)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', flexShrink: 0,
-                }}
-              >
-                <RefreshCw size={14} style={{ color: 'var(--text-secondary)' }} />
-              </button>
-              <div style={{
-                fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                padding: '4px 10px', borderRadius: 6,
-                background: statusBg, color: statusColor,
-                flexShrink: 0, whiteSpace: 'nowrap',
-              }}>
-                {noRefStatus}
+                  display: 'flex', alignItems: 'center',
+                  fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text)',
+                }}>
+                  {noReferensi}
+                </div>
+                <div style={{
+                  fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+                  padding: '4px 10px', borderRadius: 6,
+                  background: 'var(--surface-alt)', color: 'var(--text-muted)',
+                  flexShrink: 0,
+                }}>
+                  LOCKED
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Input
+                  {...register('noReferensi')}
+                  style={{ fontFamily: 'var(--mono)', flex: 1 }}
+                  placeholder="TRX-YYYYMMDD-NNN"
+                />
+                <button
+                  type="button"
+                  onClick={handleRegenNoRef}
+                  title="Generate ulang"
+                  style={{
+                    width: 36, height: 36, borderRadius: 8,
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface-alt)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', flexShrink: 0,
+                  }}
+                >
+                  <RefreshCw size={14} style={{ color: 'var(--text-secondary)' }} />
+                </button>
+                <div style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                  padding: '4px 10px', borderRadius: 6,
+                  background: statusBg, color: statusColor,
+                  flexShrink: 0, whiteSpace: 'nowrap',
+                }}>
+                  {noRefStatus}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Tgl + Tipe row */}
@@ -465,13 +560,16 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
                 {(['income', 'expense'] as const).map((t) => {
                   const active = tipe === t
                   const isIncome = t === 'income'
+                  const tipeLocked = mode === 'edit'
                   return (
                     <button
                       key={t}
                       type="button"
-                      onClick={() => handleTipeClick(t)}
+                      onClick={() => tipeLocked ? undefined : handleTipeClick(t)}
                       style={{
-                        flex: 1, height: 36, borderRadius: 8, cursor: 'pointer',
+                        flex: 1, height: 36, borderRadius: 8,
+                        cursor: tipeLocked ? 'default' : 'pointer',
+                        opacity: tipeLocked && !active ? 0.35 : 1,
                         fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
                         border: `1.5px solid ${active
                           ? isIncome ? 'var(--success)' : 'var(--accent)'
@@ -642,6 +740,8 @@ export function TransactionForm({ mode = 'add', transactionId }: TransactionForm
         rates={rates}
         validationErrors={validationErrors}
         isSubmitting={isSubmitting}
+        submitLabel={mode === 'edit' ? 'SIMPAN PERUBAHAN' : 'SIMPAN'}
+        showContinueButton={mode !== 'edit'}
         onSubmit={() => handleSubmitForm('single')}
         onSubmitContinue={() => handleSubmitForm('continue')}
       />

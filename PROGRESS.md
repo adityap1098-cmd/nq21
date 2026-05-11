@@ -284,12 +284,14 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > Route /transaksi/:id wired (replaced PlaceholderPage)
   > Verified: income jasa, expense, deleted view with banner, delete confirm dialog
 
-- [ ] **M003-T10**: Edit Transaksi
-  > Reuse TransactionForm dengan `mode='edit'` prop + transactionId dari URL params
-  > Load existing data → pre-fill RHF form + lines[] state
-  > Guard: transaksi di closed period → show warning banner + disable submit
-  > Submit: `updateTransaction()` store + audit log (update action)
-  > Route: /transaksi/:id/edit
+- [x] **M003-T10**: Edit Transaksi
+  > `EditTransaksiPage.tsx` — guards (deleted→detail, -VENDOR→income, closed period→detail), ← BATAL button
+  > `TransactionForm` extended: `initialData` prop (header + lines preload), `mode='edit'` locks noRef+tipe
+  > `updateTransactionFull()` store action — replace old lines, cascade bubut luar (update/create/soft-delete expense)
+  > Dirty-state tracking: linesChanged || rhfDirty → ConfirmDialog on BATAL
+  > "SIMPAN PERUBAHAN" label, no "& INPUT LAGI" button in edit mode
+  > Audit log: action='update', source='edit-form', before/after totalNominal+tglTransaksi
+  > Verified: preload ✅, noRef locked ✅, tipe locked ✅, save→detail+audit ✅, dirty confirm ✅, deleted guard ✅
 
 - [ ] **M003-T11**: Closer — verify + screenshot + tag vM003
   > Route verify: /transaksi, /transaksi/baru, /transaksi/:id, /transaksi/:id/edit

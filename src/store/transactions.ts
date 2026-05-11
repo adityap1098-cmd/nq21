@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage, devtools } from 'zustand/middleware'
 import type {
-  Transaction, TransactionLine, TransactionLineMechanic, BubutLuarLink,
+  Transaction, TransactionLine, TransactionLineMechanic, BubutLuarLink, PaymentMethod,
 } from './types'
 
 // ── Seed data ─────────────────────────────────────────────────────────────────
@@ -168,6 +168,23 @@ export interface AddTransactionFullResult {
   expenseTransactionId?: string
 }
 
+export interface UpdateTransactionFullInput {
+  header: {
+    tglTransaksi?: string
+    customerId?: string
+    supplierId?: string
+    paymentMethod?: PaymentMethod
+    notes?: string
+  }
+  lines: AddTransactionLineInput[]
+  bayarVendorBubutCategoryId: string | null
+}
+
+export interface UpdateTransactionFullResult {
+  transactionId: string
+  expenseTransactionId?: string
+}
+
 interface TransactionState {
   transactions: Transaction[]
   lines: TransactionLine[]
@@ -181,6 +198,8 @@ interface TransactionState {
   ) => string
 
   addTransactionFull: (input: AddTransactionFullInput) => AddTransactionFullResult
+
+  updateTransactionFull: (id: string, input: UpdateTransactionFullInput) => UpdateTransactionFullResult
 
   updateTransaction: (id: string, patch: Partial<Transaction>) => void
   softDelete: (id: string, deletedAt: string) => void
@@ -304,6 +323,147 @@ export const useTransactionStore = create<TransactionState>()(
           }))
 
           return { transactionId: txId, expenseTransactionId }
+        },
+
+        updateTransactionFull: (txId, input) => {
+          const base = Date.now()
+          const now = new Date().toISOString()
+          let resultExpenseId: string | undefined
+
+          set((s) => {
+            const origTx = s.transactions.find((t) => t.id === txId)
+            if (!origTx) return s
+
+            const oldLines = s.lines.filter((l) => l.transactionId === txId)
+            const oldLineIds = new Set(oldLines.map((l) => l.id))
+
+            const existingLink = s.bubutLuarLinks.find((bl) => oldLineIds.has(bl.revenueLineId))
+            const oldExpenseId = existingLink?.expenseTransactionId
+
+            const newLines: TransactionLine[] = input.lines.map((l, i) => ({
+              id: `ln-${base}-${i}`,
+              transactionId: txId,
+              categoryId: l.categoryId,
+              nominal: l.nominal,
+              biayaMaterial: l.biayaMaterial,
+              notes: l.notes,
+              jasaName: l.jasaName,
+            }))
+            const totalNominal = input.lines.reduce((sum, l) => sum + l.nominal, 0)
+
+            const newLineMechanics: TransactionLineMechanic[] = newLines.flatMap((line, i) =>
+              input.lines[i].mechanics.map((m, j) => ({
+                id: `lm-${base}-${i}-${j}`,
+                transactionLineId: line.id,
+                mechanicId: m.mechanicId,
+                sharePercent: m.sharePercent,
+                rateOverride: m.rateOverride,
+              }))
+            )
+
+            const bubutIdx = input.lines.findIndex((l) => l.bubutVendor)
+            const newHasBubut = bubutIdx >= 0 && !!input.bayarVendorBubutCategoryId
+
+            let updatedTransactions = s.transactions.map((tx) => {
+              if (tx.id === txId) {
+                return {
+                  ...tx,
+                  tglTransaksi: input.header.tglTransaksi ?? tx.tglTransaksi,
+                  customerId: input.header.customerId,
+                  supplierId: input.header.supplierId,
+                  paymentMethod: input.header.paymentMethod ?? tx.paymentMethod,
+                  notes: input.header.notes,
+                  totalNominal,
+                  updatedAt: now,
+                }
+              }
+              return tx
+            })
+
+            let updatedLines = s.lines.filter((l) => !oldLineIds.has(l.id)).concat(newLines)
+
+            const updatedLineMechanics = s.lineMechanics
+              .filter((lm) => !oldLineIds.has(lm.transactionLineId))
+              .concat(newLineMechanics)
+
+            let updatedBubutLinks = s.bubutLuarLinks.filter((bl) => !oldLineIds.has(bl.revenueLineId))
+            const newExpTxList: Transaction[] = []
+            const newExpLineList: TransactionLine[] = []
+
+            if (newHasBubut) {
+              const vendor = input.lines[bubutIdx].bubutVendor!
+
+              if (oldExpenseId) {
+                resultExpenseId = oldExpenseId
+                updatedTransactions = updatedTransactions.map((tx) =>
+                  tx.id === oldExpenseId
+                    ? { ...tx, supplierId: vendor.supplierId, totalNominal: vendor.vendorCost, updatedAt: now }
+                    : tx
+                )
+                const oldExpLine = s.lines.find((l) => l.transactionId === oldExpenseId)
+                if (oldExpLine) {
+                  updatedLines = updatedLines.map((l) =>
+                    l.id === oldExpLine.id ? { ...l, nominal: vendor.vendorCost } : l
+                  )
+                }
+                updatedBubutLinks = [
+                  ...updatedBubutLinks,
+                  {
+                    id: existingLink!.id,
+                    revenueLineId: newLines[bubutIdx].id,
+                    expenseTransactionId: oldExpenseId,
+                    vendorCost: vendor.vendorCost,
+                  },
+                ]
+              } else {
+                const expId = `tx-${base + 1}-exp`
+                resultExpenseId = expId
+                newExpTxList.push({
+                  id: expId,
+                  noReferensi: `${origTx.noReferensi}-VENDOR`,
+                  tglTransaksi: origTx.tglTransaksi,
+                  tipe: 'expense',
+                  supplierId: vendor.supplierId,
+                  paymentMethod: input.header.paymentMethod ?? origTx.paymentMethod,
+                  totalNominal: vendor.vendorCost,
+                  notes: `Auto-link dari ${origTx.noReferensi} (Bubut Luar)`,
+                  createdBy: origTx.createdBy,
+                  createdAt: now,
+                  updatedAt: now,
+                })
+                newExpLineList.push({
+                  id: `ln-${base + 1}-exp`,
+                  transactionId: expId,
+                  categoryId: input.bayarVendorBubutCategoryId!,
+                  nominal: vendor.vendorCost,
+                  biayaMaterial: 0,
+                })
+                updatedBubutLinks = [
+                  ...updatedBubutLinks,
+                  {
+                    id: `bl-${base}`,
+                    revenueLineId: newLines[bubutIdx].id,
+                    expenseTransactionId: expId,
+                    vendorCost: vendor.vendorCost,
+                  },
+                ]
+              }
+            } else if (oldExpenseId) {
+              updatedTransactions = updatedTransactions.map((tx) =>
+                tx.id === oldExpenseId ? { ...tx, deletedAt: now, updatedAt: now } : tx
+              )
+            }
+
+            return {
+              ...s,
+              transactions: [...updatedTransactions, ...newExpTxList],
+              lines: [...updatedLines, ...newExpLineList],
+              lineMechanics: updatedLineMechanics,
+              bubutLuarLinks: updatedBubutLinks,
+            }
+          })
+
+          return { transactionId: txId, expenseTransactionId: resultExpenseId }
         },
 
         updateTransaction: (id, patch) => set((s) => ({

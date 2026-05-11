@@ -18,6 +18,8 @@ export interface TransactionSummaryProps {
   rates: CommissionRate[]
   validationErrors: string[]
   isSubmitting?: boolean
+  submitLabel?: string
+  showContinueButton?: boolean
   onSubmit: () => void
   onSubmitContinue?: () => void
 }
@@ -39,6 +41,8 @@ export function TransactionSummary({
   rates,
   validationErrors,
   isSubmitting = false,
+  submitLabel = 'SIMPAN',
+  showContinueButton = true,
   onSubmit,
   onSubmitContinue,
 }: TransactionSummaryProps) {
@@ -298,26 +302,28 @@ export function TransactionSummary({
             transition: 'all 0.15s',
           }}
         >
-          {isSubmitting ? 'MENYIMPAN...' : 'SIMPAN'}
+          {isSubmitting ? 'MENYIMPAN...' : submitLabel}
         </button>
-        <button
-          type="button"
-          onClick={onSubmitContinue}
-          disabled={isDisabled}
-          title={!isValid && tooltipText ? tooltipText : undefined}
-          style={{
-            flex: 1, height: 46, borderRadius: 10,
-            background: 'transparent',
-            border: `1.5px solid ${isDisabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.35)'}`,
-            color: isDisabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)',
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
-            cursor: isDisabled ? 'not-allowed' : 'pointer',
-            transition: 'all 0.15s',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {isSubmitting ? '...' : '& INPUT LAGI'}
-        </button>
+        {showContinueButton && (
+          <button
+            type="button"
+            onClick={onSubmitContinue}
+            disabled={isDisabled}
+            title={!isValid && tooltipText ? tooltipText : undefined}
+            style={{
+              flex: 1, height: 46, borderRadius: 10,
+              background: 'transparent',
+              border: `1.5px solid ${isDisabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.35)'}`,
+              color: isDisabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)',
+              fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+              cursor: isDisabled ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {isSubmitting ? '...' : '& INPUT LAGI'}
+          </button>
+        )}
       </div>
 
       {/* ── 7. Audit footer ─────────────────────────────────────────────── */}

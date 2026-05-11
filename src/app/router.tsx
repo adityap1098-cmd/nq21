@@ -13,6 +13,7 @@ import MasterUserPage from './pages/master/MasterUserPage'
 import InputTransaksiPage from './pages/transaksi/InputTransaksiPage'
 import DaftarTransaksiPage from './pages/transaksi/DaftarTransaksiPage'
 import DetailTransaksiPage from './pages/transaksi/DetailTransaksiPage'
+import EditTransaksiPage from './pages/transaksi/EditTransaksiPage'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -35,7 +36,7 @@ export const router = createBrowserRouter([
           { path: 'transaksi',                       element: <DaftarTransaksiPage /> },
           { path: 'transaksi/baru',                  element: <InputTransaksiPage /> },
           { path: 'transaksi/:id',                   element: <DetailTransaksiPage /> },
-          { path: 'transaksi/:id/edit',              element: ph('EDIT TRANSAKSI') },
+          { path: 'transaksi/:id/edit',              element: <EditTransaksiPage /> },
           { path: 'laporan/kategori',                element: ph('PER KATEGORI') },
           { path: 'laporan/cash-flow',               element: ph('CASH FLOW') },
           { path: 'laporan/jasa',                    element: ph('JASA & MEKANIK') },
