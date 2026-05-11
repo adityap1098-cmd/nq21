@@ -54,7 +54,7 @@ export default function EditTransaksiPage() {
         nominal: l.nominal,
         biayaMaterial: l.biayaMaterial,
         notes: l.notes,
-        jasaName: l.jasaName,
+        itemName: l.itemName,
         mechanics: lm.map((m) => ({
           mechanicId: m.mechanicId,
           sharePercent: m.sharePercent,

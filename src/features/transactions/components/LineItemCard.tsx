@@ -2,11 +2,29 @@ import { useState, useMemo } from 'react'
 import { useCategoryStore } from '@/store/master/categories'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { MechanicChipRow } from './MechanicChipRow'
-import { JasaNameAutocomplete } from './JasaNameAutocomplete'
+import { ItemNameAutocomplete } from './ItemNameAutocomplete'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { getBasisKomisi, formatRupiahInput, parseRupiahInput, hasLineData } from '../utils'
 import type { Line } from '../types'
 import type { TransactionType } from '@/store/types'
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getItemNameLabel(cat: { name: string; isJasa: boolean } | null | undefined): { label: string; placeholder: string } | null {
+  if (!cat) return null
+  if (cat.isJasa) return { label: 'Detail Jasa', placeholder: 'Cth: Tune Up, Bleeding Rem, Ganti Oli + Filter' }
+  switch (cat.name) {
+    case 'Oli':          return { label: 'Merk Oli',       placeholder: 'Cth: Shell Helix Ultra 5W-40, Motul 5100' }
+    case 'Sparepart':   return { label: 'Nama Sparepart',  placeholder: 'Cth: Filter Oli K&N, Kampas Rem Brembo' }
+    case 'Bubut Luar':
+    case 'Bubut Dalam': return { label: 'Detail Bubut',    placeholder: 'Cth: Press Bearing, Skir Klep, Korter' }
+    case 'Gaji':
+    case 'Listrik & Air':
+    case 'Sewa':
+    case 'Lain-lain':   return { label: 'Keterangan',      placeholder: 'Cth: Gaji April, Listrik bulan ini' }
+    default:             return { label: 'Detail',          placeholder: 'Keterangan tambahan (opsional)' }
+  }
+}
 
 // ─── CurrencyInput ────────────────────────────────────────────────────────────
 
@@ -58,6 +76,12 @@ function CurrencyInput({ id, value, onChange, disabled, placeholder = '0' }: Cur
   )
 }
 
+const fieldLabelStyle = {
+  fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
+  letterSpacing: '0.08em', textTransform: 'uppercase' as const,
+  color: 'var(--text-muted)', marginBottom: 5,
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface LineItemCardProps {
@@ -83,6 +107,7 @@ export function LineItemCard({
 }: LineItemCardProps) {
   const { categories } = useCategoryStore()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(!!line.notes)
 
   const filteredCategories = useMemo(
     () =>
@@ -99,6 +124,7 @@ export function LineItemCard({
 
   const basis = getBasisKomisi(line)
   const lineLabel = `LINE ${String(index + 1).padStart(2, '0')}`
+  const itemNameMeta = getItemNameLabel(selectedCat)
 
   function handleDeleteClick() {
     if (hasLineData(line)) {
@@ -113,6 +139,7 @@ export function LineItemCard({
     const newIsBubutLuar = newCat?.name === 'Bubut Luar'
     onChange({
       categoryId: catId || null,
+      itemName: '',
       mechanics: [],
       bubutVendor: newIsBubutLuar
         ? (line.bubutVendor ?? { supplierId: null, vendorCost: 0 })
@@ -124,17 +151,15 @@ export function LineItemCard({
     <div style={{
       border: '1px solid var(--border)',
       borderRadius: 10,
-      padding: 16,
+      padding: 14,
       background: 'var(--surface-alt)',
       display: 'flex',
       flexDirection: 'column',
-      gap: 12,
+      gap: 10,
     }}>
 
       {/* ── Header row ──────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-
-        {/* LINE nn pill */}
         <div style={{
           fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
           letterSpacing: '0.18em', color: 'var(--accent)',
@@ -144,28 +169,21 @@ export function LineItemCard({
           {lineLabel}
         </div>
 
-        {/* Kategori select */}
         <select
           value={line.categoryId ?? ''}
           onChange={(e) => handleCategoryChange(e.target.value)}
           style={{
             flex: 1, maxWidth: 280, height: 34,
-            background: 'var(--surface)',
-            border: '1px solid var(--border)',
-            borderRadius: 6,
-            padding: '0 10px',
+            background: 'var(--surface)', border: '1px solid var(--border)',
+            borderRadius: 6, padding: '0 10px',
             fontSize: 13, fontWeight: 600,
-            fontFamily: 'var(--body)',
-            cursor: 'pointer', color: 'var(--text)',
-            outline: 'none',
+            fontFamily: 'var(--body)', cursor: 'pointer', color: 'var(--text)', outline: 'none',
           }}
         >
           <option value="" disabled>Pilih kategori...</option>
           {filteredCategories.map((cat) => {
             const isDisabled =
-              cat.name === 'Bubut Luar' &&
-              hasBubutLuar &&
-              cat.id !== line.categoryId
+              cat.name === 'Bubut Luar' && hasBubutLuar && cat.id !== line.categoryId
             return (
               <option key={cat.id} value={cat.id} disabled={isDisabled}>
                 {cat.name}{cat.isJasa ? ' · komisi' : ''}{isDisabled ? ' (sudah ada)' : ''}
@@ -174,31 +192,25 @@ export function LineItemCard({
           })}
         </select>
 
-        {/* JASA badge */}
         {isJasa && !isBubutLuar && (
           <span style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
             padding: '3px 8px', borderRadius: 4,
-            background: 'var(--success-tint)', color: 'var(--success)',
-            flexShrink: 0,
+            background: 'var(--success-tint)', color: 'var(--success)', flexShrink: 0,
           }}>
             JASA
           </span>
         )}
-
-        {/* BUBUT LUAR badge */}
         {isBubutLuar && (
           <span style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
             padding: '3px 8px', borderRadius: 4,
-            background: 'var(--accent-tint)', color: 'var(--accent)',
-            flexShrink: 0,
+            background: 'var(--accent-tint)', color: 'var(--accent)', flexShrink: 0,
           }}>
             DUAL-LEG
           </span>
         )}
 
-        {/* Delete button */}
         <button
           type="button"
           onClick={handleDeleteClick}
@@ -207,117 +219,72 @@ export function LineItemCard({
           style={{
             marginLeft: 'auto', flexShrink: 0,
             width: 28, height: 28, borderRadius: 6,
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
+            border: '1px solid var(--border)', background: 'var(--surface)',
             color: canDelete ? 'var(--text-muted)' : 'var(--border)',
             fontSize: 18, lineHeight: 1,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: canDelete ? 'pointer' : 'not-allowed',
-            transition: 'all 0.15s',
+            cursor: canDelete ? 'pointer' : 'not-allowed', transition: 'all 0.15s',
           }}
         >
           ×
         </button>
       </div>
 
-      {/* ── hasBubutLuar hint (when another line already has Bubut Luar) ──── */}
-      {hasBubutLuar && line.categoryId !== bubutLuarCatId && bubutLuarCatId && (
-        <div style={{
-          fontSize: 11, fontFamily: 'var(--mono)',
-          color: 'var(--warning)', letterSpacing: '0.04em',
-          display: line.categoryId === null ? 'none' : 'none', // hidden unless category == BL attempted
-        }} />
-      )}
-
-      {/* ── Detail Jasa field (jasa only) ───────────────────────────────────── */}
-      {isJasa && (
-        <div>
-          <div style={{
-            fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: 'var(--text-muted)', marginBottom: 6,
-          }}>
-            Detail Jasa <span style={{ fontWeight: 400, letterSpacing: 0, textTransform: 'none', color: 'var(--border)' }}>(opsional)</span>
-          </div>
-          <JasaNameAutocomplete
-            value={line.jasaName ?? ''}
-            onChange={(v) => onChange({ jasaName: v })}
-          />
-        </div>
-      )}
-
-      {/* ── Inputs ──────────────────────────────────────────────────────────── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: isJasa ? '1fr 1fr 152px' : '1fr',
-        gap: 12,
-        alignItems: 'end',
-      }}>
-
-        {/* Nominal */}
-        <div>
-          <div style={{
-            fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-            letterSpacing: '0.08em', textTransform: 'uppercase',
-            color: 'var(--text-muted)', marginBottom: 6,
-          }}>
-            Nominal (Rp)
-          </div>
-          <CurrencyInput
-            id={`nominal-${line.id}`}
-            value={line.nominal}
-            onChange={(v) => onChange({ nominal: v })}
-          />
-        </div>
-
-        {/* Biaya Material — only for isJasa */}
-        {isJasa && (
+      {/* ── Row 1: itemName (60%) + Nominal (40%) — shown when category selected ── */}
+      {(selectedCat || !line.categoryId) && (
+        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 10 }}>
           <div>
-            <div style={{
-              fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.08em', textTransform: 'uppercase',
-              color: 'var(--text-muted)', marginBottom: 6,
-            }}>
-              Biaya Material (Rp)
+            <div style={fieldLabelStyle}>
+              {itemNameMeta?.label ?? 'Detail'}{' '}
+              <span style={{ fontWeight: 400, letterSpacing: 0, textTransform: 'none', color: 'var(--border)' }}>(opsional)</span>
             </div>
+            <ItemNameAutocomplete
+              value={line.itemName ?? ''}
+              categoryId={line.categoryId}
+              onChange={(v) => onChange({ itemName: v })}
+              placeholder={itemNameMeta?.placeholder ?? 'Keterangan tambahan'}
+              disabled={!line.categoryId}
+            />
+          </div>
+          <div>
+            <div style={fieldLabelStyle}>Nominal (Rp)</div>
+            <CurrencyInput
+              id={`nominal-${line.id}`}
+              value={line.nominal}
+              onChange={(v) => onChange({ nominal: v })}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ── Row 2: Biaya Material + Basis pill (jasa only) ────────────────────── */}
+      {isJasa && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
+          <div>
+            <div style={fieldLabelStyle}>Biaya Material (Rp)</div>
             <CurrencyInput
               id={`material-${line.id}`}
               value={line.biayaMaterial}
               onChange={(v) => onChange({ biayaMaterial: v })}
             />
-            <div style={{
-              fontFamily: 'var(--mono)', fontSize: 10,
-              color: 'var(--text-muted)', marginTop: 4, letterSpacing: '0.06em',
-            }}>
-              Basis = nominal − material
-            </div>
           </div>
-        )}
-
-        {/* Basis pill — only for isJasa */}
-        {isJasa && (
           <div style={{
             background: 'var(--text)', color: '#fff',
-            borderRadius: 8, padding: '0 16px',
-            height: 50,
+            borderRadius: 8, padding: '0 14px',
+            height: 36, minWidth: 120,
             display: 'flex', flexDirection: 'column', justifyContent: 'center',
           }}>
-            <div style={{
-              fontFamily: 'var(--mono)', fontSize: 9,
-              letterSpacing: '0.18em', color: 'rgba(255,255,255,0.55)',
-            }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 8, letterSpacing: '0.18em', color: 'rgba(255,255,255,0.55)' }}>
               BASIS
             </div>
-            <div style={{
-              fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 14, marginTop: 2,
-            }}>
+            <div style={{ fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 12, marginTop: 1 }}>
               {basis > 0 ? `Rp ${formatRupiahInput(basis)}` : 'Rp 0'}
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* ── Mekanik chip row ─────────────────────────────────────────────────── */}
+      {/* ── Row 3: Mekanik chip row (jasa only) ──────────────────────────────── */}
       {isJasa && (
         <MechanicChipRow
           lineId={line.id}
@@ -328,15 +295,14 @@ export function LineItemCard({
         />
       )}
 
-      {/* ── Bubut Luar extra panel ───────────────────────────────────────────── */}
+      {/* ── Row 4: Bubut Luar extra panel (compact 1-row) ────────────────────── */}
       {isBubutLuar && (
         <div style={{
-          padding: 16,
+          padding: 12,
           background: 'linear-gradient(180deg, var(--accent-tint) 0%, var(--surface-alt) 100%)',
           borderLeft: '3px solid var(--accent)',
           borderRadius: 8,
         }}>
-          {/* Header */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
@@ -346,28 +312,13 @@ export function LineItemCard({
               BUBUT LUAR · DUAL-LEG
             </span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Auto-create expense ke vendor saat simpan
+              Auto-create expense ke vendor
             </span>
           </div>
 
-          {/* Helper text */}
-          <div style={{
-            fontSize: 11, color: 'var(--text-secondary)', marginBottom: 14,
-            lineHeight: 1.5,
-          }}>
-            Pilih vendor bubut + isi biaya yang dibayarkan ke vendor. Income (customer) dan expense (vendor) di-link otomatis.
-          </div>
-
-          {/* 2-col grid: vendor + biaya */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             <div>
-              <div style={{
-                fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: 'var(--text-muted)', marginBottom: 6,
-              }}>
-                Vendor Bubut Luar
-              </div>
+              <div style={fieldLabelStyle}>Vendor Bubut Luar</div>
               <CustomerSupplierAutocomplete
                 type="supplier"
                 filterSuppliers="vendor-bubut"
@@ -377,15 +328,8 @@ export function LineItemCard({
                 }
               />
             </div>
-
             <div>
-              <div style={{
-                fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-                color: 'var(--text-muted)', marginBottom: 6,
-              }}>
-                Biaya ke Vendor (Rp)
-              </div>
+              <div style={fieldLabelStyle}>Biaya ke Vendor (Rp)</div>
               <CurrencyInput
                 value={line.bubutVendor?.vendorCost ?? 0}
                 onChange={(v) =>
@@ -395,72 +339,68 @@ export function LineItemCard({
             </div>
           </div>
 
-          {/* Margin indicator */}
           {line.nominal > 0 && (line.bubutVendor?.vendorCost ?? 0) > 0 && (() => {
             const vendorCost = line.bubutVendor!.vendorCost
             const margin = line.nominal - vendorCost
             const isNegative = margin < 0
             return (
               <div style={{
-                marginTop: 12, padding: '10px 12px',
+                marginTop: 10, padding: '8px 12px',
                 background: 'var(--surface)', borderRadius: 6,
                 fontFamily: 'var(--mono)', fontSize: 11,
                 border: `1px solid ${isNegative ? 'var(--accent)' : 'var(--border)'}`,
+                display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center',
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', marginBottom: 3 }}>
-                  <span>Nominal Customer</span>
-                  <span>Rp {formatRupiahInput(line.nominal)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', marginBottom: 6 }}>
-                  <span>Biaya Vendor</span>
-                  <span>− Rp {formatRupiahInput(vendorCost)}</span>
-                </div>
-                <div style={{
-                  borderTop: '1px solid var(--border)', paddingTop: 6,
-                  display: 'flex', justifyContent: 'space-between',
-                }}>
-                  <span style={{ fontWeight: 700 }}>Margin NQ21</span>
-                  <span style={{ fontWeight: 700, color: isNegative ? 'var(--accent)' : 'var(--success)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  Margin NQ21:{' '}
+                  <strong style={{ color: isNegative ? 'var(--accent)' : 'var(--success)' }}>
                     {isNegative ? '− ' : ''}Rp {formatRupiahInput(Math.abs(margin))}
-                  </span>
-                </div>
-                {isNegative && (
-                  <div style={{ marginTop: 6, fontSize: 10, color: 'var(--accent)', letterSpacing: '0.04em' }}>
-                    ⚠ Margin negatif. Pastikan ini disengaja.
-                  </div>
-                )}
+                  </strong>
+                  {isNegative && <span style={{ marginLeft: 6, color: 'var(--accent)' }}>⚠</span>}
+                </span>
               </div>
             )
           })()}
         </div>
       )}
 
-      {/* ── Notes ───────────────────────────────────────────────────────────── */}
-      <div>
-        <div style={{
-          fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-          color: 'var(--text-muted)', marginBottom: 6,
-        }}>
-          Catatan line (opsional)
-        </div>
-        <textarea
-          value={line.notes ?? ''}
-          onChange={(e) => onChange({ notes: e.target.value })}
-          rows={2}
-          placeholder="Catatan untuk line ini..."
+      {/* ── Row 5: Notes (collapsible) ────────────────────────────────────────── */}
+      {!notesOpen ? (
+        <button
+          type="button"
+          onClick={() => setNotesOpen(true)}
           style={{
-            width: '100%', borderRadius: 8, padding: '8px 12px',
-            border: '1px solid var(--border)',
-            background: 'var(--surface)',
-            color: 'var(--text)', fontSize: 12,
-            resize: 'vertical', outline: 'none',
-            fontFamily: 'inherit', boxSizing: 'border-box',
+            background: 'none', border: 'none', padding: 0,
+            fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.08em',
+            color: 'var(--text-muted)', cursor: 'pointer', textAlign: 'left',
+            textDecoration: 'underline', textDecorationStyle: 'dotted',
           }}
-        />
-      </div>
+        >
+          + Catatan line
+        </button>
+      ) : (
+        <div>
+          <div style={fieldLabelStyle}>Catatan line (opsional)</div>
+          <textarea
+            value={line.notes ?? ''}
+            onChange={(e) => onChange({ notes: e.target.value })}
+            rows={2}
+            placeholder="Catatan untuk line ini..."
+            style={{
+              width: '100%', borderRadius: 8, padding: '8px 12px',
+              border: '1px solid var(--border)', background: 'var(--surface)',
+              color: 'var(--text)', fontSize: 12, resize: 'vertical', outline: 'none',
+              fontFamily: 'inherit', boxSizing: 'border-box',
+            }}
+          />
+        </div>
+      )}
 
-      {/* ── Delete confirm dialog ────────────────────────────────────────────── */}
+      {/* ── hasBubutLuar hint (hidden — kept for DOM structure) ────────────────── */}
+      {hasBubutLuar && line.categoryId !== bubutLuarCatId && bubutLuarCatId && (
+        <div style={{ display: 'none' }} />
+      )}
+
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}

@@ -312,7 +312,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
       nominal: l.nominal,
       biayaMaterial: l.biayaMaterial,
       notes: l.notes,
-      jasaName: l.jasaName,
+      itemName: l.itemName,
       mechanics: l.mechanics
         .filter((m) => m.mechanicId !== null)
         .map((m) => ({ mechanicId: m.mechanicId!, sharePercent: m.sharePercent, rateOverride: m.rateOverride })),

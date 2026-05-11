@@ -146,9 +146,9 @@ export function TransactionSummary({
             const cat = categories.find((c) => c.id === line.categoryId)
             const catName = cat?.name ?? '—'
             let label = catName
-            if (cat?.isJasa && line.jasaName) {
-              label = `${catName} — ${line.jasaName}`
-            } else if (!cat?.isJasa && line.notes) {
+            if (line.itemName) {
+              label = `${catName} — ${line.itemName}`
+            } else if (line.notes) {
               label = `${catName} — ${line.notes}`
             }
             return (

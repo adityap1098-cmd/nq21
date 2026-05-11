@@ -112,7 +112,7 @@ function SummaryStrip({ filtered }: { filtered: Transaction[] }) {
 
 export default function DaftarTransaksiPage() {
   const navigate = useNavigate()
-  const { transactions } = useTransactionStore()
+  const { transactions, lines } = useTransactionStore()
   const { customers } = useCustomerStore()
   const { suppliers } = useSupplierStore()
 
@@ -144,7 +144,8 @@ export default function DaftarTransaksiPage() {
           const party = t.tipe === 'income'
             ? (customers.find(c => c.id === t.customerId)?.name ?? '').toLowerCase()
             : (suppliers.find(s => s.id === t.supplierId)?.name ?? '').toLowerCase()
-          if (!noRef.includes(q) && !party.includes(q)) return false
+          const hasItem = lines.some(l => l.transactionId === t.id && l.itemName?.toLowerCase().includes(q))
+          if (!noRef.includes(q) && !party.includes(q) && !hasItem) return false
         }
 
         return true

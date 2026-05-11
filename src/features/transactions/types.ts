@@ -10,7 +10,7 @@ export interface Line {
   nominal: number
   biayaMaterial: number
   notes?: string
-  jasaName?: string
+  itemName?: string
   mechanics: LineMechanic[]
   bubutVendor?: {
     supplierId: string | null

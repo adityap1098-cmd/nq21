@@ -153,17 +153,18 @@ export function validateTransactionFull(
   return errs
 }
 
-export function getUniqueJasaNames(
+export function getUniqueItemNames(
   lines: TransactionLine[],
-  jasaCategoryIds: Set<string>,
+  categoryId: string,
 ): string[] {
   const freq = new Map<string, number>()
   for (const line of lines) {
-    if (!jasaCategoryIds.has(line.categoryId) || !line.jasaName?.trim()) continue
-    const name = line.jasaName.trim()
+    if (line.categoryId !== categoryId || !line.itemName?.trim()) continue
+    const name = line.itemName.trim()
     freq.set(name, (freq.get(name) ?? 0) + 1)
   }
   return [...freq.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([name]) => name)
+    .slice(0, 20)
 }

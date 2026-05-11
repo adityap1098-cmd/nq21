@@ -450,8 +450,8 @@ export default function DetailTransaksiPage() {
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>
                     {cat?.name ?? line.categoryId}
-                    {line.jasaName && (
-                      <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}> — {line.jasaName}</span>
+                    {line.itemName && (
+                      <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}> — {line.itemName}</span>
                     )}
                   </span>
                   {isJasa && <Badge label="JASA" color="var(--text)" bg="var(--surface-alt)" />}

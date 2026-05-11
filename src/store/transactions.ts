@@ -54,30 +54,30 @@ const SEED_TX: Transaction[] = [
 // Lines mapping transactions to categories
 const SEED_LINES: TransactionLine[] = [
   // tx-101: Jasa 600k + Sparepart 350k
-  { id: 'ln-101a', transactionId: 'tx-101', categoryId: 'cat-01', nominal: 600_000, biayaMaterial: 50_000, jasaName: 'Ganti Oli + Filter' },
+  { id: 'ln-101a', transactionId: 'tx-101', categoryId: 'cat-01', nominal: 600_000, biayaMaterial: 50_000, itemName: 'Ganti Oli + Filter' },
   { id: 'ln-101b', transactionId: 'tx-101', categoryId: 'cat-06', nominal: 350_000, biayaMaterial: 0 },
   // tx-102: Jasa 450k + Oli 300k
-  { id: 'ln-102a', transactionId: 'tx-102', categoryId: 'cat-01', nominal: 450_000, biayaMaterial: 0, jasaName: 'Tune Up' },
+  { id: 'ln-102a', transactionId: 'tx-102', categoryId: 'cat-01', nominal: 450_000, biayaMaterial: 0, itemName: 'Tune Up' },
   { id: 'ln-102b', transactionId: 'tx-102', categoryId: 'cat-05', nominal: 300_000, biayaMaterial: 0 },
   // tx-103: Dyno 750k
   { id: 'ln-103a', transactionId: 'tx-103', categoryId: 'cat-02', nominal: 750_000, biayaMaterial: 0 },
   // tx-104: Beli Stok Oli expense
   { id: 'ln-104a', transactionId: 'tx-104', categoryId: 'cat-08', nominal: 1_100_000, biayaMaterial: 0 },
   // tx-201: Jasa 1.32jt
-  { id: 'ln-201a', transactionId: 'tx-201', categoryId: 'cat-01', nominal: 1_320_000, biayaMaterial: 120_000, jasaName: 'Ganti Oli + Filter' },
+  { id: 'ln-201a', transactionId: 'tx-201', categoryId: 'cat-01', nominal: 1_320_000, biayaMaterial: 120_000, itemName: 'Ganti Oli + Filter' },
   // tx-202: Sparepart 1.1jt + Oli 800k
   { id: 'ln-202a', transactionId: 'tx-202', categoryId: 'cat-06', nominal: 1_100_000, biayaMaterial: 0 },
   { id: 'ln-202b', transactionId: 'tx-202', categoryId: 'cat-05', nominal: 800_000,   biayaMaterial: 0 },
   // tx-203: Beli Sparepart expense
   { id: 'ln-203a', transactionId: 'tx-203', categoryId: 'cat-09', nominal: 850_000, biayaMaterial: 0 },
   // tx-301: Jasa 980k
-  { id: 'ln-301a', transactionId: 'tx-301', categoryId: 'cat-01', nominal: 980_000, biayaMaterial: 80_000, jasaName: 'Bleeding Rem' },
+  { id: 'ln-301a', transactionId: 'tx-301', categoryId: 'cat-01', nominal: 980_000, biayaMaterial: 80_000, itemName: 'Bleeding Rem' },
   // tx-302: Bubut Dalam 1jt
   { id: 'ln-302a', transactionId: 'tx-302', categoryId: 'cat-04', nominal: 1_000_000, biayaMaterial: 100_000 },
   // tx-303: Beli Oli expense
   { id: 'ln-303a', transactionId: 'tx-303', categoryId: 'cat-08', nominal: 420_000, biayaMaterial: 0 },
   // tx-401: Jasa 2.15jt
-  { id: 'ln-401a', transactionId: 'tx-401', categoryId: 'cat-01', nominal: 2_150_000, biayaMaterial: 200_000, jasaName: 'Tune Up' },
+  { id: 'ln-401a', transactionId: 'tx-401', categoryId: 'cat-01', nominal: 2_150_000, biayaMaterial: 200_000, itemName: 'Tune Up' },
   // tx-402: Sparepart 1.2jt + Jasa 800k
   { id: 'ln-402a', transactionId: 'tx-402', categoryId: 'cat-06', nominal: 1_200_000, biayaMaterial: 0 },
   { id: 'ln-402b', transactionId: 'tx-402', categoryId: 'cat-01', nominal: 800_000,   biayaMaterial: 0 },
@@ -99,7 +99,7 @@ const SEED_LINES: TransactionLine[] = [
   { id: 'ln-603a', transactionId: 'tx-603', categoryId: 'cat-08', nominal: 2_240_000, biayaMaterial: 0 },
   // ── 10 Mei (today) ──
   // tx-701: Jasa+Sparepart 425k (matches recent tx TRX-20260510-018 "Jasa, Sparepart")
-  { id: 'ln-701a', transactionId: 'tx-701', categoryId: 'cat-01', nominal: 275_000, biayaMaterial: 25_000, jasaName: 'Ganti Oli + Filter' },
+  { id: 'ln-701a', transactionId: 'tx-701', categoryId: 'cat-01', nominal: 275_000, biayaMaterial: 25_000, itemName: 'Ganti Oli + Filter' },
   { id: 'ln-701b', transactionId: 'tx-701', categoryId: 'cat-06', nominal: 150_000, biayaMaterial: 0 },
   // tx-702: Oli 85k (TRX-20260510-017 "Oli")
   { id: 'ln-702a', transactionId: 'tx-702', categoryId: 'cat-05', nominal: 85_000, biayaMaterial: 0 },
@@ -116,7 +116,7 @@ const SEED_LINES: TransactionLine[] = [
   // tx-707: Sparepart 540k (TRX-20260510-013 "Sparepart")
   { id: 'ln-707a', transactionId: 'tx-707', categoryId: 'cat-06', nominal: 540_000, biayaMaterial: 0 },
   // tx-708: Jasa 540k
-  { id: 'ln-708a', transactionId: 'tx-708', categoryId: 'cat-01', nominal: 540_000, biayaMaterial: 40_000, jasaName: 'Servis Karbu' },
+  { id: 'ln-708a', transactionId: 'tx-708', categoryId: 'cat-01', nominal: 540_000, biayaMaterial: 40_000, itemName: 'Servis Karbu' },
   // tx-709: Beli Stok expense
   { id: 'ln-709a', transactionId: 'tx-709', categoryId: 'cat-08', nominal: 630_000, biayaMaterial: 0 },
   // tx-710: Sparepart batch (no jasa, no komisi contribution)
@@ -152,7 +152,7 @@ export interface AddTransactionLineInput {
   nominal: number
   biayaMaterial: number
   notes?: string
-  jasaName?: string
+  itemName?: string
   mechanics: Array<{ mechanicId: string; sharePercent: number; rateOverride?: number }>
   bubutVendor?: { supplierId: string; vendorCost: number }
 }
@@ -256,7 +256,7 @@ export const useTransactionStore = create<TransactionState>()(
             nominal: l.nominal,
             biayaMaterial: l.biayaMaterial,
             notes: l.notes,
-            jasaName: l.jasaName,
+            itemName: l.itemName,
           }))
 
           const totalNominal = input.lines.reduce((s, l) => s + l.nominal, 0)
@@ -347,7 +347,7 @@ export const useTransactionStore = create<TransactionState>()(
               nominal: l.nominal,
               biayaMaterial: l.biayaMaterial,
               notes: l.notes,
-              jasaName: l.jasaName,
+              itemName: l.itemName,
             }))
             const totalNominal = input.lines.reduce((sum, l) => sum + l.nominal, 0)
 
@@ -478,7 +478,27 @@ export const useTransactionStore = create<TransactionState>()(
           ),
         })),
       }),
-      { name: 'nq21-transactions', storage: createJSONStorage(() => localStorage) }
+      {
+        name: 'nq21-transactions',
+        storage: createJSONStorage(() => localStorage),
+        version: 2,
+        migrate: (state: unknown, version: number) => {
+          if (version < 2) {
+            // Rename jasaName → itemName in persisted lines
+            const s = state as { lines?: Array<Record<string, unknown>> }
+            if (s.lines) {
+              s.lines = s.lines.map((l) => {
+                if ('jasaName' in l && !('itemName' in l)) {
+                  const { jasaName, ...rest } = l
+                  return { ...rest, itemName: jasaName }
+                }
+                return l
+              })
+            }
+          }
+          return state as TransactionState
+        },
+      }
     ),
     { name: 'TransactionStore', enabled: import.meta.env.DEV }
   )
