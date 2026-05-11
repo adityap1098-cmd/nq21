@@ -526,4 +526,4 @@ Total halaman unik yang akan dibangun: **~18 halaman** (atau ~12-14 routes kalau
   - *Locked M001.*
 ---
 
-**Status**: Plan v1.3 — M001 complete (2026-05-10). All Section 13 decisions locked. Siap M002.
+**Status**: Plan v1.3 — M001-M005 + M007 COMPLETE (2026-05-11). M006 Backend Integration ⏸ DEFERRED (deployment infrastructure issues — retry post real-user-testing). App FE-only demo-ready at https://nq21.vercel.app.
