@@ -824,8 +824,20 @@ _(none)_
   - Build: ✅ 0 TS errors · index chunk 54.9kB gzip · supabase 53.6kB gzip
   - Commit: `6263ffb`
 
-- [ ] **M006-V2-T2**: Master Data migration — customers, suppliers, categories, mechanics, commission_rates
+- [x] **M006-V2-T2.1**: Master Data reads migration ✅ (2026-05-12)
+  - `src/features/categories/hooks.ts`: `useCategories()` — TanStack Query, snake_case types
+  - `src/features/mechanics/hooks.ts`: `useMechanics()` + `useCommissionRates()`
+  - `src/features/customers/hooks.ts`: `useCustomers()` + `useCreateCustomer()`
+  - `src/features/suppliers/hooks.ts`: `useSuppliers()` + `useCreateSupplier()`
+  - TransactionForm, LineItemCard, MechanicChipRow, CustomerSupplierAutocomplete, InlineCreateDialog, TransactionSummary — all 4 Zustand master reads → Supabase hooks
+  - utils.ts type signatures: all camelCase Zustand types → inline snake_case structural types
+  - Known issue (low priority): Multi-tab cascade logout dalam same window. Defer post-T3. (See CLAUDE.md Decision Log)
+
 - [ ] **M006-V2-T3**: Transactions migration — CRUD + Bubut Luar dual-leg
+  - [x] T3.0: Master data reads in TransactionForm ✅ (done in T2.1 above)
+  - [ ] T3.1.1: Transaction list + detail read-only (DaftarTransaksiPage + DetailTransaksiPage)
+  - [ ] T3.1.2: Transaction CRUD writes (create/update/delete via Supabase)
+  - [ ] T3.2: Bubut Luar dual-leg save (Supabase transaction)
 - [ ] **M006-V2-T4**: Commission periods + payouts migration
 - [ ] **M006-V2-T5**: Audit log migration
 - [ ] **M006-V2-T6**: E2E verification + tag vM006-V2
@@ -853,3 +865,4 @@ _(none)_
 - **M005** ✅ 2026-05-11 — Komisi weekly periods + payouts + slip print
 - **M007** ✅ 2026-05-11 — PWA installable + offline + lazy loading + polish
 - **M006-V2-T1** ✅ 2026-05-11 — Supabase auth migration (email login, profiles, onAuthStateChange)
+- **M006-V2-T2.1** ✅ 2026-05-12 — Master data reads (customers/suppliers/categories/mechanics) migrated to Supabase hooks in TransactionForm

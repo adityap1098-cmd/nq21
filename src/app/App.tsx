@@ -9,6 +9,7 @@ import { OfflineIndicator } from './components/OfflineIndicator'
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore, type AuthProfile } from '@/store/auth'
+import { toast } from '@/hooks/use-toast'
 
 async function fetchProfile(userId: string, email: string): Promise<AuthProfile | null> {
   const { data, error } = await supabase
@@ -28,6 +29,17 @@ async function fetchProfile(userId: string, email: string): Promise<AuthProfile 
 
 export default function App() {
   const loading = useAuthStore((s) => s.loading)
+
+  useEffect(() => {
+    const channel = new BroadcastChannel('nq21-tab-detect')
+    channel.postMessage({ type: 'tab-open', id: Date.now() })
+    channel.onmessage = (e) => {
+      if (e.data.type === 'tab-open') {
+        toast('App terbuka di tab lain', { description: 'Tutup tab ini untuk hindari conflict.' })
+      }
+    }
+    return () => channel.close()
+  }, [])
 
   useEffect(() => {
     const { loadSession, _setUser } = useAuthStore.getState()

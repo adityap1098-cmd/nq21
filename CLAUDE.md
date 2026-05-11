@@ -278,6 +278,7 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
   - Profile fetch: `supabase.from('profiles').select('id,name,role,is_active').eq('id', userId).single()`
   - Inactive profile → auto `signOut()` + redirect to login
   - Multi-tab/multi-device sync: automatic via `onAuthStateChange` — `SIGNED_OUT` in one tab propagates to all tabs
+  - **Known issue (low priority, deferred post-T3)**: Supabase BroadcastChannel can trigger spurious SIGNED_OUT cascade when a second tab fails session restore. Defensive filters applied in `App.tsx` (token presence check) and `loadSession()` (hydration race guard + profileError vs inactive distinction). Single-tab is typical use case — not a blocker.
   - `user.username` removed everywhere — audit log `userId` fields now use `user.name`
   - Supabase vendor chunk isolated (207kB raw / 53kB gzip) via `manualChunks` in vite.config.ts
 

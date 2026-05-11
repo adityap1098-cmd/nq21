@@ -7,20 +7,19 @@ import { FilterPillGroup } from '@/components/nq21/FilterPillGroup'
 import { CurrencyDisplay } from '@/components/nq21/CurrencyDisplay'
 import { DateDisplay } from '@/components/nq21/DateDisplay'
 import { EmptyState } from '@/components/nq21/EmptyState'
-import { useTransactionStore } from '@/store/transactions'
-import { useCustomerStore } from '@/store/master/customers'
-import { useSupplierStore } from '@/store/master/suppliers'
-import type { Transaction } from '@/store/types'
+import { useTransactions, type TransactionRow } from '@/features/transactions/hooks'
+import { useCustomers } from '@/features/customers/hooks'
+import { useSuppliers } from '@/features/suppliers/hooks'
 
 const PAGE_SIZE = 20
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'all'
 type TipeFilter = 'all' | 'income' | 'expense'
-type SortKey = 'noReferensi' | 'tglTransaksi' | 'tipe' | 'party' | 'paymentMethod' | 'totalNominal'
+type SortKey = 'no_referensi' | 'tgl_transaksi' | 'tipe' | 'party' | 'payment_method' | 'total_nominal'
 type SortDir = 'asc' | 'desc'
 
 function getInterval(period: PeriodFilter): { start: Date; end: Date } | null {
-  const now = new Date('2026-05-10') // pinned to seed date for prototype
+  const now = new Date()
   if (period === 'today')  return { start: startOfDay(now),   end: endOfDay(now) }
   if (period === 'week')   return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) }
   if (period === 'month')  return { start: startOfMonth(now), end: endOfMonth(now) }
@@ -40,7 +39,7 @@ const PERIOD_OPTIONS = [
   { label: 'Semua',       value: 'all' },
 ]
 
-function TipeBadge({ tipe }: { tipe: Transaction['tipe'] }) {
+function TipeBadge({ tipe }: { tipe: TransactionRow['tipe'] }) {
   const isIncome = tipe === 'income'
   return (
     <span style={{
@@ -55,8 +54,8 @@ function TipeBadge({ tipe }: { tipe: Transaction['tipe'] }) {
   )
 }
 
-function PaymentBadge({ method }: { method: Transaction['paymentMethod'] }) {
-  const labels: Record<Transaction['paymentMethod'], string> = {
+function PaymentBadge({ method }: { method: TransactionRow['payment_method'] }) {
+  const labels: Record<TransactionRow['payment_method'], string> = {
     cash: 'Cash', transfer: 'Transfer', qris: 'QRIS',
   }
   return (
@@ -70,9 +69,9 @@ function PaymentBadge({ method }: { method: Transaction['paymentMethod'] }) {
   )
 }
 
-function SummaryStrip({ filtered }: { filtered: Transaction[] }) {
-  const income  = filtered.filter(t => t.tipe === 'income').reduce((s, t) => s + t.totalNominal, 0)
-  const expense = filtered.filter(t => t.tipe === 'expense').reduce((s, t) => s + t.totalNominal, 0)
+function SummaryStrip({ filtered }: { filtered: TransactionRow[] }) {
+  const income  = filtered.filter(t => t.tipe === 'income').reduce((s, t) => s + t.total_nominal, 0)
+  const expense = filtered.filter(t => t.tipe === 'expense').reduce((s, t) => s + t.total_nominal, 0)
   const net = income - expense
 
   const cards = [
@@ -114,46 +113,40 @@ function SummaryStrip({ filtered }: { filtered: Transaction[] }) {
 
 export default function DaftarTransaksiPage() {
   const navigate = useNavigate()
-  const { transactions, lines } = useTransactionStore()
-  const { customers } = useCustomerStore()
-  const { suppliers } = useSupplierStore()
+  const { data: transactions = [], isLoading } = useTransactions({ includeDeleted: false })
+  const { data: customers = [] } = useCustomers()
+  const { data: suppliers = [] } = useSuppliers()
 
   const [search, setSearch]   = useState('')
   const [tipe, setTipe]       = useState<TipeFilter>('all')
   const [period, setPeriod]   = useState<PeriodFilter>('week')
   const [page, setPage]       = useState(1)
-  const [sortBy, setSortBy]   = useState<SortKey>('tglTransaksi')
+  const [sortBy, setSortBy]   = useState<SortKey>('tgl_transaksi')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
-
-  const active = useMemo(
-    () => transactions.filter(t => !t.deletedAt),
-    [transactions],
-  )
 
   const filtered = useMemo(() => {
     const interval = getInterval(period)
     const q = search.trim().toLowerCase()
 
-    return active.filter(t => {
+    return transactions.filter(t => {
       if (tipe !== 'all' && t.tipe !== tipe) return false
 
       if (interval) {
-        const d = parseISO(t.tglTransaksi)
+        const d = parseISO(t.tgl_transaksi + 'T00:00:00')
         if (!isWithinInterval(d, interval)) return false
       }
 
       if (q) {
-        const noRef = t.noReferensi.toLowerCase()
+        const noRef = t.no_referensi.toLowerCase()
         const party = t.tipe === 'income'
-          ? (customers.find(c => c.id === t.customerId)?.name ?? '').toLowerCase()
-          : (suppliers.find(s => s.id === t.supplierId)?.name ?? '').toLowerCase()
-        const hasItem = lines.some(l => l.transactionId === t.id && l.itemName?.toLowerCase().includes(q))
-        if (!noRef.includes(q) && !party.includes(q) && !hasItem) return false
+          ? (customers.find(c => c.id === t.customer_id)?.name ?? '').toLowerCase()
+          : (suppliers.find(s => s.id === t.supplier_id)?.name ?? '').toLowerCase()
+        if (!noRef.includes(q) && !party.includes(q)) return false
       }
 
       return true
     })
-  }, [active, tipe, period, search, customers, suppliers, lines])
+  }, [transactions, tipe, period, search, customers, suppliers])
 
   const sortedFiltered = useMemo(() => {
     const arr = [...filtered]
@@ -161,17 +154,17 @@ export default function DaftarTransaksiPage() {
       let cmp: number
       if (sortBy === 'party') {
         const aName = (a.tipe === 'income'
-          ? (customers.find((c) => c.id === a.customerId)?.name ?? '')
-          : (suppliers.find((s) => s.id === a.supplierId)?.name ?? '')).toLowerCase()
+          ? (customers.find((c) => c.id === a.customer_id)?.name ?? '')
+          : (suppliers.find((s) => s.id === a.supplier_id)?.name ?? '')).toLowerCase()
         const bName = (b.tipe === 'income'
-          ? (customers.find((c) => c.id === b.customerId)?.name ?? '')
-          : (suppliers.find((s) => s.id === b.supplierId)?.name ?? '')).toLowerCase()
+          ? (customers.find((c) => c.id === b.customer_id)?.name ?? '')
+          : (suppliers.find((s) => s.id === b.supplier_id)?.name ?? '')).toLowerCase()
         cmp = aName < bName ? -1 : aName > bName ? 1 : 0
-      } else if (sortBy === 'totalNominal') {
-        cmp = a.totalNominal - b.totalNominal
+      } else if (sortBy === 'total_nominal') {
+        cmp = a.total_nominal - b.total_nominal
       } else {
-        const aVal = a[sortBy as 'noReferensi' | 'tglTransaksi' | 'tipe' | 'paymentMethod']
-        const bVal = b[sortBy as 'noReferensi' | 'tglTransaksi' | 'tipe' | 'paymentMethod']
+        const aVal = a[sortBy as 'no_referensi' | 'tgl_transaksi' | 'tipe' | 'payment_method']
+        const bVal = b[sortBy as 'no_referensi' | 'tgl_transaksi' | 'tipe' | 'payment_method']
         cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
       }
       return sortDir === 'asc' ? cmp : -cmp
@@ -222,7 +215,7 @@ export default function DaftarTransaksiPage() {
     <>
       <PageHeader
         title="DAFTAR TRANSAKSI"
-        subtitle={`${active.length} total transaksi tersimpan`}
+        subtitle={isLoading ? 'Memuat...' : `${transactions.length} total transaksi tersimpan`}
         action={
           <button
             onClick={() => navigate('/transaksi/baru')}
@@ -269,8 +262,15 @@ export default function DaftarTransaksiPage() {
       {/* ── Summary strip ── */}
       <SummaryStrip filtered={filtered} />
 
+      {/* ── Loading state ── */}
+      {isLoading && (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
+          Memuat transaksi...
+        </div>
+      )}
+
       {/* ── Table ── */}
-      {filtered.length === 0 ? (
+      {!isLoading && filtered.length === 0 ? (
         <EmptyState
           message={search || tipe !== 'all' || period !== 'all'
             ? 'Tidak ada transaksi yang cocok dengan filter ini.'
@@ -290,7 +290,7 @@ export default function DaftarTransaksiPage() {
             </button>
           }
         />
-      ) : (
+      ) : !isLoading && (
         <div style={{
           background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: 10, overflow: 'hidden',
@@ -300,12 +300,12 @@ export default function DaftarTransaksiPage() {
               <tr>
                 {(
                   [
-                    { label: 'NO. REFERENSI', col: 'noReferensi' as SortKey, align: 'left' },
-                    { label: 'TANGGAL',       col: 'tglTransaksi' as SortKey, align: 'left' },
+                    { label: 'NO. REFERENSI', col: 'no_referensi' as SortKey, align: 'left' },
+                    { label: 'TANGGAL',       col: 'tgl_transaksi' as SortKey, align: 'left' },
                     { label: 'TIPE',          col: 'tipe' as SortKey, align: 'center' },
                     { label: 'CUSTOMER / SUPPLIER', col: 'party' as SortKey, align: 'left' },
-                    { label: 'METODE',        col: 'paymentMethod' as SortKey, align: 'center' },
-                    { label: 'TOTAL',         col: 'totalNominal' as SortKey, align: 'right' },
+                    { label: 'METODE',        col: 'payment_method' as SortKey, align: 'center' },
+                    { label: 'TOTAL',         col: 'total_nominal' as SortKey, align: 'right' },
                   ] as const
                 ).map(({ label, col, align }) => {
                   const isActive = sortBy === col
@@ -332,8 +332,8 @@ export default function DaftarTransaksiPage() {
             <tbody>
               {pageSlice.map(tx => {
                 const partyName = tx.tipe === 'income'
-                  ? (customers.find(c => c.id === tx.customerId)?.name ?? '—')
-                  : (suppliers.find(s => s.id === tx.supplierId)?.name ?? '—')
+                  ? (customers.find(c => c.id === tx.customer_id)?.name ?? '—')
+                  : (suppliers.find(s => s.id === tx.supplier_id)?.name ?? '—')
 
                 return (
                   <tr
@@ -345,11 +345,11 @@ export default function DaftarTransaksiPage() {
                   >
                     <td style={colStyle}>
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>
-                        {tx.noReferensi}
+                        {tx.no_referensi}
                       </span>
                     </td>
                     <td style={colStyle}>
-                      <DateDisplay value={tx.tglTransaksi + 'T00:00:00'} format="short" />
+                      <DateDisplay value={tx.tgl_transaksi + 'T00:00:00'} format="short" />
                     </td>
                     <td style={{ ...colStyle, textAlign: 'center' }}>
                       <TipeBadge tipe={tx.tipe} />
@@ -360,10 +360,10 @@ export default function DaftarTransaksiPage() {
                       </span>
                     </td>
                     <td style={{ ...colStyle, textAlign: 'center' }}>
-                      <PaymentBadge method={tx.paymentMethod} />
+                      <PaymentBadge method={tx.payment_method} />
                     </td>
                     <td style={{ ...colStyle, textAlign: 'right' }}>
-                      <CurrencyDisplay value={tx.totalNominal} size="sm" />
+                      <CurrencyDisplay value={tx.total_nominal} size="sm" />
                     </td>
                     <td style={{ ...colStyle, textAlign: 'center' }}>
                       <button
@@ -397,7 +397,7 @@ export default function DaftarTransaksiPage() {
               <div style={{ display: 'flex', gap: 6 }}>
                 {[...Array(totalPages)].map((_, i) => {
                   const p = i + 1
-                  const active = p === safePage
+                  const isActivePage = p === safePage
                   if (totalPages > 7 && Math.abs(p - safePage) > 2 && p !== 1 && p !== totalPages) {
                     if (p === safePage - 3 || p === safePage + 3) return <span key={p} style={{ color: 'var(--text-muted)', padding: '0 2px' }}>…</span>
                     return null
@@ -409,9 +409,9 @@ export default function DaftarTransaksiPage() {
                       style={{
                         fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
                         width: 28, height: 28, borderRadius: 4,
-                        border: `1px solid ${active ? 'var(--text)' : 'var(--border)'}`,
-                        background: active ? 'var(--text)' : 'transparent',
-                        color: active ? '#fff' : 'var(--text-muted)',
+                        border: `1px solid ${isActivePage ? 'var(--text)' : 'var(--border)'}`,
+                        background: isActivePage ? 'var(--text)' : 'transparent',
+                        color: isActivePage ? '#fff' : 'var(--text-muted)',
                         cursor: 'pointer',
                       }}
                     >

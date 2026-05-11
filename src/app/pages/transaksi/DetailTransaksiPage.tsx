@@ -3,23 +3,20 @@ import type { CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageHeader } from '@/components/nq21/PageHeader'
 import { CurrencyDisplay } from '@/components/nq21/CurrencyDisplay'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
-import { useTransactionStore } from '@/store/transactions'
-import { useCategoryStore } from '@/store/master/categories'
-import { useCustomerStore } from '@/store/master/customers'
-import { useSupplierStore } from '@/store/master/suppliers'
-import { useMechanicStore } from '@/store/master/mechanics'
+import { useTransaction, type TransactionLineMechanicRow } from '@/features/transactions/hooks'
+import { useCategories } from '@/features/categories/hooks'
+import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import { useUserStore } from '@/store/master/users'
 import { useAuthStore } from '@/store/auth'
 import { useAuditStore } from '@/store/audit'
 import { useCommissionStore } from '@/store/commission'
+import { supabase } from '@/lib/supabase'
 import { toast } from '@/hooks/use-toast'
-import type {
-  TransactionLine, TransactionLineMechanic,
-  CommissionRate, CommissionPeriod, AuditLog,
-} from '@/store/types'
+import type { CommissionPeriod, AuditLog } from '@/store/types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -40,12 +37,8 @@ function fmtTs(iso: string) {
   }
 }
 
-interface LineWithMechanics extends TransactionLine {
-  mechanics: TransactionLineMechanic[]
-}
-
 interface MechKomisiRow {
-  mechanicId: string
+  mechanic_id: string
   share: number
   masterRate: number
   effectiveRate: number
@@ -53,13 +46,16 @@ interface MechKomisiRow {
   komisi: number
 }
 
-function computeLineKomisi(line: LineWithMechanics, rates: CommissionRate[]): MechKomisiRow[] {
-  const basis = Math.max(0, line.nominal - line.biayaMaterial)
+function computeLineKomisi(
+  line: { nominal: number; biaya_material: number; category_id: string; mechanics: TransactionLineMechanicRow[] },
+  rates: { mechanic_id: string; category_id: string; rate_percent: number }[],
+): MechKomisiRow[] {
+  const basis = Math.max(0, line.nominal - line.biaya_material)
   return line.mechanics.map((lm) => {
-    const masterRate = rates.find((r) => r.mechanicId === lm.mechanicId && r.categoryId === line.categoryId)?.ratePercent ?? 0
-    const effectiveRate = lm.rateOverride !== undefined ? lm.rateOverride : masterRate
-    const komisi = Math.round(basis * (lm.sharePercent / 100) * (effectiveRate / 100))
-    return { mechanicId: lm.mechanicId, share: lm.sharePercent, masterRate, effectiveRate, hasOverride: lm.rateOverride !== undefined, komisi }
+    const masterRate = rates.find((r) => r.mechanic_id === lm.mechanic_id && r.category_id === line.category_id)?.rate_percent ?? 0
+    const effectiveRate = lm.rate_override !== null ? lm.rate_override : masterRate
+    const komisi = Math.round(basis * (lm.share_percent / 100) * (effectiveRate / 100))
+    return { mechanic_id: lm.mechanic_id, share: lm.share_percent, masterRate, effectiveRate, hasOverride: lm.rate_override !== null, komisi }
   })
 }
 
@@ -108,12 +104,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function DetailTransaksiPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
-  const { transactions, lines: allLines, lineMechanics, bubutLuarLinks, softDelete } = useTransactionStore()
-  const { categories } = useCategoryStore()
-  const { customers } = useCustomerStore()
-  const { suppliers } = useSupplierStore()
-  const { mechanics, rates } = useMechanicStore()
+  const { data: tx, isLoading } = useTransaction(id)
+  const { data: categories = [] } = useCategories(true)
+  const { data: mechanics = [] } = useMechanics(true)
+  const { data: rates = [] } = useCommissionRates()
   const { users } = useUserStore()
   const { user } = useAuthStore()
   const { logs, log: auditLog } = useAuditStore()
@@ -122,60 +118,71 @@ export default function DetailTransaksiPage() {
   const [showDelete, setShowDelete] = useState(false)
   const [auditExpanded, setAuditExpanded] = useState(false)
 
-  const tx = useMemo(() => transactions.find((t) => t.id === id), [transactions, id])
+  // ── Counterpart tx for bubut luar ───────────────────────────────────────────
+  const bubutLink = tx?.bubut_luar_links?.[0] ?? null
+  const isVendorAuto = !!(tx?.no_referensi?.endsWith('-VENDOR'))
 
-  const txLines = useMemo<LineWithMechanics[]>(() => {
-    if (!tx) return []
-    return allLines
-      .filter((l) => l.transactionId === tx.id)
-      .map((l) => ({ ...l, mechanics: lineMechanics.filter((lm) => lm.transactionLineId === l.id) }))
-  }, [tx, allLines, lineMechanics])
+  const { data: vendorLinkForExpense } = useQuery({
+    queryKey: ['bubut-vendor-link', tx?.id],
+    enabled: !!tx && isVendorAuto,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bubut_luar_links')
+        .select('expense_transaction_id, revenue_line_id, transaction_lines!inner(transaction_id)')
+        .eq('expense_transaction_id', tx!.id)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
 
-  const txBubutLink = useMemo(() => {
-    if (!tx) return null
-    for (const line of txLines) {
-      const link = bubutLuarLinks.find((bl) => bl.revenueLineId === line.id)
-      if (link) return link
-    }
-    return null
-  }, [tx, txLines, bubutLuarLinks])
+  const counterpartId = bubutLink?.expense_transaction_id
+    ?? (vendorLinkForExpense ? (vendorLinkForExpense as { transaction_lines?: { transaction_id?: string } }).transaction_lines?.transaction_id : null)
 
-  const counterpartTx = useMemo(() => {
-    if (!tx) return null
-    if (txBubutLink) return transactions.find((t) => t.id === txBubutLink.expenseTransactionId) ?? null
-    const expenseLink = bubutLuarLinks.find((bl) => bl.expenseTransactionId === tx.id)
-    if (expenseLink) {
-      const incomeLine = allLines.find((l) => l.id === expenseLink.revenueLineId)
-      if (incomeLine) return transactions.find((t) => t.id === incomeLine.transactionId) ?? null
-    }
-    return null
-  }, [tx, txBubutLink, bubutLuarLinks, transactions, allLines])
+  const { data: counterpartTx } = useQuery({
+    queryKey: ['transaction-counterpart', counterpartId],
+    enabled: !!counterpartId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('id, no_referensi, supplier_id')
+        .eq('id', counterpartId!)
+        .maybeSingle()
+      if (error) throw error
+      return data as { id: string; no_referensi: string; supplier_id: string | null } | null
+    },
+  })
+
+  // ── Derived state ────────────────────────────────────────────────────────────
 
   const period = useMemo(() => {
     if (!tx) return null
-    return getPeriodForDate(tx.tglTransaksi, periods)
+    return getPeriodForDate(tx.tgl_transaksi, periods)
   }, [tx, periods])
 
   const hasJasaLine = useMemo(() => {
-    return txLines.some((l) => {
-      const cat = categories.find((c) => c.id === l.categoryId)
-      return cat?.isJasa
+    if (!tx) return false
+    return tx.lines.some((l) => {
+      const cat = categories.find((c) => c.id === l.category_id)
+      return cat?.is_jasa
     })
-  }, [txLines, categories])
+  }, [tx, categories])
 
   const komisiByMechanic = useMemo(() => {
     const map = new Map<string, { amount: number; hasOverride: boolean }>()
-    for (const line of txLines) {
-      const cat = categories.find((c) => c.id === line.categoryId)
-      if (!cat?.isJasa) continue
+    if (!tx) return map
+    for (const line of tx.lines) {
+      const cat = categories.find((c) => c.id === line.category_id)
+      if (!cat?.is_jasa) continue
       const rows = computeLineKomisi(line, rates)
       for (const row of rows) {
-        const prev = map.get(row.mechanicId) ?? { amount: 0, hasOverride: false }
-        map.set(row.mechanicId, { amount: prev.amount + row.komisi, hasOverride: prev.hasOverride || row.hasOverride })
+        const prev = map.get(row.mechanic_id) ?? { amount: 0, hasOverride: false }
+        map.set(row.mechanic_id, { amount: prev.amount + row.komisi, hasOverride: prev.hasOverride || row.hasOverride })
       }
     }
     return map
-  }, [txLines, categories, rates])
+  }, [tx, categories, rates])
 
   const totalKomisi = useMemo(() => {
     let t = 0; komisiByMechanic.forEach((v) => { t += v.amount }); return t
@@ -188,25 +195,24 @@ export default function DetailTransaksiPage() {
   }, [logs, tx, id])
 
   const canEdit = useMemo(() => {
-    if (!tx || tx.deletedAt) return false
-    if (tx.noReferensi.endsWith('-VENDOR')) return false
+    if (!tx || tx.deleted_at) return false
+    if (tx.no_referensi.endsWith('-VENDOR')) return false
     if (hasJasaLine && period?.status === 'closed') return false
     return true
   }, [tx, hasJasaLine, period])
 
   const editDisabledReason = useMemo(() => {
     if (!tx) return ''
-    if (tx.deletedAt) return 'Transaksi sudah dihapus'
-    if (tx.noReferensi.endsWith('-VENDOR')) {
-      const parent = counterpartTx
-      return `Edit dari transaksi induk: ${parent?.noReferensi ?? '...'}`
+    if (tx.deleted_at) return 'Transaksi sudah dihapus'
+    if (tx.no_referensi.endsWith('-VENDOR')) {
+      return `Edit dari transaksi induk: ${counterpartTx?.no_referensi ?? '...'}`
     }
     if (hasJasaLine && period?.status === 'closed') return 'Transaksi di periode yang sudah ditutup. Hubungi owner untuk override.'
     return ''
   }, [tx, counterpartTx, hasJasaLine, period])
 
   const deletedByName = useMemo(() => {
-    if (!tx?.deletedAt) return null
+    if (!tx?.deleted_at) return null
     const entry = logs.find((l) => l.entityId === tx.id && l.action === 'delete')
     return entry ? (users.find((u) => u.id === entry.userId)?.name ?? null) : null
   }, [tx, logs, users])
@@ -214,24 +220,43 @@ export default function DetailTransaksiPage() {
   const deleteMessage = useMemo(() => {
     if (!tx) return ''
     const parts: string[] = []
-    if (txBubutLink) parts.push(`Akan menghapus 2 transaksi: income ${tx.noReferensi} + expense ${tx.noReferensi}-VENDOR.`)
+    if (bubutLink) parts.push(`Akan menghapus 2 transaksi: income ${tx.no_referensi} + expense ${tx.no_referensi}-VENDOR.`)
     else if (hasJasaLine) parts.push('Komisi mekanik di transaksi ini juga ke-affected.')
     parts.push('Lanjut?')
     return parts.join(' ')
-  }, [tx, txBubutLink, hasJasaLine])
+  }, [tx, bubutLink, hasJasaLine])
 
-  function handleDelete() {
+  async function handleDelete() {
     if (!tx) return
     const now = new Date().toISOString()
-    softDelete(tx.id, now)
-    if (txBubutLink) softDelete(txBubutLink.expenseTransactionId, now)
+
+    const updates: Promise<unknown>[] = [
+      supabase.from('transactions').update({ deleted_at: now }).eq('id', tx.id),
+    ]
+    if (bubutLink) {
+      updates.push(supabase.from('transactions').update({ deleted_at: now }).eq('id', bubutLink.expense_transaction_id))
+    }
+    await Promise.all(updates)
+
     const userId = users.find((u) => u.name === user?.name)?.id ?? 'unknown'
-    auditLog({ userId, action: 'delete', entityType: 'transaction', entityId: tx.id, source: 'detail-page', beforeData: { noReferensi: tx.noReferensi } })
-    toast('Transaksi dihapus', { description: tx.noReferensi })
+    auditLog({ userId, action: 'delete', entityType: 'transaction', entityId: tx.id, source: 'detail-page', beforeData: { no_referensi: tx.no_referensi } })
+    toast('Transaksi dihapus', { description: tx.no_referensi })
+    await queryClient.invalidateQueries({ queryKey: ['transactions'] })
     navigate('/transaksi')
   }
 
-  // ── Not Found ────────────────────────────────────────────────────────────────
+  // ── Loading / Not Found ──────────────────────────────────────────────────────
+
+  if (isLoading) {
+    return (
+      <>
+        <PageHeader title="DETAIL TRANSAKSI" />
+        <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
+          Memuat...
+        </div>
+      </>
+    )
+  }
 
   if (!tx) {
     return (
@@ -259,16 +284,11 @@ export default function DetailTransaksiPage() {
   // ── Resolved data ────────────────────────────────────────────────────────────
 
   const isIncome = tx.tipe === 'income'
-  const isDeleted = !!tx.deletedAt
-  const isVendorAuto = tx.noReferensi.endsWith('-VENDOR')
-  const partyName = isIncome
-    ? (customers.find((c) => c.id === tx.customerId)?.name ?? '—')
-    : (suppliers.find((s) => s.id === tx.supplierId)?.name ?? '—')
-  const partySub = isIncome
-    ? (customers.find((c) => c.id === tx.customerId)?.motorType ?? null)
-    : (suppliers.find((s) => s.id === tx.supplierId)?.phone ?? null)
-  const creatorName = users.find((u) => u.id === tx.createdBy)?.name ?? tx.createdBy
-  const paymentLabel = tx.paymentMethod === 'cash' ? 'Cash' : tx.paymentMethod === 'transfer' ? 'Transfer' : 'QRIS'
+  const isDeleted = !!tx.deleted_at
+  const partyName = tx.customer?.name ?? tx.supplier?.name ?? '—'
+  const partySub = isIncome ? (tx.customer?.motor_type ?? null) : (tx.supplier?.phone ?? null)
+  const creatorName = users.find((u) => u.id === tx.created_by)?.name ?? tx.created_by
+  const paymentLabel = tx.payment_method === 'cash' ? 'Cash' : tx.payment_method === 'transfer' ? 'Transfer' : 'QRIS'
   const isOwner = user?.role === 'owner'
   const hasNotes = !!(tx.notes?.trim())
 
@@ -278,10 +298,9 @@ export default function DetailTransaksiPage() {
     <>
       <PageHeader
         title="DETAIL TRANSAKSI"
-        subtitle={tx.noReferensi}
+        subtitle={tx.no_referensi}
         action={
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Ghost — escape action, lowest emphasis */}
             <button
               onClick={() => navigate('/transaksi')}
               style={{
@@ -293,7 +312,6 @@ export default function DetailTransaksiPage() {
             >
               ← KEMBALI
             </button>
-            {/* Destructive outline — medium emphasis */}
             {isOwner && !isDeleted && (
               <button
                 onClick={() => setShowDelete(true)}
@@ -307,7 +325,6 @@ export default function DetailTransaksiPage() {
                 HAPUS
               </button>
             )}
-            {/* Accent solid — primary action, highest emphasis */}
             <button
               onClick={() => canEdit && navigate(`/transaksi/${tx.id}/edit`)}
               disabled={!canEdit}
@@ -337,7 +354,7 @@ export default function DetailTransaksiPage() {
             fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--accent)',
             letterSpacing: '0.04em',
           }}>
-            Transaksi ini telah dihapus pada {fmtTs(tx.deletedAt!)}{deletedByName ? ` oleh ${deletedByName}` : ''}.
+            Transaksi ini telah dihapus pada {fmtTs(tx.deleted_at!)}{deletedByName ? ` oleh ${deletedByName}` : ''}.
           </div>
         )}
 
@@ -359,7 +376,7 @@ export default function DetailTransaksiPage() {
                 background: 'transparent', color: 'var(--text)', cursor: 'pointer',
               }}
             >
-              {counterpartTx.noReferensi} →
+              {counterpartTx.no_referensi} →
             </button>
           </div>
         )}
@@ -372,13 +389,13 @@ export default function DetailTransaksiPage() {
             bg={isIncome ? 'rgba(16,185,129,0.1)' : 'rgba(200,16,46,0.1)'}
           />
           <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
-            {fmtTgl(tx.tglTransaksi)}
+            {fmtTgl(tx.tgl_transaksi)}
           </span>
           {isDeleted
             ? <Badge label="DIHAPUS" color="var(--accent)" bg="rgba(200,16,46,0.1)" />
             : <Badge label="AKTIF" color="var(--success)" bg="rgba(16,185,129,0.1)" />
           }
-          {(txBubutLink || isVendorAuto) && (
+          {(bubutLink || isVendorAuto) && (
             <Badge label="BUBUT LUAR" color="rgba(200,16,46,0.8)" bg="rgba(200,16,46,0.08)" />
           )}
         </div>
@@ -386,7 +403,6 @@ export default function DetailTransaksiPage() {
         {/* ── Info card ── */}
         <Card>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 24px' }}>
-            {/* Party */}
             <div>
               <SectionLabel>{isIncome ? 'CUSTOMER' : 'SUPPLIER'}</SectionLabel>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -404,7 +420,6 @@ export default function DetailTransaksiPage() {
               </div>
             </div>
 
-            {/* Payment method */}
             <div>
               <SectionLabel>METODE PEMBAYARAN</SectionLabel>
               <span style={{
@@ -416,17 +431,15 @@ export default function DetailTransaksiPage() {
               </span>
             </div>
 
-            {/* Created by */}
             <div>
               <SectionLabel>DIBUAT OLEH</SectionLabel>
               <div style={{ fontSize: 12 }}>{creatorName}</div>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                {fmtTs(tx.createdAt)}
+                {fmtTs(tx.created_at)}
               </div>
             </div>
           </div>
 
-          {/* Notes — below 3-col row with dashed separator */}
           {hasNotes && (
             <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px dashed var(--border)' }}>
               <SectionLabel>CATATAN</SectionLabel>
@@ -439,33 +452,31 @@ export default function DetailTransaksiPage() {
 
         {/* ── Line items ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {txLines.map((line, i) => {
-            const cat = categories.find((c) => c.id === line.categoryId)
-            const isJasa = cat?.isJasa ?? false
+          {tx.lines.map((line, i) => {
+            const cat = categories.find((c) => c.id === line.category_id)
+            const isJasa = cat?.is_jasa ?? false
             const isBubutLuar = cat?.name === 'Bubut Luar'
-            const basis = Math.max(0, line.nominal - line.biayaMaterial)
+            const basis = Math.max(0, line.nominal - line.biaya_material)
             const mechRows = isJasa ? computeLineKomisi(line, rates) : []
-            const lineLink = bubutLuarLinks.find((bl) => bl.revenueLineId === line.id)
+            const lineLink = tx.bubut_luar_links.find((bl) => bl.revenue_line_id === line.id)
 
             return (
               <Card key={line.id}>
-                {/* Line header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
                     LINE {String(i + 1).padStart(2, '0')}
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>
-                    {cat?.name ?? line.categoryId}
-                    {line.itemName && (
-                      <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}> — {line.itemName}</span>
+                    {cat?.name ?? line.category_id}
+                    {line.item_name && (
+                      <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}> — {line.item_name}</span>
                     )}
                   </span>
                   {isJasa && <Badge label="JASA" color="var(--text)" bg="var(--surface-alt)" />}
                   {isBubutLuar && <Badge label="BUBUT LUAR" color="rgba(200,16,46,0.8)" bg="rgba(200,16,46,0.08)" />}
-                  {!cat?.isActive && <Badge label="KATEGORI DIHAPUS" color="var(--text-muted)" bg="var(--surface-alt)" />}
+                  {!cat?.is_active && <Badge label="KATEGORI DIHAPUS" color="var(--text-muted)" bg="var(--surface-alt)" />}
                 </div>
 
-                {/* Line amounts — adaptive by type */}
                 {isJasa ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 16px', marginBottom: mechRows.length ? 14 : 0 }}>
                     <div>
@@ -474,7 +485,7 @@ export default function DetailTransaksiPage() {
                     </div>
                     <div>
                       <SectionLabel>BIAYA MATERIAL</SectionLabel>
-                      <CurrencyDisplay value={line.biayaMaterial} size="sm" />
+                      <CurrencyDisplay value={line.biaya_material} size="sm" />
                     </div>
                     <div>
                       <SectionLabel>BASIS KOMISI</SectionLabel>
@@ -490,20 +501,18 @@ export default function DetailTransaksiPage() {
                   </div>
                 )}
 
-                {/* Notes (non-jasa) */}
                 {!isJasa && line.notes && (
                   <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
                     {line.notes}
                   </div>
                 )}
 
-                {/* Mechanic chips */}
                 {isJasa && mechRows.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {mechRows.map((row) => {
-                      const mech = mechanics.find((m) => m.id === row.mechanicId)
+                      const mech = mechanics.find((m) => m.id === row.mechanic_id)
                       return (
-                        <div key={row.mechanicId} style={{
+                        <div key={row.mechanic_id} style={{
                           display: 'flex', alignItems: 'center', gap: 10,
                           background: 'var(--surface-alt)', borderRadius: 7, padding: '8px 10px',
                         }}>
@@ -516,9 +525,9 @@ export default function DetailTransaksiPage() {
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ fontSize: 12, fontWeight: 600 }}>
-                              {mech?.name ?? row.mechanicId}
+                              {mech?.name ?? row.mechanic_id}
                             </span>
-                            {!mech?.isActive && (
+                            {!mech?.is_active && (
                               <span style={{ fontSize: 9, color: 'var(--text-muted)', textDecoration: 'line-through', marginLeft: 6 }}>NONAKTIF</span>
                             )}
                           </div>
@@ -545,7 +554,6 @@ export default function DetailTransaksiPage() {
                   </div>
                 )}
 
-                {/* Bubut Luar info */}
                 {isBubutLuar && lineLink && (
                   <div style={{
                     marginTop: 12, background: 'rgba(200,16,46,0.06)',
@@ -554,13 +562,13 @@ export default function DetailTransaksiPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px', marginBottom: 10 }}>
                       <div>
                         <SectionLabel>BIAYA VENDOR</SectionLabel>
-                        <CurrencyDisplay value={lineLink.vendorCost} size="sm" />
+                        <CurrencyDisplay value={lineLink.vendor_cost} size="sm" />
                       </div>
                       <div>
                         <SectionLabel>MARGIN</SectionLabel>
-                        <span style={{ color: line.nominal >= lineLink.vendorCost ? 'var(--success)' : 'var(--accent)' }}>
-                          <CurrencyDisplay value={Math.abs(line.nominal - lineLink.vendorCost)} size="sm" />
-                          {line.nominal < lineLink.vendorCost && ' ⚠'}
+                        <span style={{ color: line.nominal >= lineLink.vendor_cost ? 'var(--success)' : 'var(--accent)' }}>
+                          <CurrencyDisplay value={Math.abs(line.nominal - lineLink.vendor_cost)} size="sm" />
+                          {line.nominal < lineLink.vendor_cost && ' ⚠'}
                         </span>
                       </div>
                       {counterpartTx && (
@@ -575,14 +583,14 @@ export default function DetailTransaksiPage() {
                               color: 'var(--text)', cursor: 'pointer',
                             }}
                           >
-                            {counterpartTx.noReferensi} →
+                            {counterpartTx.no_referensi} →
                           </button>
                         </div>
                       )}
                     </div>
-                    {counterpartTx && (
+                    {counterpartTx && tx.supplier && (
                       <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-muted)' }}>
-                        Vendor: {suppliers.find((s) => s.id === counterpartTx.supplierId)?.name ?? '—'}
+                        Vendor: {tx.supplier.name}
                       </div>
                     )}
                   </div>
@@ -594,18 +602,16 @@ export default function DetailTransaksiPage() {
 
         {/* ── Summary footer ── */}
         <Card style={{ borderTop: '3px solid var(--text)', gap: 0 }}>
-          {/* Total */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: komisiByMechanic.size > 0 ? 16 : 0 }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
               TOTAL
             </span>
             <span style={{ fontFamily: 'Anton, sans-serif', fontSize: 36, lineHeight: 1 }}>
-              {tx.totalNominal.toLocaleString('id-ID')}
+              {tx.total_nominal.toLocaleString('id-ID')}
               <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>IDR</span>
             </span>
           </div>
 
-          {/* Komisi breakdown */}
           {komisiByMechanic.size > 0 && (
             <div style={{
               background: 'rgba(200,16,46,0.06)', border: '1px solid rgba(200,16,46,0.2)',
@@ -634,7 +640,6 @@ export default function DetailTransaksiPage() {
             </div>
           )}
 
-          {/* Period info — compact inline */}
           {period && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
@@ -689,11 +694,10 @@ export default function DetailTransaksiPage() {
         </Card>
       </div>
 
-      {/* ── Delete confirm ── */}
       <ConfirmDialog
         open={showDelete}
         onOpenChange={setShowDelete}
-        title={`Hapus transaksi ${tx.noReferensi}?`}
+        title={`Hapus transaksi ${tx.no_referensi}?`}
         message={deleteMessage}
         confirmLabel="Ya, Hapus"
         variant="destructive"
