@@ -18,7 +18,7 @@ type PeriodFilter = 'today' | 'week' | 'month' | 'all'
 type TipeFilter = 'all' | 'income' | 'expense'
 
 function getInterval(period: PeriodFilter): { start: Date; end: Date } | null {
-  const now = new Date()
+  const now = new Date('2026-05-10') // pinned to seed date for prototype
   if (period === 'today')  return { start: startOfDay(now),   end: endOfDay(now) }
   if (period === 'week')   return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfWeek(now, { weekStartsOn: 1 }) }
   if (period === 'month')  return { start: startOfMonth(now), end: endOfMonth(now) }

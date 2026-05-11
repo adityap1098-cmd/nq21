@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 interface User {
   name: string
+  username: string
   role: 'owner' | 'kasir'
 }
 
@@ -13,8 +14,8 @@ interface AuthState {
 }
 
 const MOCK_USERS: Record<string, User> = {
-  owner: { name: 'Pak Nanang', role: 'owner' },
-  kasir: { name: 'Adit', role: 'kasir' },
+  owner: { name: 'Pak Nanang', username: 'owner', role: 'owner' },
+  kasir: { name: 'Adit', username: 'kasir', role: 'kasir' },
 }
 
 export const useAuthStore = create<AuthState>()(

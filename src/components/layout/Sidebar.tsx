@@ -5,6 +5,7 @@ import {
   UserCog, Settings, LogOut,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
+import { useUserStore } from '@/store/master/users'
 
 interface NavItem {
   label: string
@@ -60,6 +61,9 @@ export default function Sidebar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { users } = useUserStore()
+  const liveUser = users.find((u) => u.username === user?.username && u.isActive)
+  const displayName = liveUser?.name ?? user?.name ?? '—'
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.to : pathname.startsWith(item.to)
@@ -265,7 +269,7 @@ export default function Sidebar() {
             flexShrink: 0,
           }}
         >
-          {user?.name?.[0]?.toUpperCase() ?? 'U'}
+          {displayName[0]?.toUpperCase() ?? 'U'}
         </div>
         <div style={{ lineHeight: 1.2, minWidth: 0, flex: 1, overflow: 'hidden' }}>
           <div
@@ -278,7 +282,7 @@ export default function Sidebar() {
               whiteSpace: 'nowrap',
             }}
           >
-            {user?.name ?? '—'}
+            {displayName}
           </div>
           <div
             style={{

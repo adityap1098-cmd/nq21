@@ -16,6 +16,7 @@ import {
   getDashboardStats, getMechanicKomisiInPeriod, getKpiDeltas, defaultRates,
   type KpiDelta,
 } from '@/store/selectors'
+import type { Transaction } from '@/store/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,12 +37,57 @@ function kpiChange(kd: KpiDelta, context = 'vs minggu lalu'): { value: string; u
   return { value: `${sign}${kd.delta.toFixed(1)}%`, up: kd.delta >= 0, context }
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── Chart data builders ───────────────────────────────────────────────────────
+
+const _MONTHS = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
+const _PINNED = '2026-05-10'
 
 type CashFlowDay = { day: string; date: string; in: number; out: number; today?: boolean }
 
-function CashFlowChart({ data }: { data: CashFlowDay[] }) {
-  const [filter, setFilter] = useState('7H')
+function build30HData(txs: Transaction[]): CashFlowDay[] {
+  const pinned = new Date(_PINNED)
+  const days: CashFlowDay[] = []
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(pinned); d.setDate(d.getDate() - i)
+    const dateStr = d.toISOString().slice(0, 10)
+    const dayTx = txs.filter((t) => !t.deletedAt && t.tglTransaksi === dateStr)
+    days.push({
+      day: String(d.getDate()),
+      date: `${d.getDate()} ${_MONTHS[d.getMonth()]}`,
+      in:  dayTx.filter((t) => t.tipe === 'income' ).reduce((s, t) => s + t.totalNominal, 0),
+      out: dayTx.filter((t) => t.tipe === 'expense').reduce((s, t) => s + t.totalNominal, 0),
+      today: dateStr === _PINNED || undefined,
+    })
+  }
+  return days
+}
+
+function build90HData(txs: Transaction[]): CashFlowDay[] {
+  const pinned = new Date(_PINNED)
+  const weeks: CashFlowDay[] = []
+  for (let w = 12; w >= 0; w--) {
+    const wEnd = new Date(pinned); wEnd.setDate(wEnd.getDate() - w * 7)
+    const wStart = new Date(wEnd); wStart.setDate(wStart.getDate() - 6)
+    const s = wStart.toISOString().slice(0, 10)
+    const e = wEnd.toISOString().slice(0, 10)
+    const weekTx = txs.filter((t) => !t.deletedAt && t.tglTransaksi >= s && t.tglTransaksi <= e)
+    weeks.push({
+      day: `${_MONTHS[wStart.getMonth()]}${wStart.getDate()}`,
+      date: `${wStart.getDate()}–${wEnd.getDate()} ${_MONTHS[wEnd.getMonth()]}`,
+      in:  weekTx.filter((t) => t.tipe === 'income' ).reduce((s, t) => s + t.totalNominal, 0),
+      out: weekTx.filter((t) => t.tipe === 'expense').reduce((s, t) => s + t.totalNominal, 0),
+    })
+  }
+  return weeks
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function CashFlowChart({ data, filter, onFilterChange }: {
+  data: CashFlowDay[]
+  filter: string
+  onFilterChange: (f: string) => void
+}) {
 
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
     if (!active || !payload?.length) return null
@@ -88,7 +134,7 @@ function CashFlowChart({ data }: { data: CashFlowDay[] }) {
           {(['7H', '30H', '90H'] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setFilter(t)}
+              onClick={() => onFilterChange(t)}
               style={{
                 padding: '5px 10px', borderRadius: 6,
                 border: '1px solid var(--border)',
@@ -251,8 +297,6 @@ function RecentTxPanel({
 
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
-import type { Transaction } from '@/store/types'
-
 export default function Dashboard() {
   const { transactions, lines, lineMechanics } = useTransactionStore()
   const { periods, payouts } = useCommissionStore()
@@ -319,6 +363,13 @@ export default function Dashboard() {
     [transactions, activePeriod, prevPeriod, totalKomisiPending, prevKomisi]
   )
 
+  const [chartFilter, setChartFilter] = useState('7H')
+  const chartData = useMemo(() => {
+    if (chartFilter === '30H') return build30HData(transactions)
+    if (chartFilter === '90H') return build90HData(transactions)
+    return stats.cashflowByDay
+  }, [chartFilter, transactions, stats.cashflowByDay])
+
   const recentPeriods = [...periods]
     .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
     .slice(0, 2)
@@ -361,7 +412,7 @@ export default function Dashboard() {
 
       {/* Chart + Top Kategori */}
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-        <CashFlowChart data={stats.cashflowByDay} />
+        <CashFlowChart data={chartData} filter={chartFilter} onFilterChange={setChartFilter} />
         <TopKategoriPanel items={stats.topKategori} />
       </div>
 
