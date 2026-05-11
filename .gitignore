@@ -45,3 +45,4 @@ npm-debug.log*
 # Root-level screenshots from testing
 *.png
 *.jpg
+".env.local" 
