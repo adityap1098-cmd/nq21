@@ -11,7 +11,7 @@ export default defineConfig({
       manifest: false,  // use existing public/manifest.json
       includeAssets: ['favicon.svg', 'icons/*.svg'],
       workbox: {
-        globPatterns: ['**/*.{js,css,ico,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
