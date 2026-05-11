@@ -267,15 +267,22 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > Route: /transaksi (swapped from PlaceholderPage)
   > Verified: search "bubut" → 2 results, KELUAR filter → 8 expense tx, Semua → 29 tx
 
-- [ ] **M003-T9**: Detail Transaksi page
+- [x] **M003-T9**: Detail Transaksi page
   > `src/app/pages/transaksi/DetailTransaksiPage.tsx`
-  > Header section: noRef, tgl, tipe badge, customer/supplier, payment, total
-  > Line items table (read-only): kategori, nominal, biayaMaterial, basis
-  > Per jasa line: mechanic list (name, share%, rate%, komisi)
-  > Bubut Luar: linked expense noRef (if exists)
-  > Audit log section: timeline (created by, updated at)
-  > Actions: Edit button (if not closed period), Delete (owner only, ConfirmDialog soft-delete)
-  > Route: /transaksi/:id
+  > PageHeader: KEMBALI + EDIT (disabled if deleted/vendor-auto/closed-period) + HAPUS (owner only)
+  > Deleted banner (red) with timestamp + deleter name from audit log
+  > Vendor auto-link banner with button to counterpart income transaction
+  > Status strip: tipe badge + tgl (long format) + AKTIF/DIHAPUS + BUBUT LUAR badge
+  > Info card: party avatar+name+sub, payment badge, created by + timestamp, notes
+  > Line cards (per line): LINE 0N header + kategori, jasaName, amounts grid (nominal/biayaMaterial/basis for jasa)
+  > Mechanic chips read-only: avatar + name + share% + rate% (with override ⚠) + komisi Rp
+  > Bubut Luar section per line: biaya vendor, margin, link to counterpart transaction
+  > Summary footer: Anton 36px total + komisi breakdown (per-mechanic if >1) + period OPEN/CLOSED badge
+  > Audit timeline: collapsible, newest-first, avatar + username + action + timestamp + source badge
+  > Delete: ConfirmDialog + softDelete(tx) + cascade softDelete(bubutLuarLink) + audit + toast + navigate
+  > Soft-delete lookup from audit log for deleter name in banner
+  > Route /transaksi/:id wired (replaced PlaceholderPage)
+  > Verified: income jasa, expense, deleted view with banner, delete confirm dialog
 
 - [ ] **M003-T10**: Edit Transaksi
   > Reuse TransactionForm dengan `mode='edit'` prop + transactionId dari URL params
