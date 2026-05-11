@@ -37,3 +37,9 @@ export function fmtClosedAt(iso: string): string {
 export function getInitial(name: string): string {
   return name.trim()[0]?.toUpperCase() ?? '?'
 }
+
+// "TRX-20260510-008" → "...-008" for print column compression
+export function shortenNoRef(noRef: string): string {
+  const parts = noRef.split('-')
+  return parts.length >= 2 ? `…-${parts[parts.length - 1]}` : noRef
+}
