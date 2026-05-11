@@ -21,6 +21,24 @@
     />
   </head>
   <body>
+    <!-- SW migration: runs before React, unregisters stale cached SW + clears caches once -->
+    <script>
+      (function () {
+        var V = 'nq21-sw-v2';
+        if (localStorage.getItem('sw_migrated') === V) return;
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) { r.unregister(); });
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          });
+        }
+        localStorage.setItem('sw_migrated', V);
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
