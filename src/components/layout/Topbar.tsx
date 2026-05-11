@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Search, Calendar, Plus } from 'lucide-react'
+import { useUiStore } from '@/store/ui'
 
 const PAGE_MAP: Record<string, { crumb: string }> = {
   '/dashboard':         { crumb: 'DASHBOARD' },
@@ -29,7 +29,7 @@ function resolveCrumb(pathname: string): string {
 export default function Topbar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
-  const [query, setQuery] = useState('')
+  const openCommandPalette = useUiStore((s) => s.openCommandPalette)
   const crumb = resolveCrumb(pathname)
 
   return (
@@ -65,14 +65,19 @@ export default function Topbar() {
         <span style={{ color: 'var(--text)' }}>{crumb}</span>
       </div>
 
-      {/* Search */}
+      {/* Search — opens Command Palette */}
       <div
+        role="button"
+        tabIndex={0}
+        onClick={openCommandPalette}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openCommandPalette() }}
         style={{
           flex: '1 1 200px',
           minWidth: 0,
           maxWidth: 380,
           marginLeft: 'auto',
           position: 'relative',
+          cursor: 'pointer',
         }}
       >
         <span
@@ -84,14 +89,12 @@ export default function Topbar() {
             color: 'var(--text-muted)',
             display: 'grid',
             placeItems: 'center',
+            pointerEvents: 'none',
           }}
         >
           <Search size={14} />
         </span>
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Cari no referensi, customer, mekanik..."
+        <div
           style={{
             width: '100%',
             background: 'var(--surface-alt)',
@@ -99,19 +102,13 @@ export default function Topbar() {
             borderRadius: 6,
             padding: '9px 44px 9px 36px',
             fontSize: 13,
-            outline: 'none',
-            color: 'var(--text)',
+            color: 'var(--text-muted)',
             fontFamily: 'var(--body)',
+            userSelect: 'none',
           }}
-          onFocus={(e) => {
-            e.currentTarget.style.background = 'var(--surface)'
-            e.currentTarget.style.borderColor = 'var(--border)'
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.background = 'var(--surface-alt)'
-            e.currentTarget.style.borderColor = 'transparent'
-          }}
-        />
+        >
+          Cari no referensi, customer, mekanik...
+        </div>
         <span
           style={{
             position: 'absolute',
@@ -125,6 +122,7 @@ export default function Topbar() {
             background: 'var(--surface)',
             padding: '1px 5px',
             borderRadius: 3,
+            pointerEvents: 'none',
           }}
         >
           ⌘K

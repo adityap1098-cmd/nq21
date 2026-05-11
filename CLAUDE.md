@@ -243,6 +243,8 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M004-D8 — Print CSS**: Defer ke M007. M004 hanya browser view, tidak ada print styling.
 - **M004-T1.6 — itemName universal**: Field `itemName` (ex-`jasaName`) sekarang muncul untuk SEMUA kategori, bukan hanya isJasa. Label/placeholder dinamis per kategori (`getItemNameLabel()`). Zustand persist `version: 2` + `migrate()` untuk auto-rename key di localStorage lama.
 - **M004-T1.7 — Bell deferred**: Notification bell dihapus dari Topbar. Real-time notifikasi butuh BE/websocket infra — implement di M006+.
+- **M004-T3.5 — Laporan grid stretch**: Panels pakai `display: grid; grid-template-columns: 1fr 1fr` + `minHeight: 380px` fallback. CSS Grid stretch auto-equalize tanpa flex hacks. Hint row muncul ketika `0 < rows.length < 5`.
+- **M004-T3.5 — Command Palette**: Global search Ctrl+K/⌘K via `src/store/ui.ts` (Zustand, no persist). `CommandPalette.tsx` search 4 entities, max 6/group, keyboard nav via refs (avoid stale closure). Topbar search adalah clickable div (tidak real input) — real search di palette. Layout.tsx register global Ctrl+K handler.
 
 ---
 

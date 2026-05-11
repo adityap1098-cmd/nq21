@@ -422,6 +422,15 @@ _(none)_
   > CSV export: `nq21-laporan-kategori-{start}-{end}.csv` with UTF-8 BOM
   > Global empty state when no transactions in period
 
+- [x] **M004-T3.5**: Fix-up Laporan #1 + Global Command Palette Search
+  > Part A — Grid stretch: panels container changed to `display: grid; 1fr 1fr` — CSS Grid stretch auto-equalizes panel heights
+  > Panel `minHeight: 380px` fallback + hint row "Tidak ada kategori lain di periode ini" when rows < 5
+  > Part B — Command Palette: `src/store/ui.ts` (commandPaletteOpen/open/close/toggle)
+  > `src/app/components/CommandPalette.tsx` — search across 4 entities (Transaksi/Customer/Supplier/Mekanik), debounce 150ms, max 6/group + overflow hint
+  > Keyboard nav: ArrowUp/Down, Enter navigate, Esc close, Ctrl+K toggle
+  > Topbar search bar → click opens palette; Layout.tsx wires Ctrl+K global shortcut
+  > Verified: "Pak" → 6 txns + Pak Hendro customer; "bubut" → vendor txns + Bubut Mandala Jaya supplier
+
 - [ ] **M004-T4**: Laporan Cash Flow
   > Route: `/laporan/cash-flow`
   > Date range filter (default: active period)

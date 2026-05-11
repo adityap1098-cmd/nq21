@@ -106,6 +106,7 @@ function Panel({
   totalColor: string
   emptyMsg: string
 }) {
+  const showHint = rows.length > 0 && rows.length < 5
   return (
     <div
       style={{
@@ -113,8 +114,9 @@ function Panel({
         border: '1px solid var(--border)',
         borderRadius: 8,
         overflow: 'hidden',
-        flex: 1,
-        minWidth: 0,
+        minHeight: 380,
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
       {/* Section head */}
@@ -169,10 +171,11 @@ function Panel({
 
       {/* Table */}
       {rows.length === 0 ? (
-        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+        <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {emptyMsg}
         </div>
       ) : (
+        <div style={{ flex: 1 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -253,8 +256,26 @@ function Panel({
               </td>
               <td style={{ padding: '10px 20px 10px 12px' }} />
             </tr>
+            {showHint && (
+              <tr>
+                <td
+                  colSpan={5}
+                  style={{
+                    padding: '10px 20px 14px',
+                    textAlign: 'center',
+                    fontSize: 11,
+                    fontStyle: 'italic',
+                    color: 'var(--text-muted)',
+                    opacity: 0.6,
+                  }}
+                >
+                  Tidak ada kategori lain di periode ini
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   )
@@ -394,8 +415,8 @@ export default function LaporanKategoriPage() {
         </div>
       ) : (
         <>
-          {/* Split panels */}
-          <div style={{ display: 'flex', gap: 20, marginBottom: 24, alignItems: 'flex-start' }}>
+          {/* Split panels — CSS grid stretch keeps both panels equal height */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
             <Panel
               title="PENDAPATAN"
               tag="INCOME"
