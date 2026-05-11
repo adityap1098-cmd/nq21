@@ -350,9 +350,70 @@ _(none)_
 
 ## M004 — Laporan & Dashboard UI ⏳
 
-Tasks akan di-breakdown saat M003 selesai.
-
+**Halaman**: Dashboard (live data) + Laporan Per Kategori · Cash Flow · Jasa & Mekanik · Dyno
 **Visual ref**: `design/project/NQ21 Performance.html` (seksi: Dashboard + Laporan #1–#4)
+**DoD**: Dashboard 100% live data (zero hardcoded), 4 laporan pages berfungsi dengan period filter, CSV export.
+
+### Decisions (LOCKED)
+
+- **D1 — Charts**: Recharts, warna income = `var(--text)` hitam, expense = `var(--accent)` merah. Match NQ21 palette.
+- **D2 — KPI Deltas**: Real week-over-week deltas. Display "+X.X% vs minggu lalu" kalau ada data prevPeriod. Hide delta row kalau tidak ada data prev (hasComparison=false).
+- **D3 — CSV Export**: UTF-8 BOM prefix (`\uFEFF`) untuk kompatibilitas Excel Indonesia.
+- **D4 — Closed Period Komisi**: Fix `1_980_000` hardcode di Dashboard → dynamic dari `useCommissionStore().payouts`.
+- **D5 — Period Filter**: Semua 4 laporan punya shared filter bar (periode aktif default + date range picker).
+- **D6 — Filter State**: `useState` lokal per halaman laporan, tidak perlu Zustand global.
+- **D7 — Empty State**: Copy per laporan: Kategori "Belum ada transaksi untuk periode ini." · Cash Flow "Tidak ada aliran kas untuk rentang ini." · Jasa "Belum ada transaksi jasa di periode ini." · Dyno "Belum ada transaksi Dyno."
+- **D8 — Print CSS**: Defer ke M007. M004 hanya browser view.
+
+### Tasks
+
+- [x] **M004-T1**: Dashboard Cleanup + Hardcoded Removal + Live Data Verify
+  > `getKpiDeltas()` + `KpiDelta`/`KpiDeltas` interfaces di selectors.ts
+  > `kpiChange()` helper — format delta string, hide if no prev data
+  > Wire KPI card `change` props — replaced hardcoded `+12.4%` / `+3.1%` / `+18.2%`
+  > Fix closed period komisi: `payouts.filter(po => po.periodId === p.id).reduce(...)` (was `1_980_000`)
+  > `prevPeriod` useMemo + `prevKomisi` from payouts store
+  > Browser verify: 8 scenarios
+
+- [ ] **M004-T2**: Selectors Extension
+  > `getReportJasa()` — per mekanik: total jasa income, basis komisi, komisi earned, tx count
+  > `getReportDyno()` — filter transactions by kategori Dyno, group by date/mekanik
+  > Extend `getReportPerKategori()` — split income/expense halves + percentage of total
+  > `getCashFlow()` week/month granularity (currently day-only)
+
+- [ ] **M004-T3**: Laporan Per Kategori
+  > Route: `/laporan/kategori`
+  > Period filter bar (shared pattern, establish for T4-T6)
+  > Income section: sorted by amount, bar track percentage, count badge
+  > Expense section: sorted by amount, bar track percentage
+  > Summary: total income, total expense, net
+  > CSV export button
+
+- [ ] **M004-T4**: Laporan Cash Flow
+  > Route: `/laporan/cash-flow`
+  > Date range filter (default: active period)
+  > BarChart: daily in vs out (Recharts, NQ21 colors)
+  > Summary strip: total in, total out, net
+  > CSV export
+
+- [ ] **M004-T5**: Laporan Jasa & Mekanik
+  > Route: `/laporan/jasa`
+  > Period filter
+  > Per-mekanik breakdown table: nama, tx count, total basis, total komisi, avg rate
+  > Jasa kategori summary (Jasa/Dyno/Bubut Luar/Bubut Dalam breakdown)
+  > CSV export
+
+- [ ] **M004-T6**: Laporan Dyno
+  > Route: `/laporan/dyno`
+  > Period filter
+  > Summary: total Dyno revenue, count, avg per session
+  > Per-mekanik breakdown (Dyno is_jasa=true)
+  > CSV export
+
+- [ ] **M004-T7**: Closer — Verify + Tag vM004
+  > All 4 laporan routes live (swap PlaceholderPage)
+  > Dashboard data points verified (8 scenarios)
+  > PROGRESS.md updated, commit, tag vM004
 
 ---
 

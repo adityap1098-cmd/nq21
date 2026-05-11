@@ -23,6 +23,19 @@ export interface MechanicKomisi {
   totalKomisi: number
 }
 
+export interface KpiDelta {
+  value: number
+  delta?: number
+  hasComparison: boolean
+}
+
+export interface KpiDeltas {
+  pendapatan: KpiDelta
+  pengeluaran: KpiDelta
+  labaKotor: KpiDelta
+  komisiPending: KpiDelta
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const DAY_LABELS = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB']
@@ -218,6 +231,51 @@ export function getTransactionWithRelations(
 
 export function getTotalKomisiInPeriod(mechKomisi: MechanicKomisi[]) {
   return mechKomisi.reduce((s, m) => s + m.totalKomisi, 0)
+}
+
+export function getKpiDeltas(
+  transactions: Transaction[],
+  currentPeriod: CommissionPeriod,
+  prevPeriod: CommissionPeriod | undefined,
+  currentKomisi: number,
+  prevKomisi: number,
+): KpiDeltas {
+  const inPeriod = (t: Transaction, p: CommissionPeriod) =>
+    !t.deletedAt && isInPeriod(t.tglTransaksi, p.weekStart, p.weekEnd)
+
+  const sumIncome = (p: CommissionPeriod) =>
+    transactions.filter((t) => inPeriod(t, p) && t.tipe === 'income').reduce((s, t) => s + t.totalNominal, 0)
+  const sumExpense = (p: CommissionPeriod) =>
+    transactions.filter((t) => inPeriod(t, p) && t.tipe === 'expense').reduce((s, t) => s + t.totalNominal, 0)
+
+  const curIncome = sumIncome(currentPeriod)
+  const curExpense = sumExpense(currentPeriod)
+  const curLaba = curIncome - curExpense
+
+  function calcDelta(cur: number, prev: number): number | undefined {
+    if (prev === 0) return undefined
+    return ((cur - prev) / prev) * 100
+  }
+
+  if (!prevPeriod) {
+    return {
+      pendapatan: { value: curIncome, hasComparison: false },
+      pengeluaran: { value: curExpense, hasComparison: false },
+      labaKotor: { value: curLaba, hasComparison: false },
+      komisiPending: { value: currentKomisi, hasComparison: false },
+    }
+  }
+
+  const prevIncome = sumIncome(prevPeriod)
+  const prevExpense = sumExpense(prevPeriod)
+  const prevLaba = prevIncome - prevExpense
+
+  return {
+    pendapatan: { value: curIncome, delta: calcDelta(curIncome, prevIncome), hasComparison: prevIncome > 0 },
+    pengeluaran: { value: curExpense, delta: calcDelta(curExpense, prevExpense), hasComparison: prevExpense > 0 },
+    labaKotor: { value: curLaba, delta: calcDelta(curLaba, prevLaba), hasComparison: prevLaba !== 0 },
+    komisiPending: { value: currentKomisi, delta: calcDelta(currentKomisi, prevKomisi), hasComparison: prevKomisi > 0 },
+  }
 }
 
 // Rates from seed for use in selectors (M006: replace with store)

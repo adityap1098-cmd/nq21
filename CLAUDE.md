@@ -233,6 +233,15 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M003 Decision H — Audit log mekanik per-field (T4)**: Perubahan mekanik di transaksi (share%, rate override, add/remove chip) → audit log `beforeData`/`afterData` per-field, source `'mekanik-update-transaksi'`. Bukan snapshot full transaksi. Implement di T4.
 - **M003 Decision T7 — Bubut Luar dual-leg auto-create di FE phase**: Dilakukan via `addTransactionFull()` dalam Zustand transaction store — single call yang atomically creates income transaction + auto-expense (noRef `<asli>-VENDOR`) + `bubutLuarLinks` entry. No rollback needed (Zustand in-memory; kalau gagal = JS exception caught di handleSubmitForm). Di M006 (BE), logic ini dipindah ke backend dengan DB transaction untuk true atomicity.
 
+- **M004-D1 — Charts**: Recharts. Warna income = `var(--text)` hitam, expense = `var(--accent)` merah. Match NQ21 palette konsisten.
+- **M004-D2 — KPI Deltas**: Real week-over-week via `getKpiDeltas()` di selectors.ts. Display "+X.X%" kalau ada data prevPeriod (`hasComparison=true`). Sembunyikan delta row kalau tidak ada data prev. `prevPeriod` = closed period dengan weekStart paling baru sebelum activePeriod.
+- **M004-D3 — CSV Export**: UTF-8 BOM prefix `\uFEFF` di semua CSV export — wajib untuk Excel Indonesia.
+- **M004-D4 — Closed Period Komisi**: Dynamic dari `useCommissionStore().payouts` (bukan hardcode `1_980_000`). Fix dilakukan di T1.
+- **M004-D5 — Period Filter Laporan**: Semua 4 laporan punya period filter bar. Default = active period. Pattern dibuat di T3, direplikasi T4-T6.
+- **M004-D6 — Filter State**: `useState` lokal per halaman laporan. Tidak perlu Zustand global untuk filter UI state.
+- **M004-D7 — Empty State Copy**: Per laporan — lihat PROGRESS.md M004 Decision D7.
+- **M004-D8 — Print CSS**: Defer ke M007. M004 hanya browser view, tidak ada print styling.
+
 ---
 
 ## Tech Stack (LOCKED — match plan.md Section 1)

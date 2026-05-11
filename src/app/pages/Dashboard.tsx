@@ -13,7 +13,8 @@ import { useCustomerStore } from '@/store/master/customers'
 import { useSupplierStore } from '@/store/master/suppliers'
 import { useMechanicStore } from '@/store/master/mechanics'
 import {
-  getDashboardStats, getMechanicKomisiInPeriod, defaultRates,
+  getDashboardStats, getMechanicKomisiInPeriod, getKpiDeltas, defaultRates,
+  type KpiDelta,
 } from '@/store/selectors'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -27,6 +28,12 @@ function fmtRpShort(n: number) {
   if (a >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'jt'
   if (a >= 1_000) return Math.round(n / 1_000) + 'rb'
   return String(Math.round(n))
+}
+
+function kpiChange(kd: KpiDelta, context = 'vs minggu lalu'): { value: string; up: boolean; context: string } | undefined {
+  if (!kd.hasComparison || kd.delta === undefined) return undefined
+  const sign = kd.delta >= 0 ? '+' : ''
+  return { value: `${sign}${kd.delta.toFixed(1)}%`, up: kd.delta >= 0, context }
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -248,7 +255,7 @@ import type { Transaction } from '@/store/types'
 
 export default function Dashboard() {
   const { transactions, lines, lineMechanics } = useTransactionStore()
-  const { periods } = useCommissionStore()
+  const { periods, payouts } = useCommissionStore()
   const { categories } = useCategoryStore()
   const { customers } = useCustomerStore()
   const { suppliers } = useSupplierStore()
@@ -293,6 +300,25 @@ export default function Dashboard() {
 
   const totalKomisiPending = mechKomisi.reduce((s, m) => s + m.totalKomisi, 0)
 
+  const prevPeriod = useMemo(() =>
+    [...periods]
+      .filter((p) => p.status === 'closed' && p.weekStart < activePeriod.weekStart)
+      .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0],
+    [periods, activePeriod]
+  )
+
+  const prevKomisi = useMemo(() =>
+    prevPeriod
+      ? payouts.filter((po) => po.periodId === prevPeriod.id).reduce((s, po) => s + po.totalKomisi, 0)
+      : 0,
+    [prevPeriod, payouts]
+  )
+
+  const kpiDeltas = useMemo(() =>
+    getKpiDeltas(transactions, activePeriod, prevPeriod, totalKomisiPending, prevKomisi),
+    [transactions, activePeriod, prevPeriod, totalKomisiPending, prevKomisi]
+  )
+
   const recentPeriods = [...periods]
     .sort((a, b) => b.weekStart.localeCompare(a.weekStart))
     .slice(0, 2)
@@ -309,19 +335,19 @@ export default function Dashboard() {
         <KpiCard
           label="Pendapatan Minggu Ini"
           value={<CurrencyDisplay value={stats.pendapatan} size="lg" />}
-          change={{ value: '+12.4%', up: true, context: 'vs minggu lalu' }}
+          change={kpiChange(kpiDeltas.pendapatan)}
           icon={<TrendingUp size={14} />}
         />
         <KpiCard
           label="Pengeluaran Minggu Ini"
           value={<CurrencyDisplay value={stats.pengeluaran} size="lg" />}
-          change={{ value: '+3.1%', up: false, context: 'vs minggu lalu' }}
+          change={kpiChange(kpiDeltas.pengeluaran)}
           icon={<TrendingDown size={14} />}
         />
         <KpiCard
           label="Laba Kotor"
           value={<CurrencyDisplay value={stats.labaKotor} size="lg" />}
-          change={{ value: '+18.2%', up: true, context: 'vs minggu lalu' }}
+          change={kpiChange(kpiDeltas.labaKotor)}
           icon={<DollarSign size={14} />}
         />
         <KpiCard
@@ -382,7 +408,7 @@ export default function Dashboard() {
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontFamily: 'var(--display)', fontSize: 20, color: 'var(--text)' }}>
                     Rp {p.status === 'open' ? fmtRp(totalKomisiPending) : fmtRp(
-                      periods.find((x) => x.id === p.id) ? 1_980_000 : 0
+                      payouts.filter((po) => po.periodId === p.id).reduce((s, po) => s + po.totalKomisi, 0)
                     )}
                   </div>
                   <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>
