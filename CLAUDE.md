@@ -16,7 +16,7 @@ Back-office tracking app untuk bengkel motor NQ21. Standalone, fokus akurasi dat
   - Sebelum bikin komponen: baca source file relevan dan match pixel-perfect
 - **Design tokens (LOCKED)**: lihat `plan.md` Section 12 — color CSS variables, typography stack, spacing rules
 - Progress tracking: lihat `PROGRESS.md`
-- Schema source of truth (M006+): `src/db/schema.ts` (Drizzle)
+- Schema source of truth (M006-V2): Supabase SQL Editor (project `nmbgprrueuxvrqrmmvmo`) — 13 tables live
 
 ## Pendekatan: FE-first
 
@@ -263,7 +263,23 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M007 — Lazy loading pattern**: `wrap()` helper function di router.tsx — `(el) => <Suspense fallback={<LoadingFallback />}>{el}</Suspense>`. Test/dev pages tetap eager (PlaceholderPage, TestPage) — ringan dan jarang dipakai kasir.
 - **M007 — Dexie.js deferred**: Plan.md menyebut Dexie untuk offline queue, tapi M007 implementation menggunakan Workbox CacheFirst untuk static assets saja (fonts, JS, CSS). Dexie untuk data sync defer ke M008 kalau BE sudah ada.
 
-- **M006 DEFERRED (2026-05-11)**: Backend integration di-rollback ke vM007 state setelah 3+ jam deployment infrastructure issues. Root causes: (1) Edge runtime incompatible dengan `bcryptjs`/`postgres` Node modules; (2) Node runtime + `"type":"module"` ESM + Vercel Node file-based routing tidak auto-catch-all `/api/index.ts` untuk semua `/api/*` paths. Re-strategy sebelum resume: pertimbangkan Vercel Edge + `@neondatabase/serverless` driver (no Node modules), atau host BE terpisah di Railway/Render. Schema Neon DB sudah ada, migration di git reflog commit `6b4de93`.
+- **M006-V1 DEFERRED (2026-05-11)**: Backend integration di-rollback ke vM007 state setelah 3+ jam deployment infrastructure issues. Superseded by M006-V2 Supabase strategy.
+
+- **M006-V2 STACK LOCK (2026-05-11)**: Supabase replaces Hono+Neon+Drizzle. Rationale: zero custom API server needed — Supabase provides auth + Postgres + RLS out of the box, deployed as pure FE to Vercel. No serverless function routing issues.
+  - Supabase project: `nmbgprrueuxvrqrmmvmo` (Singapore)
+  - Auth: email-based (`signInWithPassword`), profiles table linked to auth.users
+  - 13 tables + RLS deployed manually via Supabase SQL Editor
+  - Env vars: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` (Vercel + .env.local)
+
+- **M006-V2-T1 Auth Pattern (2026-05-11)**:
+  - `src/lib/supabase.ts`: singleton `createClient`, imported wherever DB/auth needed
+  - `AuthProfile` shape: `{ id, name, role, isActive, email }` — no `username` field (email is identity)
+  - `onAuthStateChange` in `App.tsx` is single source of truth for session state — fires `INITIAL_SESSION` on mount (replaces 300ms hydration timer), `SIGNED_IN`/`SIGNED_OUT` for changes
+  - Profile fetch: `supabase.from('profiles').select('id,name,role,is_active').eq('id', userId).single()`
+  - Inactive profile → auto `signOut()` + redirect to login
+  - Multi-tab/multi-device sync: automatic via `onAuthStateChange` — `SIGNED_OUT` in one tab propagates to all tabs
+  - `user.username` removed everywhere — audit log `userId` fields now use `user.name`
+  - Supabase vendor chunk isolated (207kB raw / 53kB gzip) via `manualChunks` in vite.config.ts
 
 ---
 
@@ -278,8 +294,9 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **Charts**: Recharts atau Chart.js
 - **Routing**: React Router
 
-### Phase BE-integrated (M006+)
-- Tambah: **Hono** backend, **PostgreSQL via Neon**, **Drizzle ORM**
+### Phase BE-integrated (M006-V2 — Supabase)
+- **Supabase** — Auth (email/password) + PostgreSQL + RLS (replaces Hono+Neon+Drizzle)
+- **`@supabase/supabase-js`** — client SDK, auth + DB queries
 - Replace Zustand mock dengan **TanStack Query** untuk server state
 - Auth: session-based, 2 role (owner, kasir)
 

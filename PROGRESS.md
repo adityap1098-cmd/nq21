@@ -4,8 +4,8 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: — (M006 DEFERRED — FE-only demo phase)
-**Phase**: M001-M007 ✅ · M006 ⏸ DEFERRED
+**Milestone aktif**: M006-V2 (Supabase backend integration — in progress)
+**Phase**: M001-M007 ✅ · M006-V2 🔄 T1 ✅
 **Last updated**: 2026-05-11
 
 ---
@@ -797,20 +797,50 @@ _(none)_
 
 ---
 
-## M006 — Backend Integration ⏸ DEFERRED
+## M006-V2 — Supabase Backend Integration 🔄
 
-**Status**: Paused after T1 attempt (2026-05-11). Code rolled back to vM007 state.
+**Strategy**: Supabase (Auth + Postgres + RLS) — replaces original Hono+Neon+Drizzle plan.
+**Re-strategy rationale**: Skip custom API server entirely. Supabase provides auth + database + realtime out of the box, deployed to Vercel as pure FE. Zero serverless function issues.
 
-**Lesson learned**: Vercel Node serverless + ESM (`"type":"module"`) + Hono hit multiple infrastructure walls during T1 deployment: Edge runtime incompatible with bcryptjs/postgres Node modules → switched to Node runtime → ESM/CJS module format mismatch → fixed → ESM relative import `.js` extension requirement → fixed → PWA SW intercepting `/api/*` as SPA navigation → fixed → Vercel file-based routing not matching catch-all `/api/index.ts` → root cause unclear after 3+ hours.
+**Pre-work done manually (2026-05-11)**:
+- ✅ Supabase project "nq21-prod" (Singapore region)
+- ✅ 13 tables deployed via SQL Editor (profiles, customers, suppliers, categories, mechanics, commission_rates, commission_periods, commission_payouts, transactions, transaction_lines, transaction_line_mechanics, bubut_luar_links, audit_logs)
+- ✅ RLS policies enabled (permissive: authenticated full access)
+- ✅ 2 auth users: owner@nq21.app (Pak Doni, owner) · kasir@nq21.app (Alip, kasir)
+- ✅ 2 profiles rows inserted + linked to auth users
+- ✅ Vercel env vars added: VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY
 
-**Trigger to revisit**: After real user testing confirms multi-device sync is a critical pain point.
+**Task Tracker**:
 
-**Re-strategy options when resuming**:
-1. Vercel Edge + Neon serverless driver (`@neondatabase/serverless`) — eliminates Node module constraint
-2. Separate BE host (Railway/Render/Fly.io) with simpler CJS Node + Express
-3. Accept localStorage limitation for single-device use case (owner + 1 kasir, same device)
+- [x] **M006-V2-T1**: Supabase client + auth migration ✅ (2026-05-11)
+  - `@supabase/supabase-js` installed
+  - `src/lib/supabase.ts`: createClient from VITE_SUPABASE_* env vars
+  - `src/store/auth.ts`: rewritten — Supabase `signInWithPassword`, `AuthProfile` shape (id, name, role, isActive, email)
+  - `src/app/App.tsx`: `onAuthStateChange` listener — INITIAL_SESSION gates loading (replaces 300ms timer), inactive profile auto-signout, multi-tab sync
+  - `src/app/pages/Login.tsx`: email-based form, async submit, inline server error, DEV email hint box
+  - `src/components/layout/Sidebar.tsx`: displayName from auth profile directly (remove useUserStore cross-ref)
+  - komisi pages: `user.username` → `user.name` in audit log userId fields
+  - vite.config.ts: supabase vendor chunk (207kB raw / 53kB gzip isolated)
+  - Build: ✅ 0 TS errors · index chunk 54.9kB gzip · supabase 53.6kB gzip
+  - Commit: `6263ffb`
 
-**Schema + Neon DB**: Already created (can be wiped or reused). Migration file archived in git reflog (`6b4de93` last M006 commit before rollback).
+- [ ] **M006-V2-T2**: Master Data migration — customers, suppliers, categories, mechanics, commission_rates
+- [ ] **M006-V2-T3**: Transactions migration — CRUD + Bubut Luar dual-leg
+- [ ] **M006-V2-T4**: Commission periods + payouts migration
+- [ ] **M006-V2-T5**: Audit log migration
+- [ ] **M006-V2-T6**: E2E verification + tag vM006-V2
+
+**JANGAN gas T2 sebelum T1 verified work** — multi-device sync = critical milestone.
+
+---
+
+## M006-V1 — Backend Integration ⏸ DEFERRED (archived)
+
+**Status**: Rolled back to vM007 state (2026-05-11). Superseded by M006-V2 Supabase strategy.
+
+**Lesson learned**: Vercel Node serverless + ESM + Hono infra walls — Edge runtime/CJS/ESM/file-based routing issues. 3+ hours, unresolved.
+
+**Schema + Neon DB**: Archived. Migration file in git reflog (`6b4de93`).
 
 ---
 
@@ -818,3 +848,8 @@ _(none)_
 
 - **M001** ✅ 2026-05-10 — Design foundation, app shell, dashboard live
 - **M002** ✅ 2026-05-11 — Master Data UI, 5 pages CRUD live
+- **M003** ✅ 2026-05-11 — Transaction input form (multi-line, Bubut Luar, inline create)
+- **M004** ✅ 2026-05-11 — Dashboard live data + 4 Laporan + Daftar/Detail/Edit Transaksi
+- **M005** ✅ 2026-05-11 — Komisi weekly periods + payouts + slip print
+- **M007** ✅ 2026-05-11 — PWA installable + offline + lazy loading + polish
+- **M006-V2-T1** ✅ 2026-05-11 — Supabase auth migration (email login, profiles, onAuthStateChange)
