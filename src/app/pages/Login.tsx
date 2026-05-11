@@ -19,8 +19,7 @@ export default function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { user, login } = useAuthStore()
 
-  if (user) return <Navigate to="/" replace />
-
+  // ALL hooks must be called before any early return (Rules of Hooks)
   const {
     register,
     handleSubmit,
@@ -29,6 +28,8 @@ export default function Login() {
     resolver: zodResolver(schema),
     defaultValues: { email: '', password: '' },
   })
+
+  if (user) return <Navigate to="/" replace />
 
   const onSubmit = async (data: LoginForm) => {
     setIsSubmitting(true)
