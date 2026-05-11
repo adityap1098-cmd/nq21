@@ -10,10 +10,10 @@ import { Input } from '@/components/ui/input'
 import { useTransactionStore } from '@/store/transactions'
 import type { UpdateTransactionFullInput } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
-import { useCategoryStore } from '@/store/master/categories'
-import { useMechanicStore } from '@/store/master/mechanics'
-import { useCustomerStore } from '@/store/master/customers'
-import { useSupplierStore } from '@/store/master/suppliers'
+import { useCategories } from '@/features/categories/hooks'
+import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
+import { useCustomers } from '@/features/customers/hooks'
+import { useSuppliers } from '@/features/suppliers/hooks'
 import { useAuditStore } from '@/store/audit'
 import { useCommissionStore } from '@/store/commission'
 import { useUserStore } from '@/store/master/users'
@@ -105,10 +105,11 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { transactions, addTransactionFull, updateTransactionFull } = useTransactionStore()
-  const { categories } = useCategoryStore()
-  const { mechanics, rates } = useMechanicStore()
-  const { customers } = useCustomerStore()
-  const { suppliers } = useSupplierStore()
+  const { data: categories = [] } = useCategories()
+  const { data: mechanics = [] } = useMechanics()
+  const { data: rates = [] } = useCommissionRates()
+  const { data: customers = [] } = useCustomers()
+  const { data: suppliers = [] } = useSuppliers()
   const { log: auditLog } = useAuditStore()
   const { periods } = useCommissionStore()
   const { users } = useUserStore()
@@ -240,7 +241,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         if (!line.categoryId) { errors.push(`${lineLabel}: pilih kategori`); return }
         if (line.nominal <= 0) errors.push(`${lineLabel}: nominal harus > 0`)
         const cat = categories.find((c) => c.id === line.categoryId)
-        if (cat?.isJasa) {
+        if (cat?.is_jasa) {
           if (line.mechanics.length === 0) errors.push(`${lineLabel}: min 1 mekanik`)
           else {
             const totalShare = line.mechanics.reduce((s, m) => s + m.sharePercent, 0)
@@ -327,11 +328,10 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
     try {
       const formData = form.getValues()
 
-      // Fresh store state for race-condition checks
       const freshTx = useTransactionStore.getState().transactions
-      const freshCats = useCategoryStore.getState().categories
-      const freshMechanics = useMechanicStore.getState().mechanics
-      const freshSuppliers = useSupplierStore.getState().suppliers
+      const freshCats = categories
+      const freshMechanics = mechanics
+      const freshSuppliers = suppliers
 
       const errors = validateTransactionFull(
         { noReferensi: formData.noReferensi, tipe: formData.tipe, customerId: formData.customerId, supplierId: formData.supplierId },
@@ -411,7 +411,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
           auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.expenseTransactionId, source: 'bubut-luar-auto-link', afterData: { linkedTo: result.transactionId } })
         }
 
-        const hasJasaLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.isJasa)
+        const hasJasaLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.is_jasa)
         if (hasJasaLine) {
           const openPeriod = periods.find((p) => p.status === 'open' && formData.tgl >= p.weekStart && formData.tgl <= p.weekEnd)
           if (!openPeriod) {

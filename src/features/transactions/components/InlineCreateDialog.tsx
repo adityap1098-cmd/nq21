@@ -5,12 +5,11 @@ import { z } from 'zod'
 import { AddEditDialog } from '@/components/nq21/AddEditDialog'
 import { FormField } from '@/components/nq21/FormField'
 import { Input } from '@/components/ui/input'
-import { useCustomerStore } from '@/store/master/customers'
-import { useSupplierStore } from '@/store/master/suppliers'
-import { useAuditStore } from '@/store/audit'
-import { useAuthStore } from '@/store/auth'
+import { useCustomers, useCreateCustomer } from '@/features/customers/hooks'
+import { useSuppliers, useCreateSupplier } from '@/features/suppliers/hooks'
 import { toast } from '@/hooks/use-toast'
-import type { Customer, Supplier } from '@/store/types'
+import type { Customer } from '@/features/customers/hooks'
+import type { Supplier } from '@/features/suppliers/hooks'
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 
@@ -50,9 +49,8 @@ function CustomerSubForm({
   onSuccess: (id: string) => void
   onClose: () => void
 }) {
-  const { customers, add } = useCustomerStore()
-  const { log } = useAuditStore()
-  const { user } = useAuthStore()
+  const { data: customers = [] } = useCustomers()
+  const createCustomer = useCreateCustomer()
   const [duplicateOf, setDuplicateOf] = useState<Customer | null>(null)
 
   const {
@@ -66,47 +64,34 @@ function CustomerSubForm({
     defaultValues: { name: initialName, motorType: '', phone: '' },
   })
 
-  // Sync initial name when dialog re-opens with different query
   useEffect(() => {
     reset({ name: initialName, motorType: '', phone: '' })
     setDuplicateOf(null)
   }, [initialName, reset])
 
-  function onSubmit(data: CustomerForm) {
+  async function onSubmit(data: CustomerForm) {
     const trimmedName = data.name.trim()
     const existing = customers.find(
       (c) => c.name.toLowerCase() === trimmedName.toLowerCase()
     )
     if (existing) {
-      setError('name', {
-        message: `Customer "${existing.name}" sudah ada.`,
-      })
+      setError('name', { message: `Customer "${existing.name}" sudah ada.` })
       setDuplicateOf(existing)
       return
     }
 
-    add({
-      name: trimmedName,
-      motorType: data.motorType?.trim() || undefined,
-      phone: data.phone?.trim() || undefined,
-      isActive: true,
-    })
-
-    // Look up the real ID from store state (store generates it internally)
-    const { customers: updated } = useCustomerStore.getState()
-    const newItem = updated.find((c) => c.name === trimmedName && c.isActive)
-    const newId = newItem?.id ?? ''
-
-    log({
-      userId: user?.name ?? 'unknown',
-      action: 'create',
-      entityType: 'customer',
-      entityId: newId,
-      afterData: { name: trimmedName, source: 'inline-from-transaksi' },
-    })
-
-    toast(`Customer "${trimmedName}" berhasil ditambahkan`, { variant: 'success' })
-    onSuccess(newId)
+    try {
+      const newCustomer = await createCustomer.mutateAsync({
+        name: trimmedName,
+        motor_type: data.motorType?.trim() || null,
+        phone: data.phone?.trim() || null,
+      })
+      toast(`Customer "${trimmedName}" berhasil ditambahkan`, { variant: 'success' })
+      onSuccess(newCustomer.id)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan'
+      toast(`Error: ${msg}`, { variant: 'destructive' })
+    }
   }
 
   return (
@@ -169,9 +154,8 @@ function SupplierSubForm({
   onSuccess: (id: string) => void
   onClose: () => void
 }) {
-  const { suppliers, add } = useSupplierStore()
-  const { log } = useAuditStore()
-  const { user } = useAuthStore()
+  const { data: suppliers = [] } = useSuppliers()
+  const createSupplier = useCreateSupplier()
   const [duplicateOf, setDuplicateOf] = useState<Supplier | null>(null)
 
   const {
@@ -194,40 +178,29 @@ function SupplierSubForm({
 
   const isVendorBubut = watch('isVendorBubut')
 
-  function onSubmit(data: SupplierForm) {
+  async function onSubmit(data: SupplierForm) {
     const trimmedName = data.name.trim()
     const existing = suppliers.find(
       (s) => s.name.toLowerCase() === trimmedName.toLowerCase()
     )
     if (existing) {
-      setError('name', {
-        message: `Supplier "${existing.name}" sudah ada.`,
-      })
+      setError('name', { message: `Supplier "${existing.name}" sudah ada.` })
       setDuplicateOf(existing)
       return
     }
 
-    add({
-      name: trimmedName,
-      phone: data.phone?.trim() || undefined,
-      isVendorBubut: data.isVendorBubut,
-      isActive: true,
-    })
-
-    const { suppliers: updated } = useSupplierStore.getState()
-    const newItem = updated.find((s) => s.name === trimmedName && s.isActive)
-    const newId = newItem?.id ?? ''
-
-    log({
-      userId: user?.name ?? 'unknown',
-      action: 'create',
-      entityType: 'supplier',
-      entityId: newId,
-      afterData: { name: trimmedName, source: 'inline-from-transaksi' },
-    })
-
-    toast(`Supplier "${trimmedName}" berhasil ditambahkan`, { variant: 'success' })
-    onSuccess(newId)
+    try {
+      const newSupplier = await createSupplier.mutateAsync({
+        name: trimmedName,
+        phone: data.phone?.trim() || null,
+        is_vendor_bubut: data.isVendorBubut,
+      })
+      toast(`Supplier "${trimmedName}" berhasil ditambahkan`, { variant: 'success' })
+      onSuccess(newSupplier.id)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal menyimpan'
+      toast(`Error: ${msg}`, { variant: 'destructive' })
+    }
   }
 
   return (

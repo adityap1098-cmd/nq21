@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 import { formatRupiahInput, computeKomisi } from '../utils'
 import type { Line } from '../types'
-import type { Category, CommissionRate, Mechanic, PaymentMethod, TransactionType } from '@/store/types'
+import type { PaymentMethod, TransactionType } from '@/store/types'
 
 export interface TransactionSummaryProps {
   noReferensi: string
@@ -13,9 +13,9 @@ export interface TransactionSummaryProps {
   supplierName: string | null
   paymentMethod: PaymentMethod
   lines: Line[]
-  categories: Category[]
-  mechanics: Mechanic[]
-  rates: CommissionRate[]
+  categories: { id: string; name: string; is_jasa: boolean }[]
+  mechanics: { id: string; name: string }[]
+  rates: { mechanic_id: string; category_id: string; rate_percent: number }[]
   validationErrors: string[]
   isSubmitting?: boolean
   submitLabel?: string

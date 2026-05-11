@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useCategoryStore } from '@/store/master/categories'
+import { useCategories } from '@/features/categories/hooks'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { MechanicChipRow } from './MechanicChipRow'
 import { ItemNameAutocomplete } from './ItemNameAutocomplete'
@@ -10,9 +10,9 @@ import type { TransactionType } from '@/store/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getItemNameLabel(cat: { name: string; isJasa: boolean } | null | undefined): { label: string; placeholder: string } | null {
+function getItemNameLabel(cat: { name: string; is_jasa: boolean } | null | undefined): { label: string; placeholder: string } | null {
   if (!cat) return null
-  if (cat.isJasa) return { label: 'Detail Jasa', placeholder: 'Cth: Tune Up, Bleeding Rem, Ganti Oli + Filter' }
+  if (cat.is_jasa) return { label: 'Detail Jasa', placeholder: 'Cth: Tune Up, Bleeding Rem, Ganti Oli + Filter' }
   switch (cat.name) {
     case 'Oli':          return { label: 'Merk Oli',       placeholder: 'Cth: Shell Helix Ultra 5W-40, Motul 5100' }
     case 'Sparepart':   return { label: 'Nama Sparepart',  placeholder: 'Cth: Filter Oli K&N, Kampas Rem Brembo' }
@@ -105,20 +105,20 @@ export function LineItemCard({
   canDelete,
   hasBubutLuar,
 }: LineItemCardProps) {
-  const { categories } = useCategoryStore()
+  const { data: categories = [] } = useCategories()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [notesOpen, setNotesOpen] = useState(!!line.notes)
 
   const filteredCategories = useMemo(
     () =>
       categories
-        .filter((c) => c.isActive && c.type === tipe)
+        .filter((c) => c.is_active && c.type === tipe)
         .sort((a, b) => a.name.localeCompare(b.name)),
     [categories, tipe]
   )
 
   const selectedCat = categories.find((c) => c.id === line.categoryId)
-  const isJasa = selectedCat?.isJasa ?? false
+  const isJasa = selectedCat?.is_jasa ?? false
   const isBubutLuar = selectedCat?.name === 'Bubut Luar'
   const bubutLuarCatId = categories.find((c) => c.name === 'Bubut Luar')?.id
 
@@ -186,7 +186,7 @@ export function LineItemCard({
               cat.name === 'Bubut Luar' && hasBubutLuar && cat.id !== line.categoryId
             return (
               <option key={cat.id} value={cat.id} disabled={isDisabled}>
-                {cat.name}{cat.isJasa ? ' · komisi' : ''}{isDisabled ? ' (sudah ada)' : ''}
+                {cat.name}{cat.is_jasa ? ' · komisi' : ''}{isDisabled ? ' (sudah ada)' : ''}
               </option>
             )
           })}

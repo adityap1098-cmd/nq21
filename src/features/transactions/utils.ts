@@ -1,5 +1,5 @@
 import type { Line } from './types'
-import type { Category, CommissionRate, Mechanic, Supplier, Transaction, TransactionLine } from '@/store/types'
+import type { Transaction, TransactionLine } from '@/store/types'
 
 export function createEmptyLine(): Line {
   return {
@@ -36,20 +36,20 @@ export interface KomisiResult {
 
 export function computeKomisi(
   lines: Line[],
-  categories: Category[],
-  rates: CommissionRate[],
+  categories: { id: string; is_jasa: boolean }[],
+  rates: { mechanic_id: string; category_id: string; rate_percent: number }[],
 ): KomisiResult {
   const perMechanic = new Map<string, { amount: number; hasOverride: boolean }>()
   let total = 0
   for (const line of lines) {
     const cat = categories.find((c) => c.id === line.categoryId)
-    if (!cat?.isJasa) continue
+    if (!cat?.is_jasa) continue
     const basis = Math.max(0, line.nominal - line.biayaMaterial)
     for (const m of line.mechanics) {
       if (!m.mechanicId) continue
       const masterRate =
-        rates.find((r) => r.mechanicId === m.mechanicId && r.categoryId === line.categoryId)
-          ?.ratePercent ?? 0
+        rates.find((r) => r.mechanic_id === m.mechanicId && r.category_id === line.categoryId)
+          ?.rate_percent ?? 0
       const effectiveRate = m.rateOverride !== undefined ? m.rateOverride : masterRate
       const amount = Math.round(basis * (m.sharePercent / 100) * (effectiveRate / 100))
       total += amount
@@ -77,9 +77,9 @@ export function validateTransactionFull(
   lines: Line[],
   ctx: {
     transactions: Pick<Transaction, 'id' | 'noReferensi'>[]
-    categories: Category[]
-    mechanics: Pick<Mechanic, 'id' | 'isActive' | 'name'>[]
-    suppliers: Pick<Supplier, 'id' | 'isActive' | 'isVendorBubut' | 'name'>[]
+    categories: { id: string; name: string; is_jasa: boolean }[]
+    mechanics: { id: string; is_active: boolean; name: string }[]
+    suppliers: { id: string; is_active: boolean; is_vendor_bubut: boolean; name: string }[]
     currentId?: string
   },
 ): ValidationError[] {
@@ -121,7 +121,7 @@ export function validateTransactionFull(
 
     const cat = ctx.categories.find((c) => c.id === line.categoryId)
 
-    if (cat?.isJasa) {
+    if (cat?.is_jasa) {
       if (line.mechanics.length === 0) {
         errs.push({ field: `line-${i}-mech`, message: `${lbl}: min 1 mekanik`, lineId: line.id })
       } else {
@@ -131,7 +131,7 @@ export function validateTransactionFull(
         for (const m of line.mechanics) {
           if (!m.mechanicId) continue
           const mech = ctx.mechanics.find((x) => x.id === m.mechanicId)
-          if (mech && !mech.isActive)
+          if (mech && !mech.is_active)
             errs.push({ field: `line-${i}-mech-${m.mechanicId}`, message: `${lbl}: mekanik ${mech.name} sudah nonaktif. Pilih mekanik lain.`, lineId: line.id })
         }
       }
@@ -142,7 +142,7 @@ export function validateTransactionFull(
         errs.push({ field: `line-${i}-vendor`, message: `${lbl}: pilih vendor bubut`, lineId: line.id })
       } else {
         const vendor = ctx.suppliers.find((s) => s.id === line.bubutVendor!.supplierId)
-        if (!vendor?.isActive || !vendor.isVendorBubut)
+        if (!vendor?.is_active || !vendor.is_vendor_bubut)
           errs.push({ field: `line-${i}-vendor-bad`, message: `${lbl}: vendor ${vendor?.name ?? ''} tidak aktif atau bukan vendor bubut.`, lineId: line.id })
       }
       if ((line.bubutVendor?.vendorCost ?? 0) <= 0)

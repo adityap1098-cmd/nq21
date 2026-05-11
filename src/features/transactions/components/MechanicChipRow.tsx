@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useMechanicStore } from '@/store/master/mechanics'
+import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
+import { useCategories } from '@/features/categories/hooks'
 import { useTransactionStore } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
 import { useUserStore } from '@/store/master/users'
-import { useCategoryStore } from '@/store/master/categories'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { toast } from '@/hooks/use-toast'
 import type { LineMechanic } from '../types'
-import type {
-  Mechanic, CommissionRate, Transaction, TransactionLine, TransactionLineMechanic,
-} from '@/store/types'
+import type { Transaction, TransactionLine, TransactionLineMechanic } from '@/store/types'
+import type { Mechanic, CommissionRate } from '@/features/mechanics/hooks'
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -23,7 +22,7 @@ function getMasterRate(
   rates: CommissionRate[],
 ): number {
   if (!mechanicId || !categoryId) return 0
-  return rates.find((r) => r.mechanicId === mechanicId && r.categoryId === categoryId)?.ratePercent ?? 0
+  return rates.find((r) => r.mechanic_id === mechanicId && r.category_id === categoryId)?.rate_percent ?? 0
 }
 
 function getEffectiveRate(chip: LineMechanic, categoryId: string | null, rates: CommissionRate[]): number {
@@ -125,20 +124,18 @@ export function MechanicChipRow({
   categoryId,
   onChange,
 }: MechanicChipRowProps) {
-  const { mechanics: allMechanics, rates } = useMechanicStore()
+  const { data: allMechanics = [] } = useMechanics()
+  const { data: rates = [] } = useCommissionRates()
+  const { data: categories = [] } = useCategories()
   const { transactions, lines: txLines, lineMechanics } = useTransactionStore()
   const { user } = useAuthStore()
   const { users } = useUserStore()
-  const { categories } = useCategoryStore()
 
   const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
   const [editingRateIdx, setEditingRateIdx] = useState<number | null>(null)
   const [rateEditValue, setRateEditValue] = useState('')
 
-  const activeMechanics = useMemo(
-    () => allMechanics.filter((m) => m.isActive),
-    [allMechanics],
-  )
+  const activeMechanics = allMechanics  // hook returns active only by default
 
   const currentUserId = useMemo(
     () => (user ? users.find((u) => u.name === user.name)?.id ?? null : null),
@@ -146,7 +143,7 @@ export function MechanicChipRow({
   )
 
   const jasaCategoryIds = useMemo(
-    () => new Set(categories.filter((c) => c.isJasa).map((c) => c.id)),
+    () => new Set(categories.filter((c) => c.is_jasa).map((c) => c.id)),
     [categories],
   )
 

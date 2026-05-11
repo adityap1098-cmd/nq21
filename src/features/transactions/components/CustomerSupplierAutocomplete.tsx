@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { useCustomerStore } from '@/store/master/customers'
-import { useSupplierStore } from '@/store/master/suppliers'
+import { useCustomers } from '@/features/customers/hooks'
+import { useSuppliers } from '@/features/suppliers/hooks'
 import { Badge } from '@/components/ui/badge'
 import { InlineCreateDialog } from './InlineCreateDialog'
-import type { Customer, Supplier } from '@/store/types'
+import type { Customer } from '@/features/customers/hooks'
+import type { Supplier } from '@/features/suppliers/hooks'
 
 interface Props {
   type: 'customer' | 'supplier'
@@ -28,8 +29,8 @@ export function CustomerSupplierAutocomplete({
   disabled = false,
   filterSuppliers = 'all',
 }: Props) {
-  const { customers } = useCustomerStore()
-  const { suppliers } = useSupplierStore()
+  const { data: customers = [] } = useCustomers()
+  const { data: suppliers = [] } = useSuppliers()
 
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
@@ -62,10 +63,10 @@ export function CustomerSupplierAutocomplete({
   // All active items sorted A-Z
   const allItems = useMemo((): (Customer | Supplier)[] => {
     if (type === 'customer') {
-      return customers.filter((c) => c.isActive).sort((a, b) => a.name.localeCompare(b.name))
+      return customers.filter((c) => c.is_active).sort((a, b) => a.name.localeCompare(b.name))
     }
     return suppliers
-      .filter((s) => s.isActive && (filterSuppliers === 'all' || s.isVendorBubut))
+      .filter((s) => s.is_active && (filterSuppliers === 'all' || s.is_vendor_bubut))
       .sort((a, b) => a.name.localeCompare(b.name))
   }, [type, customers, suppliers, filterSuppliers])
 
@@ -77,7 +78,7 @@ export function CustomerSupplierAutocomplete({
     return allItems.filter((item) => {
       const nm = item.name.toLowerCase().includes(trimmedQuery)
       if (type === 'customer') {
-        return nm || ((item as Customer).motorType?.toLowerCase().includes(trimmedQuery) ?? false)
+        return nm || ((item as Customer).motor_type?.toLowerCase().includes(trimmedQuery) ?? false)
       }
       return nm
     })
@@ -94,7 +95,7 @@ export function CustomerSupplierAutocomplete({
           : suppliers.find((s) => s.id === value))
       : undefined
 
-  const isStale = value !== null && (!selectedEntity || !selectedEntity.isActive)
+  const isStale = value !== null && (!selectedEntity || !selectedEntity.is_active)
 
   // Input display: show entity name when selected; otherwise show query
   const inputDisplayValue = selectedEntity && !isStale ? selectedEntity.name : query
@@ -267,7 +268,7 @@ export function CustomerSupplierAutocomplete({
             const supp = !isCustomer ? (item as Supplier) : null
             const isActive = activeIndex === idx
             const metaLine = isCustomer
-              ? [cust?.motorType, cust?.phone].filter(Boolean).join(' · ')
+              ? [cust?.motor_type, cust?.phone].filter(Boolean).join(' · ')
               : (supp?.phone ?? '')
 
             return (
@@ -310,7 +311,7 @@ export function CustomerSupplierAutocomplete({
                     </div>
                   )}
                 </div>
-                {supp?.isVendorBubut && (
+                {supp?.is_vendor_bubut && (
                   <Badge variant="vendor" style={{ flexShrink: 0 }}>VENDOR BUBUT</Badge>
                 )}
               </button>
