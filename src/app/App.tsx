@@ -1,5 +1,8 @@
 import { useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+import { queryClient } from '@/lib/queryClient'
 import { router } from './router'
 import { SplashScreen } from './components/SplashScreen'
 import { OfflineIndicator } from './components/OfflineIndicator'
@@ -58,10 +61,11 @@ export default function App() {
   if (loading) return <SplashScreen />
 
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
       <OfflineIndicator />
       <PWAUpdatePrompt />
-    </>
+      {import.meta.env.DEV && <ReactQueryDevtools initialIsOpen={false} />}
+    </QueryClientProvider>
   )
 }
