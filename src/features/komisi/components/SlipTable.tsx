@@ -44,12 +44,12 @@ export function SlipTable({ lines, mechanicId, rates, isPeriodClosed }: Props) {
           <th style={TH_STYLE()}>NO REFERENSI</th>
           <th style={TH_STYLE()}>CUSTOMER</th>
           <th style={TH_STYLE()}>KATEGORI</th>
-          <th style={TH_STYLE(true)}>NOMINAL</th>
-          <th style={TH_STYLE(true)}>MATERIAL</th>
-          <th style={TH_STYLE(true)}>BASIS</th>
-          <th style={TH_STYLE(true)}>SHARE</th>
-          <th style={TH_STYLE(true)}>RATE</th>
-          <th style={TH_STYLE(true)}>KOMISI</th>
+          <th className="text-right" style={TH_STYLE(true)}>NOMINAL</th>
+          <th className="text-right" style={TH_STYLE(true)}>MATERIAL</th>
+          <th className="text-right" style={TH_STYLE(true)}>BASIS</th>
+          <th className="text-center" style={TH_STYLE(true)}>SHARE</th>
+          <th className="text-center" style={TH_STYLE(true)}>RATE</th>
+          <th className="text-right" style={TH_STYLE(true)}>KOMISI</th>
         </tr>
       </thead>
       <tbody>
@@ -105,7 +105,7 @@ export function SlipTable({ lines, mechanicId, rates, isPeriodClosed }: Props) {
               </td>
 
               {/* KATEGORI */}
-              <td style={TD_STYLE(false, isLast)}>
+              <td className="col-kategori" style={TD_STYLE(false, isLast)}>
                 <span style={{
                   display: 'inline-block', padding: '2px 6px', borderRadius: 3,
                   fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 600,
@@ -115,37 +115,37 @@ export function SlipTable({ lines, mechanicId, rates, isPeriodClosed }: Props) {
                   {line.categoryName}
                 </span>
                 {line.itemName && (
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                  <div className="item-name" style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
                     {line.itemName}
                   </div>
                 )}
               </td>
 
               {/* NOMINAL */}
-              <td className="col-mono" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', textAlign: 'right' }}>
+              <td className="col-mono text-right" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', textAlign: 'right' }}>
                 {fmtN(line.nominal)}
               </td>
 
               {/* MATERIAL */}
-              <td className="col-mono" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', color: 'var(--text-muted)', textAlign: 'right' }}>
+              <td className="col-mono text-right" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', color: 'var(--text-muted)', textAlign: 'right' }}>
                 −{fmtN(line.biayaMaterial)}
               </td>
 
               {/* BASIS */}
-              <td className="col-mono" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', fontWeight: 600, textAlign: 'right' }}>
+              <td className="col-mono text-right" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', fontWeight: 600, textAlign: 'right' }}>
                 {fmtN(line.basis)}
               </td>
 
               {/* SHARE */}
-              <td className="col-mono" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', textAlign: 'right' }}>
+              <td className="col-mono text-center" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', textAlign: 'right' }}>
                 {line.sharePercent}%
               </td>
 
               {/* RATE */}
-              <td className="col-mono" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', whiteSpace: 'nowrap', textAlign: 'right' }}>
+              <td className="col-mono text-center" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', whiteSpace: 'nowrap', textAlign: 'right' }}>
                 {hasOverride ? (
                   <>
-                    <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', marginRight: 4 }}>
+                    <span className="rate-override-old" style={{ textDecoration: 'line-through', color: 'var(--text-muted)', marginRight: 4 }}>
                       {masterRate}%
                     </span>
                     <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{line.rate}%</span>
@@ -156,7 +156,7 @@ export function SlipTable({ lines, mechanicId, rates, isPeriodClosed }: Props) {
               </td>
 
               {/* KOMISI */}
-              <td className="col-mono col-komisi" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--accent)', textAlign: 'right' }}>
+              <td className="col-mono col-komisi text-right" style={{ ...TD_STYLE(true, isLast), fontFamily: 'var(--mono)', fontWeight: 700, color: 'var(--accent)', textAlign: 'right' }}>
                 {fmtN(line.komisi)}
               </td>
             </tr>

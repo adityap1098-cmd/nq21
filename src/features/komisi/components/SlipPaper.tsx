@@ -46,13 +46,13 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
       )}
 
       {/* Header */}
-      <div style={{
+      <div className="slip-header" style={{
         display: 'flex', justifyContent: 'space-between', gap: 24,
         paddingBottom: 24, borderBottom: '2px solid var(--text)', marginBottom: 24,
         position: 'relative', zIndex: 1,
       }}>
         {/* Brand + title */}
-        <div>
+        <div className="brand-section">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <div style={{
               width: 32, height: 32, background: 'var(--text)', color: '#fff',
@@ -64,16 +64,16 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
               <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>SLIP BAGI HASIL</div>
             </div>
           </div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 32, letterSpacing: '0.012em', lineHeight: 1.05 }}>
+          <div className="title" style={{ fontFamily: 'var(--display)', fontSize: 32, letterSpacing: '0.012em', lineHeight: 1.05 }}>
             SLIP KOMISI MEKANIK
           </div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-muted)', marginTop: 4 }}>
+          <div className="subtitle" style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-muted)', marginTop: 4 }}>
             {fmtPeriodFull(period.weekStart, period.weekEnd)}
           </div>
         </div>
 
         {/* Mechanic info */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+        <div className="mechanic-section" style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%', background: 'var(--accent)', color: '#fff',
             display: 'grid', placeItems: 'center', fontFamily: 'var(--display)', fontSize: 28,
@@ -81,13 +81,13 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
             {initial}
           </div>
           <div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.18em', color: 'var(--text-muted)' }}>
+            <div className="label" style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.18em', color: 'var(--text-muted)' }}>
               MEKANIK
             </div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 22, letterSpacing: '0.012em', lineHeight: 1.1, marginTop: 2 }}>
+            <div className="name" style={{ fontFamily: 'var(--display)', fontSize: 22, letterSpacing: '0.012em', lineHeight: 1.1, marginTop: 2 }}>
               {computed.mechanicName}
             </div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.06em', color: 'var(--text-muted)', marginTop: 2 }}>
+            <div className="role" style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: '0.06em', color: 'var(--text-muted)', marginTop: 2 }}>
               Mekanik
             </div>
           </div>
