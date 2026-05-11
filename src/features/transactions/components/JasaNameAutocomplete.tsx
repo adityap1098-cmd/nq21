@@ -1,2 +1,2 @@
 // Deprecated — replaced by ItemNameAutocomplete.tsx
-export {}
+export const JasaNameAutocomplete = null
