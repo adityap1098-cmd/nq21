@@ -413,13 +413,14 @@ _(none)_
     · Format helpers: `fmtRupiah`, `fmtDate`, `fmtPercent`
   > Date math: all via pure string+manual arithmetic (no extra imports), timezone-safe (local Date)
 
-- [ ] **M004-T3**: Laporan Per Kategori
-  > Route: `/laporan/kategori`
-  > Period filter bar (shared pattern, establish for T4-T6)
-  > Income section: sorted by amount, bar track percentage, count badge
-  > Expense section: sorted by amount, bar track percentage
-  > Summary: total income, total expense, net
-  > CSV export button
+- [x] **M004-T3**: Laporan Per Kategori
+  > Route: `/laporan/kategori` → `LaporanKategoriPage`
+  > `src/lib/hooks/usePeriodFilter.ts` — reusable period filter hook (today/week/month/custom) with PRESET_MAP → getPeriodRange
+  > Period filter bar: PeriodSelector pill group + date range display on right
+  > Income panel + Expense panel side-by-side, each with: swatch, category name, JASA badge, JML TRX, NOMINAL with inline % progress bar, % column, Grand Total row
+  > Profit banner: dark card (var(--text) bg), breakdown left + big laba kotor number right, positive=green / negative=red
+  > CSV export: `nq21-laporan-kategori-{start}-{end}.csv` with UTF-8 BOM
+  > Global empty state when no transactions in period
 
 - [ ] **M004-T4**: Laporan Cash Flow
   > Route: `/laporan/cash-flow`
