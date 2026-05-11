@@ -27,9 +27,6 @@ const MasterKategoriPage = lazy(() => import('./pages/master/MasterKategoriPage'
 const MasterMekanikPage = lazy(() => import('./pages/master/MasterMekanikPage'))
 const MasterUserPage = lazy(() => import('./pages/master/MasterUserPage'))
 
-// Dev/test pages — eager (small, dev-only)
-import TestPage from './test'
-import TestMasterCRUDPage from './pages/_test-master-crud'
 
 const wrap = (el: React.ReactElement) => (
   <Suspense fallback={<LoadingFallback />}>{el}</Suspense>
@@ -70,8 +67,16 @@ export const router = createBrowserRouter([
           { path: 'master/kategori',      element: wrap(<MasterKategoriPage />) },
           { path: 'master/mekanik',       element: wrap(<MasterMekanikPage />) },
           { path: 'master/user',          element: wrap(<MasterUserPage />) },
-          { path: 'test',                 element: <TestPage /> },
-          { path: 'test-master',          element: <TestMasterCRUDPage /> },
+          ...(import.meta.env.DEV
+            ? (() => {
+                const TestPage = lazy(() => import('./test'))
+                const TestMasterCRUDPage = lazy(() => import('./pages/_test-master-crud'))
+                return [
+                  { path: 'test',        element: wrap(<TestPage />) },
+                  { path: 'test-master', element: wrap(<TestMasterCRUDPage />) },
+                ]
+              })()
+            : []),
         ],
       },
     ],

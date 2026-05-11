@@ -28,7 +28,7 @@ export default function Login() {
     formState: { errors },
   } = useForm<LoginForm>({
     resolver: zodResolver(schema),
-    defaultValues: { username: 'owner', password: 'demo123' },
+    defaultValues: { username: '', password: '' },
   })
 
   const handleRoleToggle = (r: 'owner' | 'kasir') => {
