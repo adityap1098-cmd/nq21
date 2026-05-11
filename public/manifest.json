@@ -1,0 +1,26 @@
+{
+  "name": "NQ21 Performance",
+  "short_name": "NQ21",
+  "description": "Workshop tracking app untuk bengkel motor NQ21 — catat transaksi internal, hitung komisi mekanik mingguan, visibility cash flow.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0A0908",
+  "theme_color": "#C8102E",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "id-ID"
+}

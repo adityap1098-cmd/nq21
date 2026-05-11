@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Maskable: full bleed background + 10% safe zone padding for N glyph -->
+  <rect width="512" height="512" fill="#0A0908"/>
+  <!-- Red accent strip -->
+  <rect x="0" y="0" width="512" height="10" fill="#C8102E"/>
+  <!-- Letter N centered in safe zone (10% inset = 51px each side) -->
+  <text
+    x="256"
+    y="318"
+    text-anchor="middle"
+    font-family="Anton, 'Arial Black', sans-serif"
+    font-size="260"
+    font-weight="900"
+    fill="#FFFFFF"
+    letter-spacing="-6"
+  >N</text>
+  <!-- Bottom red bar -->
+  <rect x="0" y="440" width="512" height="72" fill="#C8102E"/>
+  <text
+    x="256"
+    y="490"
+    text-anchor="middle"
+    font-family="'Arial', sans-serif"
+    font-size="22"
+    font-weight="700"
+    fill="rgba(255,255,255,0.85)"
+    letter-spacing="5"
+  >NQ21</text>
+</svg>
