@@ -20,69 +20,6 @@ function csvDateSlug(dateStr: string): string {
   return `${d}${MONTHS[parseInt(m) - 1]}${y}`
 }
 
-// ── Category row ──────────────────────────────────────────────────────────────
-
-function KategoriRow({
-  row,
-  idx,
-  tint,
-}: {
-  row: KategoriReport
-  idx: number
-  tint: string
-}) {
-  return (
-    <tr>
-      <td style={{ color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 11, width: 28 }}>
-        {idx + 1}
-      </td>
-      <td>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: 2,
-              background: tint,
-              flexShrink: 0,
-            }}
-          />
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{row.categoryName}</div>
-            {row.isJasa && (
-              <div style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--accent)', letterSpacing: '0.08em' }}>
-                JASA · KOMISI AKTIF
-              </div>
-            )}
-          </div>
-        </div>
-      </td>
-      <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
-        {row.transactionCount}
-      </td>
-      <td style={{ textAlign: 'right', position: 'relative', overflow: 'hidden', minWidth: 140 }}>
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: `${row.percentage}%`,
-            background: tint,
-            opacity: 0.12,
-          }}
-        />
-        <span style={{ position: 'relative', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600 }}>
-          {fmtRp(row.totalNominal)}
-        </span>
-      </td>
-      <td style={{ textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', width: 50 }}>
-        {row.percentage.toFixed(1)}%
-      </td>
-    </tr>
-  )
-}
-
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
 function Panel({
