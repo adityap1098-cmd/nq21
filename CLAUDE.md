@@ -252,6 +252,12 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M004-T7-patch — Detail line items**: Jasa = 3-col grid + mechanic chips. Non-jasa = compact flex-row (`justify-content: space-between`) — NOMINAL label kiri, value kanan ~50% shorter card. Notes di bawah dashed separator.
 - **M004-T7-patch — Detail periode section**: Compact inline flex-row: label · date range · badge · note text sejajar. Was stacked 2-row vertical.
 
+- **M005-T2 — ClosePeriodDialog button color**: TUTUP PERIODE = `var(--accent)` red (not generic destructive). Warning friction dari yellow warning card sudah cukup.
+- **M005-T3 — SlipPage outside Layout**: Route `/komisi/slip/:periodId/:mechanicId` di dalam ProtectedRoute tapi DI LUAR Layout — no sidebar/topbar. PrintLayout centering max-width 794px (A4).
+- **M005-T4 — onMarkPaid callback pattern**: State `showMarkPaidDialog` + handler di PeriodeKomisiPage. SlipPaper terima `onMarkPaid?: () => void` prop saja. `markPaid(stored.id, now.toISOString(), user.username, notes)`.
+- **M005-T5 — period filter 'all' lokal**: `usePeriodFilter` tidak support `'all'`. T5 pakai `useState<'all' | 'bulan-ini'>` lokal — cukup untuk MVP overview. Custom range defer M007.
+- **M005-T5 — MarkPaidDialog reuse di overview**: Buat `PayoutComputed` stub (`lines: []`) dari stored payout + mechanic lookup untuk passin ke MarkPaidDialog. Dialog hanya butuh totals, tidak perlu `lines`.
+
 ---
 
 ## Tech Stack (LOCKED — match plan.md Section 1)

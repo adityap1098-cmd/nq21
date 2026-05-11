@@ -574,11 +574,20 @@ _(none)_
   > Post-action: badge updates PENDING → DIBAYAR, button disappears, paidAt shown in footer
   > Build clean ✅
 
-- [ ] **M005-T5**: Mekanik & Komisi overview page (`/komisi/mekanik`)
-  > Cross-periode view: filter mekanik + filter periode
-  > Table: mechanic row × period columns × komisi + status badge
-  > Quick mark as paid inline action (owner only)
-  > Empty state kalau tidak ada payouts
+- [x] **M005-T5**: Mekanik & Komisi overview page (`/komisi/mekanik`)
+  > `MekanikKomisiPage` — cross-period view, all stored payouts from commission store
+  > Filter bar: PERIODE (Semua / Bulan Ini) + MEKANIK multi-chip + STATUS (Semua / Pending / Paid) with colored active states
+  > KPI strip 3-col: Total Komisi (black) / Pending Payout (warning yellow) / Sudah Dibayar (success green)
+  > Table: MEKANIK / PERIODE (closedAt sub-line) / JOBS / BASIS / KOMISI (accent) / STATUS badge / DIBAYAR (date + notes italic) / AKSI
+  > Sortable columns: PERIODE ↕ / KOMISI ↕ / STATUS ↕
+  > Row hover bg surface-alt
+  > TANDAI DIBAYAR inline (owner + pending) → reuse MarkPaidDialog
+  > LIHAT SLIP → navigate `/komisi/slip/{periodId}/{mechanicId}`
+  > EXPORT CSV: UTF-8 BOM, 8 columns, filename `nq21-komisi-overview-{YYYYMMDD}.csv`
+  > Soft-deleted mechanic: NONAKTIF badge, still shows in table
+  > Empty state: all payouts empty → full-page empty + CTA to /komisi/periode; filtered empty → inline message
+  > router.tsx: `/komisi/mekanik` → MekanikKomisiPage (replaces placeholder)
+  > Build clean ✅
 
 - [ ] **M005-T6**: Closer — verify + tag vM005
   > Smoke test: /komisi/periode, /komisi/slip/:id/:mechId, /komisi/mekanik
