@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Search, Calendar, Bell, Plus } from 'lucide-react'
+import { Search, Calendar, Plus } from 'lucide-react'
 
 const PAGE_MAP: Record<string, { crumb: string }> = {
   '/dashboard':         { crumb: 'DASHBOARD' },
@@ -154,48 +154,6 @@ export default function Topbar() {
         <span style={{ color: 'var(--text-muted)' }}>·</span>
         <span>Minggu ini</span>
       </div>
-
-      {/* Bell */}
-      <button
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: 6,
-          border: '1px solid var(--border)',
-          background: 'var(--surface)',
-          display: 'grid',
-          placeItems: 'center',
-          color: 'var(--text-secondary)',
-          position: 'relative',
-          cursor: 'pointer',
-          flexShrink: 0,
-        }}
-        title="Notifikasi"
-        onMouseEnter={(e) => {
-          ;(e.currentTarget as HTMLElement).style.background = 'var(--surface-alt)'
-          ;(e.currentTarget as HTMLElement).style.color = 'var(--text)'
-        }}
-        onMouseLeave={(e) => {
-          ;(e.currentTarget as HTMLElement).style.background = 'var(--surface)'
-          ;(e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'
-        }}
-      >
-        <Bell size={16} />
-        <span
-          aria-hidden
-          style={{
-            position: 'absolute',
-            top: 8,
-            right: 8,
-            width: 7,
-            height: 7,
-            background: 'var(--accent)',
-            borderRadius: '50%',
-            border: '2px solid var(--surface)',
-            boxSizing: 'content-box',
-          }}
-        />
-      </button>
 
       {/* CTA */}
       <button
