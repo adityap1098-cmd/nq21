@@ -655,6 +655,15 @@ _(none)_
 - "CETAK SEMUA SLIP" button: disabled placeholder (needs batch print logic — M007)
 - Backdated warning toast on closed period input: tested visually, acceptable behavior
 
+### Patch v3: Dual Print Mode — Compact + Detail Toggle (2026-05-11)
+**Commit**: e5de50c · "M005 patch v3: dual print mode — compact + detail toggle"
+- `SlipPage.tsx`: `printMode` state ('compact'|'detail'), mode toggle pill UI (RINGKAS / DETAIL), `useEffect` syncs `document.body.dataset.printMode` for CSS targeting
+- `SlipPaperCompact.tsx` (NEW): portrait summary — KPI row, breakdown per kategori table, top 3 hari, backdated note, dark total card, signature, print metadata
+- `SlipPaper.tsx`: adds `slip-paper-detail` class when `variant="standalone"` (CSS named-page target)
+- `print.css`: named `@page` rules — `compact-portrait` (A4 portrait) + `detail-landscape` (A4 landscape). Each slip variant sets `page:` property to select orientation automatically at print time
+- Compact mode: category-aggregated summary fits 1 page A4 portrait ✅
+- Detail mode: full transaction table, A4 landscape, all 10 columns ✅
+
 ### Patch v2: Landscape + Compact Header (2026-05-11)
 **Commit**: 8cff857 · "M005 patch v2: slip print landscape + compact header"
 - `print.css`: orientation switched to A4 landscape (1.2cm/1.5cm margins), slip-header flex compact layout, mechanic-section max-width 200px (no overflow)
