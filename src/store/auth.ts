@@ -35,6 +35,19 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
       const { data: { session }, error } = result
       if (error || !session) {
+        // Defensive: if no error but also no session, check whether a stored token exists.
+        // Token present = SDK hydration delay (token is being read/refreshed), NOT a real logout.
+        // In this case do NOT call signOut() — that would cascade-logout other tabs.
+        // Just surface loading=false and let onAuthStateChange handle auth state once ready.
+        if (!error) {
+          const hasStoredToken = Object.keys(localStorage).some(
+            k => k.startsWith('sb-') && localStorage.getItem(k)
+          )
+          if (hasStoredToken) {
+            set({ user: null, loading: false })
+            return
+          }
+        }
         set({ user: null, loading: false })
         return
       }
@@ -45,7 +58,13 @@ export const useAuthStore = create<AuthState>()((set) => ({
         .eq('id', session.user.id)
         .maybeSingle()
 
-      if (profileError || !data || !data.is_active) {
+      if (profileError) {
+        // Network/transient error — don't signOut (would cascade to other tabs), just clear local state
+        set({ user: null, loading: false })
+        return
+      }
+      if (!data || !data.is_active) {
+        // Profile genuinely missing or deactivated — force signOut across all tabs
         await supabase.auth.signOut().catch(() => {})
         set({ user: null, loading: false })
         return
