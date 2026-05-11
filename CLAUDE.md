@@ -245,6 +245,10 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
 - **M004-T1.7 — Bell deferred**: Notification bell dihapus dari Topbar. Real-time notifikasi butuh BE/websocket infra — implement di M006+.
 - **M004-T3.5 — Laporan grid stretch**: Panels pakai `display: grid; grid-template-columns: 1fr 1fr` + `minHeight: 380px` fallback. CSS Grid stretch auto-equalize tanpa flex hacks. Hint row muncul ketika `0 < rows.length < 5`.
 - **M004-T3.5 — Command Palette**: Global search Ctrl+K/⌘K via `src/store/ui.ts` (Zustand, no persist). `CommandPalette.tsx` search 4 entities, max 6/group, keyboard nav via refs (avoid stale closure). Topbar search adalah clickable div (tidak real input) — real search di palette. Layout.tsx register global Ctrl+K handler.
+- **M004-T6.5 — Detail transaksi adaptive info card**: 3-col compact (Party/Metode/Dibuat) saat notes kosong; 2-col (Party+Dibuat / Metode+Catatan) saat notes ada. `hasNotes = !!(tx.notes?.trim())`.
+- **M004-T6.5 — Detail transaksi button hierarchy**: Kembali (ghost/no-border) → Hapus (destructive red outline) → Edit (accent solid black). Edit rightmost = primary action highest emphasis.
+- **M004-T6.5 — Daftar transaksi sortable**: Filter useMemo tanpa sort; `sortedFiltered` useMemo separate. Header cells clickable dengan ▲/▼ accent indicator. Default: tglTransaksi desc.
+- **M004-T6.5 — Laporan grand total sticky**: Grand total div OUTSIDE `<tbody>`, sebagai sibling flex item di bawah table wrapper div. Kedua panel selalu sama Y karena CSS Grid stretch + flex-col.
 
 ---
 

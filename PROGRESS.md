@@ -4,7 +4,7 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M004 — Laporan & Dashboard UI
+**Milestone aktif**: M005 — Komisi UI
 **Phase**: FE-only (M001-M005)
 **Last updated**: 2026-05-11
 
@@ -348,7 +348,7 @@ _(none)_
 
 ---
 
-## M004 — Laporan & Dashboard UI ⏳
+## M004 — Laporan & Dashboard UI ✅
 
 **Halaman**: Dashboard (live data) + Laporan Per Kategori · Cash Flow · Jasa & Mekanik · Dyno
 **Visual ref**: `design/project/NQ21 Performance.html` (seksi: Dashboard + Laporan #1–#4)
@@ -442,24 +442,64 @@ _(none)_
   > CSV: tanggal, jam, noRef, party, kategori, tipe, metode, nominal, delta, saldo berjalan
   > Verified: Pemasukan+Cash filter → 9 rows, saldo akumulasi Rp 9.970.000 ✓
 
-- [ ] **M004-T5**: Laporan Jasa & Mekanik
-  > Route: `/laporan/jasa`
-  > Period filter
-  > Per-mekanik breakdown table: nama, tx count, total basis, total komisi, avg rate
-  > Jasa kategori summary (Jasa/Dyno/Bubut Luar/Bubut Dalam breakdown)
-  > CSV export
+- [x] **M004-T5**: Laporan Jasa & Mekanik
+  > Route: `/laporan/jasa` → `LaporanJasaPage`
+  > `usePeriodFilter` reused; mekanik + kategori multi-select filter chips
+  > KPI grid (clickable cards): jobs / total basis / total komisi per mekanik — unfiltered for overview
+  > Detail table: TGL·REF / CUSTOMER / KATEGORI / NOMINAL / MATERIAL / BASIS / MEKANIK stacked (share%+rate%+komisi) + tfoot grand total
+  > Multi-mekanik `MechStack` component: stacked rows per mech, strikethrough rate for overrides, ∑ multi-mech total
+  > Summary strip 4-col: Total Jobs / Total Basis / Total Komisi / Avg Komisi/Job
+  > CSV flat: 1 row per mechanic per line, UTF-8 BOM
+  > Empty state: "Belum ada transaksi jasa di periode ini."
 
-- [ ] **M004-T6**: Laporan Dyno
-  > Route: `/laporan/dyno`
-  > Period filter
-  > Summary: total Dyno revenue, count, avg per session
-  > Per-mekanik breakdown (Dyno is_jasa=true)
-  > CSV export
+- [x] **M004-T6**: Laporan Dyno
+  > Route: `/laporan/dyno` → `LaporanDynoPage`
+  > `usePeriodFilter` reused; `DynoSession.createdAt` added to selectors for JAM column
+  > Hero section: dark card (var(--text) bg) + 3px accent top bar, 3-col grid — Total Sesi / Total Revenue / Rata-rata/Sesi (Anton 42–48px white)
+  > 2-col section: Top Operators (ranked list, rank #1 accent, progress bar relative to #1) + 14-day bar chart (Recharts, accent red bars, fixed window regardless of period filter)
+  > Detail table: TGL/JAM/NO REF/CUSTOMER/OPERATOR/METODE/NOMINAL, 3px accent border-left, click → /transaksi/{id}
+  > Pagination 50/page; empty state (lightning bolt icon) → navigate /transaksi/baru
+  > CSV flat: 1 row per session, UTF-8 BOM
+  > `DynoBarTooltip`: custom dark tooltip with sesi count + revenue
 
-- [ ] **M004-T7**: Closer — Verify + Tag vM004
-  > All 4 laporan routes live (swap PlaceholderPage)
-  > Dashboard data points verified (8 scenarios)
+- [x] **M004-T6.5**: Polish — 3 fix issues
+  > Issue #1 — Detail Transaksi adaptive info card: 3-col compact grid (Party/Metode/Dibuat) when notes empty; 2-col (Party+Dibuat / Metode+Catatan) when notes present; notes field hidden if empty
+  > Issue #1B — Button hierarchy reorder: Kembali (ghost, no border) → Hapus (destructive outline, red) → Edit (accent solid, black); Edit stays rightmost as primary action
+  > Issue #2 — Daftar Transaksi sortable columns: click header toggles asc/desc; active column shows accent ▲/▼ indicator; sort by noReferensi/tglTransaksi/tipe/party/paymentMethod/totalNominal; default tglTransaksi desc; filter + sort independent
+  > Issue #3 — Laporan Per Kategori grand total sticky bottom: grand total moved out of `<tbody>` into separate `<div>` at bottom of flex column; both panels (income + expense) always have grand total at same Y position regardless of row count difference
+
+- [x] **M004-T7**: Closer — Verify + Tag vM004
+  > All 4 laporan routes live (swap PlaceholderPage — LaporanJasaPage + LaporanDynoPage wired in T5/T6)
+  > Smoke test via Playwright: /dashboard, /laporan/kategori, /laporan/cash-flow, /laporan/jasa, /laporan/dyno, /transaksi, /transaksi/:id (2 variants), Command Palette
+  > Dashboard: KPI live, chart reactive, period pill, closed komisi dynamic ✅
+  > Laporan Kategori: period filter, CSS Grid equal panels, grand total sticky bottom both panels sejajar ✅
+  > Laporan Cash Flow: summary strip, saldo running ascending ✅
+  > Laporan Jasa: KPI mekanik cards (Doni 10 jobs, Budi 0), filter chips, detail table ✅
+  > Laporan Dyno: hero (3 sesi, Rp 3.670.000, avg Rp 1.223.333), Top Operator #1 accent, 14-day bars ✅
+  > Daftar Transaksi: sort TANGGAL▼ default, column toggle asc/desc ✅
+  > Detail Transaksi: 3-col compact (no notes), 2-col with notes, button order ← KEMBALI|HAPUS|EDIT ✅
+  > Command Palette (Ctrl+K): opens, search UI functional ✅
+  > Build clean (`npm run build`): 0 TS errors, only chunk-size warning (acceptable) ✅
   > PROGRESS.md updated, commit, tag vM004
+
+### M004 COMPLETE ✅ — 2026-05-11
+
+**8 halaman live**: Dashboard (live data) + 4 Laporan + Daftar/Detail/Edit Transaksi (polish)
+
+**Features delivered**:
+- Dashboard: zero hardcoded data — all KPI + charts from selectors
+- Period filter hook `usePeriodFilter` — shared across all 4 laporan
+- Laporan Per Kategori: CSS Grid equal panels + grand total sticky bottom + CSV export
+- Laporan Cash Flow: saldo running, jagged red negative indicator, filter chips + CSV
+- Laporan Jasa & Mekanik: per-mekanik KPI cards + MechStack multi-mech detail + CSV
+- Laporan Dyno: hero dark section + Top Operators ranked + 14-day fixed bar chart + CSV
+- Command Palette (Ctrl+K): global search across 4 entities, keyboard nav
+- Daftar Transaksi: sortable columns (6 keys, asc/desc toggle)
+- Detail Transaksi: adaptive info card (2-col / 3-col based on notes)
+
+**Bug caught & fixed**: `DynoSession.createdAt` missing from interface — added for JAM column in detail table.
+
+**Tag**: vM004
 
 ---
 
