@@ -536,16 +536,18 @@ _(none)_
   > Seed payouts fixed: all mechanics (Doni + Budi) for both closed periods, all paid with `paidBy='user-1'`
   > Build clean ✅
 
-- [ ] **M005-T1**: Periode Komisi main page (`/komisi/periode`)
-  > Period selector row (3-col grid of cards) — status badge, date, jobs, komisi total
-  > Active open period card: 2px accent border + accent gradient bg
-  > Summary dark panel: range (Anton 36px) + 3 stats (basis/komisi/payout X/N)
-  > Mechanic slip list sidebar (320px) + slip paper viewer (dynamic right panel)
-  > Slip paper: brand header, DRAFT/FINAL watermark, 10-col detail table, dark total footer
-  > Actions bar: payout status badge + CETAK/TANDAI DIBAYAR buttons
-  > Internal state: `activePeriodId` + `activeMechanic`
-  > Live data for open period via `getPayoutsForPeriod` selector
-  > Seed data for closed periods from `payouts` store
+- [x] **M005-T1**: Periode Komisi main page (`/komisi/periode`)
+  > `PeriodSelectorCard` — status badge, date (Anton 22px), jobs, komisi; accent border+gradient for selected open
+  > `PeriodSummaryPanel` — dark bg, range Anton 36px, 3 stats grid (BASIS/KOMISI/PAYOUT X/N Dibayar)
+  > `MechanicSlipCard` — avatar, name, jobs·basis meta, komisi, PENDING/DIBAYAR badge
+  > `SlipTable` — 10-col table (TGL/REF/CUSTOMER/KAT/NOMINAL/MATERIAL/BASIS/SHARE/RATE/KOMISI); rate override strikethrough; backdated BDTD badge
+  > `SlipPaper` — DRAFT/FINAL watermark, brand header, mechanic avatar+name, table, dark total footer (Anton 44px accent), actions bar
+  > `KomisiBadge` shared badge (open/closed/pending/paid)
+  > `src/features/komisi/utils.ts` — shared formatters (fmtPeriodShort, fmtPeriodFull, fmtClosedAt, etc.)
+  > Internal state: `selectedPeriodId` + `selectedMechanicId` (derived effective)
+  > Open period: `getPayoutsForPeriod` live compute; Closed period: stored payout stubs fallback when no live txs
+  > router.tsx: `/komisi/periode` wired to `PeriodeKomisiPage`
+  > Build clean ✅ · Verified: period switch ✓, mechanic switch ✓, DIBAYAR status ✓, TUTUP PERIODE visible for open ✓
 
 - [ ] **M005-T2**: Close Period workflow
   > "TUTUP PERIODE" CTA button (owner only, open period)
