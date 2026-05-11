@@ -511,9 +511,75 @@ _(none)_
 
 ## M005 — Komisi UI ⏳
 
-Tasks akan di-breakdown saat M004 selesai.
+**Visual ref**: `design/v2/NQ21 PERFORMANCE/pages-extra.jsx` (PeriodeKomisi component, MasterMekanik) + `data-pages.jsx` (seed data)
+**DoD**: Periode Komisi page live, Close Period workflow, printable slip per mekanik, Mark As Paid, overview mekanik lintas periode.
 
-**Visual ref**: `demo.html`
+### Decisions (LOCKED)
+
+- **D1 — Print CSS**: Basic `@media print` di T3 (slip page). Hide sidebar + topbar + periode selector + mechanic sidebar. Show only slip-paper content. A4 width. Professional enough for kasir print ke mekanik.
+- **D2 — Mark As Paid tracking**: `paidBy` (userId) + `paidAt` (timestamp) + `paidNotes` (free text, e.g., "Transfer BCA"). No payment method dropdown — notes covers it.
+- **D3 — Slip views**: 2 views — master page `/komisi/periode` (owner overview, inline mechanic selector + slip viewer) + `/komisi/slip/:periodId/:mechanicId` (dedicated printable route).
+- **D4 — closeAndGeneratePayouts**: Atomic store action: close period + batch upsert payouts (all mechanics) + auto-create next period. Component pre-computes via `getPayoutsForPeriod` selector, passes array to store action.
+- **D5 — Backdated entries**: INCLUDED in slip. Rows show inline `[BACKDATED]` badge. Total komisi includes backdated entries. Filter by `tglTransaksi in period range` for the open period computation. Footer note: "X dari Y jasa adalah backdated — komisi tetap dibayarkan." (kalau ada backdated).
+- **D6 — Auto-create next period**: `closeAndGeneratePayouts` auto-calls `openPeriod` for next week after close. Guard: skip if period with nextStart already exists (idempotent).
+- **D7 — Slip table transparency**: Show NOMINAL + MATERIAL + BASIS columns. Mechanic liat full breakdown.
+- **D8 — One-way close**: Period closed = locked forever. No re-open. Errors handled by owner via adjustment in next period.
+
+### Tasks
+
+- [x] **M005-T0**: Store Prep — Foundation
+  > `CommissionPayout` type updated: added `totalJobs`, `paidBy?`, `createdAt`
+  > `selectors.ts`: added `PayoutLine` + `PayoutComputed` interfaces + `getPayoutsForPeriod()` pure selector
+  > `commission.ts`: `closeAndGeneratePayouts(periodId, closedBy, payouts[])` atomic action — close + batch insert + auto next period
+  > `commission.ts`: `markPaid(id, paidAt, paidBy, paidNotes?)` updated signature
+  > `commission.ts`: persist version bumped to v2 with migration (patch old payouts: add `totalJobs=0`, `createdAt=now`)
+  > Seed payouts fixed: all mechanics (Doni + Budi) for both closed periods, all paid with `paidBy='user-1'`
+  > Build clean ✅
+
+- [ ] **M005-T1**: Periode Komisi main page (`/komisi/periode`)
+  > Period selector row (3-col grid of cards) — status badge, date, jobs, komisi total
+  > Active open period card: 2px accent border + accent gradient bg
+  > Summary dark panel: range (Anton 36px) + 3 stats (basis/komisi/payout X/N)
+  > Mechanic slip list sidebar (320px) + slip paper viewer (dynamic right panel)
+  > Slip paper: brand header, DRAFT/FINAL watermark, 10-col detail table, dark total footer
+  > Actions bar: payout status badge + CETAK/TANDAI DIBAYAR buttons
+  > Internal state: `activePeriodId` + `activeMechanic`
+  > Live data for open period via `getPayoutsForPeriod` selector
+  > Seed data for closed periods from `payouts` store
+
+- [ ] **M005-T2**: Close Period workflow
+  > "TUTUP PERIODE" CTA button (owner only, open period)
+  > ClosePeriodDialog: preview komisi per mekanik before confirm
+  > On confirm: `closeAndGeneratePayouts(periodId, userId, computedPayouts)`
+  > Toast: "Periode ditutup · Periode {nextRange} dibuka otomatis"
+  > Redirect/refresh to closed period view
+
+- [ ] **M005-T3**: Slip Bagi Hasil printable page (`/komisi/slip/:periodId/:mechanicId`)
+  > Dedicated route — full-page slip layout (no sidebar/topbar in print)
+  > Slip paper: NQ21 brand + mechanic avatar + detail table (TGL/REF/CUSTOMER/KAT/NOMINAL/MATERIAL/BASIS/SHARE/RATE/KOMISI)
+  > BACKDATED badge on rows where `isBackdated=true`
+  > Footer: total komisi dark card (Anton 44px) + backdated note if any
+  > `window.print()` button
+  > Basic `@media print` CSS: hide nav, A4 layout, repeat header
+
+- [ ] **M005-T4**: Mark As Paid workflow
+  > "TANDAI DIBAYAR" button in slip viewer actions (owner only, pending status)
+  > MarkPaidDialog: mechanic name + komisi amount + optional paidNotes textarea
+  > On confirm: `markPaid(payoutId, now, userId, notes)` → badge updates to DIBAYAR
+  > Toast + audit log entry
+
+- [ ] **M005-T5**: Mekanik & Komisi overview page (`/komisi/mekanik`)
+  > Cross-periode view: filter mekanik + filter periode
+  > Table: mechanic row × period columns × komisi + status badge
+  > Quick mark as paid inline action (owner only)
+  > Empty state kalau tidak ada payouts
+
+- [ ] **M005-T6**: Closer — verify + tag vM005
+  > Smoke test: /komisi/periode, /komisi/slip/:id/:mechId, /komisi/mekanik
+  > Close period scenario: open period → confirm → payouts generated → next period auto-created
+  > Mark as paid: pending → paid badge transition
+  > Print check: slip paper renders correctly without nav
+  > PROGRESS.md M005 COMPLETE, commit, tag vM005, push --tags
 
 ---
 

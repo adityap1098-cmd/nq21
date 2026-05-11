@@ -128,9 +128,12 @@ export interface CommissionPayout {
   id: string
   periodId: string
   mechanicId: string
-  totalBasis: number
+  totalJobs: number         // count of jasa lines mechanic was involved in
+  totalBasis: number        // mechanic's portion: sum(basis × sharePercent/100)
   totalKomisi: number
   status: PayoutStatus
+  createdAt: string
   paidAt?: string
+  paidBy?: string           // userId who marked as paid
   paidNotes?: string
 }

@@ -798,3 +798,117 @@ export function getKpiDeltas(
 
 // Rates from seed for use in selectors (M006: replace with store)
 export { SEED_RATES as defaultRates }
+
+// ── Payout computation ────────────────────────────────────────────────────────
+
+export interface PayoutLine {
+  transactionId: string
+  noReferensi: string
+  tgl: string              // YYYY-MM-DD
+  isBackdated: boolean     // tgl outside period range — always false when filtering by date, kept for future-proofing
+  customerName: string
+  customerMotor?: string
+  categoryId: string
+  categoryName: string
+  itemName?: string
+  nominal: number
+  biayaMaterial: number
+  basis: number            // full line basis (nominal - biayaMaterial)
+  sharePercent: number
+  rate: number             // effectiveRate used for this komisi computation
+  rateOverride?: number    // set if a per-transaction rate override was applied
+  komisi: number
+}
+
+export interface PayoutComputed {
+  mechanicId: string
+  mechanicName: string
+  isActive: boolean
+  totalJobs: number
+  totalBasis: number       // sum of (basis × sharePercent/100) — mechanic's effective portion
+  totalKomisi: number
+  lines: PayoutLine[]
+}
+
+export function getPayoutsForPeriod(
+  period: CommissionPeriod,
+  transactions: Transaction[],
+  lines: TransactionLine[],
+  lineMechanics: TransactionLineMechanic[],
+  rates: CommissionRate[],
+  mechanics: Mechanic[],
+  customers: Customer[],
+  categoryMap: Record<string, CategoryInfo>,
+): PayoutComputed[] {
+  const { weekStart, weekEnd } = period
+
+  const periodTxs = transactions.filter(
+    (tx) => !tx.deletedAt
+      && tx.tipe === 'income'
+      && tx.tglTransaksi >= weekStart
+      && tx.tglTransaksi <= weekEnd
+  )
+  const txIds = new Set(periodTxs.map((tx) => tx.id))
+  const txMap = new Map(periodTxs.map((tx) => [tx.id, tx]))
+
+  const byMechanic = new Map<string, PayoutLine[]>()
+
+  for (const line of lines) {
+    if (!txIds.has(line.transactionId)) continue
+    const cat = categoryMap[line.categoryId]
+    if (!cat?.isJasa) continue
+
+    const tx = txMap.get(line.transactionId)!
+    const basis = Math.max(0, line.nominal - line.biayaMaterial)
+    const mecsForLine = lineMechanics.filter((lm) => lm.transactionLineId === line.id)
+    const customer = customers.find((c) => c.id === tx.customerId)
+
+    for (const lm of mecsForLine) {
+      const masterRate = rates.find(
+        (r) => r.mechanicId === lm.mechanicId && r.categoryId === line.categoryId
+      )?.ratePercent ?? 0
+      const effectiveRate = lm.rateOverride !== undefined ? lm.rateOverride : masterRate
+      const komisi = Math.round(basis * (lm.sharePercent / 100) * (effectiveRate / 100))
+
+      const payoutLine: PayoutLine = {
+        transactionId: tx.id,
+        noReferensi: tx.noReferensi,
+        tgl: tx.tglTransaksi,
+        isBackdated: tx.tglTransaksi < weekStart || tx.tglTransaksi > weekEnd,
+        customerName: customer?.name ?? '—',
+        customerMotor: customer?.motorType,
+        categoryId: line.categoryId,
+        categoryName: cat.name,
+        itemName: line.itemName,
+        nominal: line.nominal,
+        biayaMaterial: line.biayaMaterial,
+        basis,
+        sharePercent: lm.sharePercent,
+        rate: effectiveRate,
+        rateOverride: lm.rateOverride,
+        komisi,
+      }
+
+      const prev = byMechanic.get(lm.mechanicId) ?? []
+      byMechanic.set(lm.mechanicId, [...prev, payoutLine])
+    }
+  }
+
+  const result: PayoutComputed[] = []
+  for (const [mechId, mechLines] of byMechanic.entries()) {
+    const mech = mechanics.find((m) => m.id === mechId)
+    const totalBasis = mechLines.reduce((a, l) => a + Math.round(l.basis * l.sharePercent / 100), 0)
+    const totalKomisi = mechLines.reduce((a, l) => a + l.komisi, 0)
+    result.push({
+      mechanicId: mechId,
+      mechanicName: mech?.name ?? mechId,
+      isActive: mech?.isActive ?? false,
+      totalJobs: mechLines.length,
+      totalBasis,
+      totalKomisi,
+      lines: mechLines.sort((a, b) => a.tgl.localeCompare(b.tgl)),
+    })
+  }
+
+  return result.sort((a, b) => b.totalKomisi - a.totalKomisi)
+}
