@@ -1,24 +1,23 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useCustomerStore } from '@/store/master/customers'
-import { useAuditStore } from '@/store/audit'
 import { useAuthStore } from '@/store/auth'
+import { useCustomers, useCreateCustomer, useUpdateCustomer, useDeleteCustomer, type Customer } from '@/features/customers/hooks'
 import { MasterCRUDPage, type ColumnConfig } from '@/components/nq21/MasterCRUDPage'
 import { AddEditDialog } from '@/components/nq21/AddEditDialog'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { FormField } from '@/components/nq21/FormField'
 import { DateDisplay } from '@/components/nq21/DateDisplay'
+import { EmptyState } from '@/components/nq21/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
-import type { Customer } from '@/store/types'
 
 const schema = z.object({
   name: z.string().min(2, 'Nama minimal 2 karakter').max(100),
-  motorType: z.string().max(50).optional().or(z.literal('')),
+  motor_type: z.string().max(50).optional().or(z.literal('')),
   phone: z.string().max(30).optional().or(z.literal('')),
   notes: z.string().max(500).optional().or(z.literal('')),
 })
@@ -32,10 +31,10 @@ const columns: ColumnConfig<Customer>[] = [
     render: c => <span style={{ fontWeight: 600 }}>{c.name}</span>,
   },
   {
-    key: 'motorType',
+    key: 'motor_type',
     label: 'Tipe Motor',
-    render: c => c.motorType
-      ? <span style={{ fontStyle: 'italic', fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text-secondary)' }}>{c.motorType}</span>
+    render: c => c.motor_type
+      ? <span style={{ fontStyle: 'italic', fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text-secondary)' }}>{c.motor_type}</span>
       : <span style={{ color: 'var(--text-muted)' }}>—</span>,
   },
   {
@@ -53,25 +52,20 @@ const columns: ColumnConfig<Customer>[] = [
       : null,
   },
   {
-    key: 'isActive',
+    key: 'is_active',
     label: 'Status',
-    render: c => (
-      <Badge variant={c.isActive ? 'paid' : 'default'}>
-        {c.isActive ? 'AKTIF' : 'NONAKTIF'}
-      </Badge>
-    ),
+    render: c => <Badge variant={c.is_active ? 'paid' : 'default'}>{c.is_active ? 'AKTIF' : 'NONAKTIF'}</Badge>,
   },
   {
-    key: 'createdAt',
+    key: 'created_at',
     label: 'Tgl Masuk',
-    render: c => <DateDisplay value={c.createdAt} />,
+    render: c => <DateDisplay value={c.created_at} />,
   },
 ]
 
 export default function MasterCustomerPage() {
-  const { customers, add, update, softDelete } = useCustomerStore()
-  const { log: auditLog } = useAuditStore()
   const { user } = useAuthStore()
+  const isOwner = user?.role === 'owner'
 
   const [showInactive, setShowInactive] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -80,25 +74,41 @@ export default function MasterCustomerPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Customer | null>(null)
 
-  const displayCustomers = useMemo(
-    () => showInactive ? customers : customers.filter(c => c.isActive),
-    [customers, showInactive]
-  )
+  const { data: customers = [], isLoading, error } = useCustomers(showInactive)
+  const createMutation = useCreateCustomer()
+  const updateMutation = useUpdateCustomer()
+  const deleteMutation = useDeleteCustomer()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', motorType: '', phone: '', notes: '' },
+    defaultValues: { name: '', motor_type: '', phone: '', notes: '' },
   })
 
+  if (!isOwner) {
+    return (
+      <EmptyState
+        message="Hanya owner yang bisa mengakses halaman ini."
+      />
+    )
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        message={`Gagal memuat data: ${(error as Error).message}`}
+      />
+    )
+  }
+
   function openAdd() {
-    reset({ name: '', motorType: '', phone: '', notes: '' })
+    reset({ name: '', motor_type: '', phone: '', notes: '' })
     setDialogMode('add')
     setEditing(null)
     setDialogOpen(true)
   }
 
   function openEdit(c: Customer) {
-    reset({ name: c.name, motorType: c.motorType ?? '', phone: c.phone ?? '', notes: c.notes ?? '' })
+    reset({ name: c.name, motor_type: c.motor_type ?? '', phone: c.phone ?? '', notes: c.notes ?? '' })
     setDialogMode('edit')
     setEditing(c)
     setDialogOpen(true)
@@ -109,33 +119,39 @@ export default function MasterCustomerPage() {
     setConfirmOpen(true)
   }
 
-  function onSubmit(data: FormData) {
-    const payload = {
+  async function onSubmit(data: FormData) {
+    const input = {
       name: data.name,
-      motorType: data.motorType || undefined,
-      phone: data.phone || undefined,
-      notes: data.notes || undefined,
-      isActive: true,
+      motor_type: data.motor_type || null,
+      phone: data.phone || null,
+      notes: data.notes || null,
     }
-    if (dialogMode === 'add') {
-      add(payload)
-      auditLog({ userId: user?.name ?? '', action: 'create', entityType: 'customer', entityId: 'new', afterData: { name: data.name } })
-      toast('Customer ditambahkan', { description: `${data.name} berhasil ditambahkan.`, variant: 'success' })
-    } else if (editing) {
-      update(editing.id, payload)
-      auditLog({ userId: user?.name ?? '', action: 'update', entityType: 'customer', entityId: editing.id, afterData: { name: data.name } })
-      toast('Customer diperbarui', { description: `${data.name} berhasil disimpan.`, variant: 'success' })
+    try {
+      if (dialogMode === 'add') {
+        await createMutation.mutateAsync(input)
+        toast('Customer ditambahkan', { description: `${data.name} berhasil ditambahkan.`, variant: 'success' })
+      } else if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, input })
+        toast('Customer diperbarui', { description: `${data.name} berhasil disimpan.`, variant: 'success' })
+      }
+      setDialogOpen(false)
+    } catch (err) {
+      toast('Gagal menyimpan', { description: (err as Error).message, variant: 'destructive' })
     }
-    setDialogOpen(false)
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!pendingDelete) return
-    softDelete(pendingDelete.id)
-    auditLog({ userId: user?.name ?? '', action: 'delete', entityType: 'customer', entityId: pendingDelete.id, afterData: { isActive: false } })
-    toast('Customer dinonaktifkan', { description: `${pendingDelete.name} tidak ditampilkan di list aktif.` })
+    try {
+      await deleteMutation.mutateAsync(pendingDelete.id)
+      toast('Customer dinonaktifkan', { description: `${pendingDelete.name} tidak ditampilkan di list aktif.` })
+    } catch (err) {
+      toast('Gagal menonaktifkan', { description: (err as Error).message, variant: 'destructive' })
+    }
     setPendingDelete(null)
   }
+
+  const isMutating = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   return (
     <>
@@ -143,16 +159,18 @@ export default function MasterCustomerPage() {
         title="Customer"
         description="Daftar pelanggan bengkel NQ21"
         addButtonLabel="+ Tambah Customer"
-        data={displayCustomers}
+        data={customers}
         columns={columns}
-        searchKeys={['name', 'motorType', 'phone']}
+        searchKeys={['name', 'motor_type', 'phone']}
         onAdd={openAdd}
         onEdit={openEdit}
         onDelete={openDelete}
         emptyState={{
-          message: showInactive
-            ? 'Tidak ada customer.'
-            : 'Tidak ada customer aktif. Tambahkan customer atau tampilkan yang nonaktif.',
+          message: isLoading
+            ? 'Memuat data...'
+            : showInactive
+              ? 'Tidak ada customer.'
+              : 'Tidak ada customer aktif. Tambahkan customer atau tampilkan yang nonaktif.',
         }}
         enableFilters={
           <Button
@@ -171,7 +189,7 @@ export default function MasterCustomerPage() {
         title={dialogMode === 'add' ? 'Tambah Customer' : `Edit: ${editing?.name ?? ''}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit(onSubmit)}
-        submitLabel={dialogMode === 'add' ? 'Tambah' : 'Simpan'}
+        submitLabel={isMutating ? 'Menyimpan...' : dialogMode === 'add' ? 'Tambah' : 'Simpan'}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
           <div style={{ gridColumn: '1 / -1' }}>
@@ -180,8 +198,8 @@ export default function MasterCustomerPage() {
             </FormField>
           </div>
 
-          <FormField label="Tipe Motor" htmlFor="c-motor" error={errors.motorType?.message}>
-            <Input id="c-motor" placeholder="Contoh: Vario 150" {...register('motorType')} />
+          <FormField label="Tipe Motor" htmlFor="c-motor" error={errors.motor_type?.message}>
+            <Input id="c-motor" placeholder="Contoh: Vario 150" {...register('motor_type')} />
           </FormField>
 
           <FormField label="Telepon" htmlFor="c-phone" error={errors.phone?.message}>
