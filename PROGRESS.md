@@ -4,8 +4,8 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M005 — Komisi UI
-**Phase**: FE-only (M001-M005)
+**Milestone aktif**: M006 — Backend Integration (next)
+**Phase**: FE-only complete · M001-M005 ✅
 **Last updated**: 2026-05-11
 
 ---
@@ -589,12 +589,72 @@ _(none)_
   > router.tsx: `/komisi/mekanik` → MekanikKomisiPage (replaces placeholder)
   > Build clean ✅
 
-- [ ] **M005-T6**: Closer — verify + tag vM005
-  > Smoke test: /komisi/periode, /komisi/slip/:id/:mechId, /komisi/mekanik
-  > Close period scenario: open period → confirm → payouts generated → next period auto-created
-  > Mark as paid: pending → paid badge transition
-  > Print check: slip paper renders correctly without nav
-  > PROGRESS.md M005 COMPLETE, commit, tag vM005, push --tags
+- [x] **M005-T6**: Closer — verify + tag vM005
+  > Route verification: /komisi/periode ✓ · /komisi/slip/period-1/mech-1 ✓ · /komisi/mekanik ✓
+  > E2E: close period → Doni 5.665.500 payout generated PENDING · 11-17 Mei period auto-created ✓
+  > E2E: TANDAI DIBAYAR visible in slip footer + in mekanik overview inline row ✓
+  > E2E: slip standalone page — no sidebar/topbar · signature lines · print metadata · CETAK button ✓
+  > E2E: mekanik overview KPI strip updated correctly (Pending 5.665.500 + Dibayar 1.974.000 = Total 7.639.500) ✓
+  > UX pass: toast positioning ✓ · hover states ✓ · empty state messages ✓ · sortable headers ✓
+  > Bug findings: none critical · minor defer list below
+  > Build clean ✅ · Tagged vM005
+
+---
+
+## M005 — COMPLETED ✅
+
+**Completed**: 2026-05-11
+**Tag**: vM005
+
+### Tasks
+- T0 Store prep: closeAndGeneratePayouts + getPayoutsForPeriod + paidBy + seed fix
+- T1 Periode Komisi main page: selector + summary + slip viewer (5 new components)
+- T2 Close Period workflow: ClosePeriodDialog + atomic action + auto-create next period
+- T3 Dedicated printable slip page: PrintLayout + print CSS + standalone variant
+- T4 Mark As Paid workflow: MarkPaidDialog + status update + audit log
+- T5 Mekanik & Komisi overview: filter + KPI strip + inline action + CSV export
+- T6 Closer: smoke test + verify + tag
+
+### New Components
+- `PeriodSelectorCard`, `PeriodSummaryPanel`, `MechanicSlipCard` (T1)
+- `SlipPaper` (dual variant embedded/standalone), `SlipTable` (T1/T3)
+- `KomisiBadge` shared (T1)
+- `ClosePeriodDialog` (T2)
+- `MarkPaidDialog` (T4)
+- `PrintLayout` (T3)
+- `MekanikKomisiPage` (T5)
+
+### New Files
+- `src/features/komisi/utils.ts` — shared formatters
+- `src/features/komisi/components/` — 7 components
+- `src/app/pages/komisi/PeriodeKomisiPage.tsx`
+- `src/app/pages/komisi/SlipPage.tsx`
+- `src/app/pages/komisi/MekanikKomisiPage.tsx`
+- `src/app/layout/PrintLayout.tsx`
+- `src/styles/print.css`
+
+### Key Features
+- Atomic period close + payout generate + auto-open next (Zustand, in-memory)
+- Slip bagi hasil printable (A4, no sidebar, signature lines)
+- Mark as paid dengan audit notes + audit log
+- Cross-period mekanik overview: filter + KPI + sort + CSV
+- Print CSS: @page A4 portrait, data-print-hide pattern, thead repeat
+
+### Decisions (D1-D8 locked)
+- D1: Print CSS basic di T3 ✅
+- D2: paidBy + paidNotes + paidAt (no payment method dropdown) ✅
+- D3: 2 views: master page + dedicated printable slip ✅
+- D4: Atomic closeAndGeneratePayouts ✅
+- D5: Backdated included di slip dengan BDTD badge + footer note ✅
+- D6: Auto-create next period setelah close ✅
+- D7: NOMINAL + MATERIAL + BASIS di slip table ✅
+- D8: One-way close (no re-open) ✅
+
+### Minor Issues (defer M007 polish)
+- PDF export button: disabled placeholder (needs lib evaluation — M007)
+- "CETAK SEMUA SLIP" button: disabled placeholder (needs batch print logic — M007)
+- Print preview on narrow screens: table may overflow (acceptable for desktop-first)
+- Backdated warning toast on closed period input: tested visually, acceptable behavior
 
 ---
 
