@@ -1,24 +1,23 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useSupplierStore } from '@/store/master/suppliers'
-import { useAuditStore } from '@/store/audit'
 import { useAuthStore } from '@/store/auth'
+import { useSuppliers, useCreateSupplier, useUpdateSupplier, useDeleteSupplier, type Supplier } from '@/features/suppliers/hooks'
 import { MasterCRUDPage, type ColumnConfig } from '@/components/nq21/MasterCRUDPage'
 import { AddEditDialog } from '@/components/nq21/AddEditDialog'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { FormField } from '@/components/nq21/FormField'
+import { EmptyState } from '@/components/nq21/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
-import type { Supplier } from '@/store/types'
 
 const schema = z.object({
   name: z.string().min(2, 'Nama minimal 2 karakter').max(100),
   phone: z.string().max(30).optional().or(z.literal('')),
-  isVendorBubut: z.boolean(),
+  is_vendor_bubut: z.boolean(),
   notes: z.string().max(500).optional().or(z.literal('')),
 })
 type FormData = z.infer<typeof schema>
@@ -38,9 +37,9 @@ const columns: ColumnConfig<Supplier>[] = [
       : <span style={{ color: 'var(--text-muted)' }}>—</span>,
   },
   {
-    key: 'isVendorBubut',
+    key: 'is_vendor_bubut',
     label: 'Tipe',
-    render: s => s.isVendorBubut
+    render: s => s.is_vendor_bubut
       ? <Badge variant="vendor">⚙ VENDOR BUBUT</Badge>
       : <Badge variant="open">REGULAR</Badge>,
   },
@@ -63,13 +62,9 @@ const columns: ColumnConfig<Supplier>[] = [
       : null,
   },
   {
-    key: 'isActive',
+    key: 'is_active',
     label: 'Status',
-    render: s => (
-      <Badge variant={s.isActive ? 'paid' : 'default'}>
-        {s.isActive ? 'AKTIF' : 'NONAKTIF'}
-      </Badge>
-    ),
+    render: s => <Badge variant={s.is_active ? 'paid' : 'default'}>{s.is_active ? 'AKTIF' : 'NONAKTIF'}</Badge>,
   },
 ]
 
@@ -100,9 +95,8 @@ function FilterPills({ vendorOnly, onChange }: { vendorOnly: boolean; onChange: 
 }
 
 export default function MasterSupplierPage() {
-  const { suppliers, add, update, softDelete } = useSupplierStore()
-  const { log: auditLog } = useAuditStore()
   const { user } = useAuthStore()
+  const isOwner = user?.role === 'owner'
 
   const [showInactive, setShowInactive] = useState(false)
   const [vendorOnly, setVendorOnly] = useState(false)
@@ -112,27 +106,34 @@ export default function MasterSupplierPage() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Supplier | null>(null)
 
-  const displaySuppliers = useMemo(() => {
-    let list = showInactive ? suppliers : suppliers.filter(s => s.isActive)
-    if (vendorOnly) list = list.filter(s => s.isVendorBubut)
-    return list
-  }, [suppliers, showInactive, vendorOnly])
+  const { data: suppliers = [], isLoading, error } = useSuppliers(showInactive, vendorOnly)
+  const createMutation = useCreateSupplier()
+  const updateMutation = useUpdateSupplier()
+  const deleteMutation = useDeleteSupplier()
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { name: '', phone: '', isVendorBubut: false, notes: '' },
+    defaultValues: { name: '', phone: '', is_vendor_bubut: false, notes: '' },
   })
-  const isVendorBubut = watch('isVendorBubut')
+  const isVendorBubut = watch('is_vendor_bubut')
+
+  if (!isOwner) {
+    return <EmptyState message="Hanya owner yang bisa mengakses halaman ini." />
+  }
+
+  if (error) {
+    return <EmptyState message={`Gagal memuat data: ${(error as Error).message}`} />
+  }
 
   function openAdd() {
-    reset({ name: '', phone: '', isVendorBubut: false, notes: '' })
+    reset({ name: '', phone: '', is_vendor_bubut: false, notes: '' })
     setDialogMode('add')
     setEditing(null)
     setDialogOpen(true)
   }
 
   function openEdit(s: Supplier) {
-    reset({ name: s.name, phone: s.phone ?? '', isVendorBubut: s.isVendorBubut, notes: s.notes ?? '' })
+    reset({ name: s.name, phone: s.phone ?? '', is_vendor_bubut: s.is_vendor_bubut, notes: s.notes ?? '' })
     setDialogMode('edit')
     setEditing(s)
     setDialogOpen(true)
@@ -143,33 +144,39 @@ export default function MasterSupplierPage() {
     setConfirmOpen(true)
   }
 
-  function onSubmit(data: FormData) {
-    const payload = {
+  async function onSubmit(data: FormData) {
+    const input = {
       name: data.name,
-      phone: data.phone || undefined,
-      isVendorBubut: data.isVendorBubut,
-      notes: data.notes || undefined,
-      isActive: true,
+      phone: data.phone || null,
+      is_vendor_bubut: data.is_vendor_bubut,
+      notes: data.notes || null,
     }
-    if (dialogMode === 'add') {
-      add(payload)
-      auditLog({ userId: user?.name ?? '', action: 'create', entityType: 'supplier', entityId: 'new', afterData: { name: data.name } })
-      toast('Supplier ditambahkan', { description: `${data.name} berhasil ditambahkan.`, variant: 'success' })
-    } else if (editing) {
-      update(editing.id, payload)
-      auditLog({ userId: user?.name ?? '', action: 'update', entityType: 'supplier', entityId: editing.id, afterData: { name: data.name } })
-      toast('Supplier diperbarui', { description: `${data.name} berhasil disimpan.`, variant: 'success' })
+    try {
+      if (dialogMode === 'add') {
+        await createMutation.mutateAsync(input)
+        toast('Supplier ditambahkan', { description: `${data.name} berhasil ditambahkan.`, variant: 'success' })
+      } else if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, input })
+        toast('Supplier diperbarui', { description: `${data.name} berhasil disimpan.`, variant: 'success' })
+      }
+      setDialogOpen(false)
+    } catch (err) {
+      toast('Gagal menyimpan', { description: (err as Error).message, variant: 'destructive' })
     }
-    setDialogOpen(false)
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!pendingDelete) return
-    softDelete(pendingDelete.id)
-    auditLog({ userId: user?.name ?? '', action: 'delete', entityType: 'supplier', entityId: pendingDelete.id, afterData: { isActive: false } })
-    toast('Supplier dinonaktifkan', { description: `${pendingDelete.name} tidak ditampilkan di list aktif.` })
+    try {
+      await deleteMutation.mutateAsync(pendingDelete.id)
+      toast('Supplier dinonaktifkan', { description: `${pendingDelete.name} tidak ditampilkan di list aktif.` })
+    } catch (err) {
+      toast('Gagal menonaktifkan', { description: (err as Error).message, variant: 'destructive' })
+    }
     setPendingDelete(null)
   }
+
+  const isMutating = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
 
   return (
     <>
@@ -177,19 +184,21 @@ export default function MasterSupplierPage() {
         title="Supplier"
         description="Daftar supplier dan vendor bubut NQ21"
         addButtonLabel="+ Tambah Supplier"
-        data={displaySuppliers}
+        data={suppliers}
         columns={columns}
         searchKeys={['name', 'phone']}
         onAdd={openAdd}
         onEdit={openEdit}
         onDelete={openDelete}
         emptyState={{
-          message: vendorOnly
-            ? 'Tidak ada vendor bubut terdaftar.'
-            : showInactive
-              ? 'Tidak ada supplier.'
-              : 'Belum ada supplier terdaftar.',
-          action: (!vendorOnly && !showInactive)
+          message: isLoading
+            ? 'Memuat data...'
+            : vendorOnly
+              ? 'Tidak ada vendor bubut terdaftar.'
+              : showInactive
+                ? 'Tidak ada supplier.'
+                : 'Belum ada supplier terdaftar.',
+          action: (!vendorOnly && !showInactive && !isLoading)
             ? { label: '+ Tambah Supplier Pertama', onClick: openAdd }
             : undefined,
         }}
@@ -213,7 +222,7 @@ export default function MasterSupplierPage() {
         title={dialogMode === 'add' ? 'Tambah Supplier' : `Edit: ${editing?.name ?? ''}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit(onSubmit)}
-        submitLabel={dialogMode === 'add' ? 'Tambah' : 'Simpan'}
+        submitLabel={isMutating ? 'Menyimpan...' : dialogMode === 'add' ? 'Tambah' : 'Simpan'}
       >
         <FormField label="Nama" htmlFor="s-name" required error={errors.name?.message}>
           <Input id="s-name" placeholder="Contoh: Toko Sparepart Maju" {...register('name')} />
@@ -227,7 +236,7 @@ export default function MasterSupplierPage() {
           <FormField label="Vendor Bubut Luar">
             <button
               type="button"
-              onClick={() => setValue('isVendorBubut', !isVendorBubut)}
+              onClick={() => setValue('is_vendor_bubut', !isVendorBubut)}
               style={{ display: 'flex', alignItems: 'flex-start', gap: 10, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
             >
               <div style={{
