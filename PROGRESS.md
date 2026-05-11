@@ -653,8 +653,16 @@ _(none)_
 ### Minor Issues (defer M007 polish)
 - PDF export button: disabled placeholder (needs lib evaluation — M007)
 - "CETAK SEMUA SLIP" button: disabled placeholder (needs batch print logic — M007)
-- Print preview on narrow screens: table may overflow (acceptable for desktop-first)
 - Backdated warning toast on closed period input: tested visually, acceptable behavior
+
+### Patch: Print Overflow Fix (2026-05-11)
+**Commit**: 37f8862 · "M005 patch: fix slip print overflow — compress columns + shorten non-critical"
+- `src/styles/print.css`: slip-table compression (9pt body, 8pt headers, 8.5pt mono, 4px/5px padding, 44px min TGL)
+- `SlipTable.tsx`: added classNames per cell (`col-tgl`, `col-noref-full/short`, `col-customer`, `meta-motor`, `col-mono`, `col-komisi`)
+- Dual no-ref spans: full form on screen, `…-NNN` shortened on print (CSS toggle)
+- Customer: max-width 90px truncate + motor type hidden in print
+- `utils.ts`: `shortenNoRef()` helper ("TRX-20260510-008" → "…-008")
+- Verified: 10-column table fits A4 portrait 794px width ✅
 
 ---
 
