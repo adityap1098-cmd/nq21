@@ -4,8 +4,8 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M006 — Backend Integration (next)
-**Phase**: FE-only complete · M001-M005 ✅
+**Milestone aktif**: M007 — PWA & Polish (in progress)
+**Phase**: M001-M005 ✅ · M007 T1-T2 ✅ (T3-T5 next)
 **Last updated**: 2026-05-11
 
 ---
@@ -663,6 +663,37 @@ _(none)_
 - `print.css`: named `@page` rules — `compact-portrait` (A4 portrait) + `detail-landscape` (A4 landscape). Each slip variant sets `page:` property to select orientation automatically at print time
 - Compact mode: category-aggregated summary fits 1 page A4 portrait ✅
 - Detail mode: full transaction table, A4 landscape, all 10 columns ✅
+
+---
+
+## M007 — PWA & Polish ⏳
+
+**Visual ref**: N/A (PWA standard + code quality)
+
+### Tasks
+
+- [x] **M007-T1**: PWA Manifest + Icons + Splash Screen
+  > `public/manifest.json` — name/short_name/theme_color #C8102E/background #0A0908/standalone/lang id-ID
+  > `public/icons/icon.svg` + `icon-maskable.svg` — NQ21 brand mark SVG (dark bg, N glyph, red strip)
+  > `index.html` — manifest link + theme-color + Apple PWA meta tags
+  > `SplashScreen.tsx` — fixed overlay dark bg, NQ21 logo, red strip, tagline
+  > `App.tsx` — hydration gate (300ms timeout) shows SplashScreen before RouterProvider
+  > Build clean ✅
+
+- [x] **M007-T2**: Service Worker + Offline Support
+  > `vite-plugin-pwa` + `workbox-window` installed
+  > `vite.config.ts` — VitePWA plugin with CacheFirst strategy for Google Fonts, autoUpdate registerType
+  > `OfflineIndicator.tsx` — fixed badge top-right, yellow/dark, shows only when offline, pulse dot
+  > `PWAUpdatePrompt.tsx` — bottom-right card with Nanti/Update buttons, useRegisterSW hook
+  > `vite-env.d.ts` — `/// <reference types="vite-plugin-pwa/client" />` added
+  > `App.tsx` — wires OfflineIndicator + PWAUpdatePrompt after RouterProvider
+  > dist/sw.js + workbox-*.js generated ✅ · Build clean ✅
+
+- [ ] **M007-T3**: Lazy Loading + Code Splitting
+- [ ] **M007-T4**: Visual Polish + Bug Fixes
+- [ ] **M007-T5**: M007 Closer + Tag vM007
+
+---
 
 ### Patch v2: Landscape + Compact Header (2026-05-11)
 **Commit**: 8cff857 · "M005 patch v2: slip print landscape + compact header"
