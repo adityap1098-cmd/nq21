@@ -24,24 +24,26 @@ export const useAuthStore = create<AuthState>()((set) => ({
   loading: true,
 
   loadSession: async () => {
-    console.log('[auth] loadSession START')
     try {
-      console.log('[auth] calling getSession...')
-      const { data: { session }, error } = await supabase.auth.getSession()
-      console.log('[auth] getSession done:', { hasSession: !!session, error: error?.message })
+      // Race getSession against 3s timeout — corrupt localStorage token hangs forever
+      const result = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('getSession_timeout')), 3000)
+        ),
+      ])
 
+      const { data: { session }, error } = result
       if (error || !session) {
         set({ user: null, loading: false })
         return
       }
 
-      console.log('[auth] fetching profile for', session.user.id)
       const { data, error: profileError } = await supabase
         .from('profiles')
         .select('id, name, role, is_active')
         .eq('id', session.user.id)
         .maybeSingle()
-      console.log('[auth] profile done:', { hasData: !!data, error: profileError?.message })
 
       if (profileError || !data || !data.is_active) {
         await supabase.auth.signOut().catch(() => {})
@@ -58,9 +60,13 @@ export const useAuthStore = create<AuthState>()((set) => ({
         },
         loading: false,
       })
-      console.log('[auth] loadSession SUCCESS')
     } catch (err) {
-      console.error('[auth] loadSession CRASHED:', err)
+      // On timeout: purge corrupt sb-* tokens so next load works cleanly
+      if (err instanceof Error && err.message === 'getSession_timeout') {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('sb-')) localStorage.removeItem(k)
+        })
+      }
       set({ user: null, loading: false })
     }
   },

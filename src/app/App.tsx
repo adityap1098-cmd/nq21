@@ -32,16 +32,8 @@ export default function App() {
   useEffect(() => {
     const { loadSession, _setUser } = useAuthStore.getState()
 
-    // Safety: if loadSession hangs (token refresh network timeout), dismiss splash after 2s
-    const safetyTimer = setTimeout(() => {
-      if (useAuthStore.getState().loading) {
-        console.warn('[auth] loadSession 2s timeout — forcing loading=false')
-        useAuthStore.setState({ user: null, loading: false })
-      }
-    }, 2000)
-
     // Proactive session restore — no dependency on INITIAL_SESSION event timing
-    loadSession().finally(() => clearTimeout(safetyTimer))
+    loadSession()
 
     // Listener for subsequent auth changes only (login, logout, token refresh, multi-tab)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -69,10 +61,7 @@ export default function App() {
       }
     )
 
-    return () => {
-      clearTimeout(safetyTimer)
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   if (loading) return <SplashScreen />
