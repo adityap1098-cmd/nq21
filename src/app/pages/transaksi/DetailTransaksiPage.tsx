@@ -227,7 +227,7 @@ export default function DetailTransaksiPage() {
     if (txBubutLink) softDelete(txBubutLink.expenseTransactionId, now)
     const userId = users.find((u) => u.name === user?.name)?.id ?? 'unknown'
     auditLog({ userId, action: 'delete', entityType: 'transaction', entityId: tx.id, source: 'detail-page', beforeData: { noReferensi: tx.noReferensi } })
-    toast({ title: 'Transaksi dihapus', description: tx.noReferensi })
+    toast('Transaksi dihapus', { description: tx.noReferensi })
     navigate('/transaksi')
   }
 
@@ -582,7 +582,7 @@ export default function DetailTransaksiPage() {
         </div>
 
         {/* ── Summary footer ── */}
-        <Card style={{ borderTop: '3px solid var(--text)' }}>
+        <Card style={{ borderTop: '3px solid var(--text)', gap: 0 }}>
           {/* Total */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: komisiByMechanic.size > 0 ? 16 : 0 }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>

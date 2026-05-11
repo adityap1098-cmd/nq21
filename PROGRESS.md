@@ -4,7 +4,7 @@
 
 ## Status Saat Ini
 
-**Milestone aktif**: M003 — Transaksi UI
+**Milestone aktif**: M004 — Laporan & Dashboard UI
 **Phase**: FE-only (M001-M005)
 **Last updated**: 2026-05-11
 
@@ -293,12 +293,37 @@ _(none — bundle v2 resolved via manual placement di design/v2/)_
   > Audit log: action='update', source='edit-form', before/after totalNominal+tglTransaksi
   > Verified: preload ✅, noRef locked ✅, tipe locked ✅, save→detail+audit ✅, dirty confirm ✅, deleted guard ✅
 
-- [ ] **M003-T11**: Closer — verify + screenshot + tag vM003
-  > Route verify: /transaksi, /transaksi/baru, /transaksi/:id, /transaksi/:id/edit
-  > DoD: form save → muncul di Daftar, Detail menampilkan data benar, Edit update benar
-  > Screenshot semua 4 halaman
-  > Update PROGRESS.md M003 COMPLETE
-  > git tag vM003
+- [x] **M003-T11**: Closer — verify + screenshot + tag vM003
+  > Route verify: /transaksi ✅, /transaksi/baru ✅, /transaksi/:id ✅, /transaksi/:id/edit ✅
+  > Scenario 1: Jasa multi-mekanik — komisi Rp 45.000 exact (200k − 50k basis × 30%) ✅
+  > Scenario 2: Bubut Luar dual-leg — TRX-002 income + TRX-002-VENDOR auto-expense, parent link, margin panel ✅
+  > Scenario 3: Mekanik nonaktif — excluded from picker, TAMBAH MEKANIK disabled + tooltip ✅
+  > Scenario 4: Delete cascade — both legs soft-deleted, bug fixed (toast wrong call signature) ✅
+  > Scenario 5: Backdated period warning toast — appeared during Scenario 1 ✅
+  > Edit flow: preload ✅, noRef locked ✅, tipe dimmed ✅, SIMPAN PERUBAHAN ✅, audit 2 entri ✅
+  > Bug fixed: DetailTransaksiPage:230 `toast({title,description})` → `toast(title, {description})`
+  > PROGRESS.md M003 COMPLETE ✅ · git tag vM003 ✅
+
+### M003 COMPLETE ✅ — 2026-05-11
+
+**4 halaman live**: Input Transaksi · Daftar Transaksi · Detail Transaksi · Edit Transaksi
+
+**Verified scenarios**:
+1. Full jasa multi-mekanik — komisi formula exact ✅
+2. Bubut Luar dual-leg auto-create ✅
+3. Mekanik nonaktif exclusion ✅
+4. Delete cascade (income + vendor leg) ✅
+5. Backdated period warning toast ✅
+
+**Bug caught & fixed**: `toast({title,description})` → `toast(title, {description})` in DetailTransaksiPage — caused React render crash after delete.
+
+**New files**: `TransactionForm.tsx`, `TransactionSummary.tsx`, `LineItemCard.tsx`, `MechanicChipRow.tsx`, `CustomerSupplierAutocomplete.tsx`, `InlineCreateDialog.tsx`, `DaftarTransaksiPage.tsx`, `DetailTransaksiPage.tsx`, `EditTransaksiPage.tsx`
+
+**Store additions**: `addTransactionFull()`, `updateTransactionFull()`, `softDelete()`, `bubutLuarLinks[]`
+
+**Tag**: vM003
+
+---
 
 ### Blockers
 _(none)_
