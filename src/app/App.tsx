@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { router } from './router'
 import { SplashScreen } from './components/SplashScreen'
+import { OfflineIndicator } from './components/OfflineIndicator'
+import { PWAUpdatePrompt } from './components/PWAUpdatePrompt'
 
 export default function App() {
   const [hydrated, setHydrated] = useState(false)
@@ -13,5 +15,11 @@ export default function App() {
 
   if (!hydrated) return <SplashScreen />
 
-  return <RouterProvider router={router} />
+  return (
+    <>
+      <RouterProvider router={router} />
+      <OfflineIndicator />
+      <PWAUpdatePrompt />
+    </>
+  )
 }
