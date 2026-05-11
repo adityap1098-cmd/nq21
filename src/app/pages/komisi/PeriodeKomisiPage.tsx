@@ -6,17 +6,22 @@ import { useMechanicStore } from '@/store/master/mechanics'
 import { useCustomerStore } from '@/store/master/customers'
 import { useCategoryStore } from '@/store/master/categories'
 import { useAuthStore } from '@/store/auth'
+import { useAuditStore } from '@/store/audit'
 import { getPayoutsForPeriod } from '@/store/selectors'
+import { toast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/nq21/PageHeader'
 import { PeriodSelectorCard } from '@/features/komisi/components/PeriodSelectorCard'
 import { PeriodSummaryPanel } from '@/features/komisi/components/PeriodSummaryPanel'
 import { MechanicSlipCard } from '@/features/komisi/components/MechanicSlipCard'
 import { SlipPaper } from '@/features/komisi/components/SlipPaper'
+import { ClosePeriodDialog } from '@/features/komisi/components/ClosePeriodDialog'
+import { fmtPeriodFull } from '@/features/komisi/utils'
 
 export default function PeriodeKomisiPage() {
   const navigate = useNavigate()
 
-  const { periods, payouts: storedPayouts } = useCommissionStore()
+  const { periods, payouts: storedPayouts, closeAndGeneratePayouts } = useCommissionStore()
+  const logAudit = useAuditStore(s => s.log)
   const { transactions, lines: transactionLines, lineMechanics } = useTransactionStore()
   const { mechanics, rates } = useMechanicStore()
   const { customers } = useCustomerStore()
@@ -147,6 +152,35 @@ export default function PeriodeKomisiPage() {
   const getStoredPayout = (mechanicId: string) =>
     periodStoredPayouts.find(p => p.mechanicId === mechanicId)
 
+  // Close period dialog
+  const [showClosePeriodDialog, setShowClosePeriodDialog] = useState(false)
+
+  async function handleConfirmClose() {
+    if (!selectedPeriod || !user) return
+    const result = closeAndGeneratePayouts(
+      selectedPeriod.id,
+      user.username,
+      computedPayouts.map(p => ({
+        mechanicId: p.mechanicId,
+        totalJobs: p.totalJobs,
+        totalBasis: p.totalBasis,
+        totalKomisi: p.totalKomisi,
+      }))
+    )
+    logAudit({ userId: user.username, action: 'update', entityType: 'period', entityId: selectedPeriod.id, source: 'close-period', afterData: { status: 'closed' } })
+    computedPayouts.forEach(p => {
+      logAudit({ userId: user.username, action: 'create', entityType: 'payout', entityId: `${selectedPeriod.id}:${p.mechanicId}`, source: 'close-period' })
+    })
+    toast(`Periode ${fmtPeriodFull(selectedPeriod.weekStart, selectedPeriod.weekEnd)} berhasil ditutup`, {
+      description: `${computedPayouts.length} payout di-generate.`,
+      variant: 'success',
+    })
+    if (result.nextPeriodId) {
+      toast('Periode baru otomatis dibuat', { variant: 'success' })
+    }
+    setShowClosePeriodDialog(false)
+  }
+
   // ── Empty state ────────────────────────────────────────────────────────────
 
   if (periods.length === 0) {
@@ -193,19 +227,34 @@ export default function PeriodeKomisiPage() {
             >
               CETAK SEMUA SLIP
             </button>
-            {isOpenSelected && (
-              <button
-                onClick={() => { /* T2: ClosePeriodDialog */ }}
-                style={{
-                  padding: '8px 18px', borderRadius: 6,
-                  fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-                  background: 'var(--text)', border: '1px solid var(--text)',
-                  color: '#fff', cursor: 'pointer',
-                }}
-              >
-                TUTUP PERIODE ▶
-              </button>
-            )}
+            {isOpenSelected && (() => {
+              const noJasa = computedPayouts.length === 0
+              const notOwner = !isOwner
+              const disabled = noJasa || notOwner
+              const title = notOwner
+                ? 'Hanya owner yang bisa tutup periode.'
+                : noJasa
+                  ? 'Belum ada jasa di periode ini. Input transaksi jasa dulu.'
+                  : undefined
+              return (
+                <button
+                  onClick={() => setShowClosePeriodDialog(true)}
+                  disabled={disabled}
+                  title={title}
+                  style={{
+                    padding: '8px 18px', borderRadius: 6,
+                    fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                    background: disabled ? 'var(--border)' : 'var(--text)',
+                    border: `1px solid ${disabled ? 'var(--border)' : 'var(--text)'}`,
+                    color: disabled ? 'var(--text-muted)' : '#fff',
+                    cursor: disabled ? 'not-allowed' : 'pointer',
+                    opacity: disabled ? 0.6 : 1,
+                  }}
+                >
+                  TUTUP PERIODE ▶
+                </button>
+              )
+            })()}
           </div>
         }
       />
@@ -301,6 +350,17 @@ export default function PeriodeKomisiPage() {
           )}
         </div>
       </div>
+
+      {/* Close Period Dialog */}
+      {selectedPeriod && showClosePeriodDialog && (
+        <ClosePeriodDialog
+          open={showClosePeriodDialog}
+          period={selectedPeriod}
+          payouts={computedPayouts}
+          onClose={() => setShowClosePeriodDialog(false)}
+          onConfirm={handleConfirmClose}
+        />
+      )}
     </div>
   )
 }
