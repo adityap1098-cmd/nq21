@@ -11,9 +11,10 @@ interface Props {
   rates: CommissionRate[]
   isOwner: boolean
   variant?: 'embedded' | 'standalone'
+  onMarkPaid?: () => void
 }
 
-export function SlipPaper({ period, computed, storedPayout, rates, isOwner, variant = 'embedded' }: Props) {
+export function SlipPaper({ period, computed, storedPayout, rates, isOwner, variant = 'embedded', onMarkPaid }: Props) {
   const isOpen = period.status === 'open'
   const initial = getInitial(computed.mechanicName)
   const backdatedCount = computed.lines.filter(l => l.isBackdated).length
@@ -239,13 +240,12 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
             </button>
             {canMarkPaid && (
               <button
-                disabled
-                title="Coming in T4"
+                onClick={onMarkPaid}
                 style={{
                   padding: '8px 18px', borderRadius: 6,
                   fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
                   background: 'var(--text)', border: '1px solid var(--text)',
-                  color: '#fff', cursor: 'not-allowed', opacity: 0.7,
+                  color: '#fff', cursor: 'pointer',
                 }}
               >
                 TANDAI DIBAYAR

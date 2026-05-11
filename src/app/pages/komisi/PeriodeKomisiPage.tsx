@@ -15,12 +15,13 @@ import { PeriodSummaryPanel } from '@/features/komisi/components/PeriodSummaryPa
 import { MechanicSlipCard } from '@/features/komisi/components/MechanicSlipCard'
 import { SlipPaper } from '@/features/komisi/components/SlipPaper'
 import { ClosePeriodDialog } from '@/features/komisi/components/ClosePeriodDialog'
+import { MarkPaidDialog } from '@/features/komisi/components/MarkPaidDialog'
 import { fmtPeriodFull } from '@/features/komisi/utils'
 
 export default function PeriodeKomisiPage() {
   const navigate = useNavigate()
 
-  const { periods, payouts: storedPayouts, closeAndGeneratePayouts } = useCommissionStore()
+  const { periods, payouts: storedPayouts, closeAndGeneratePayouts, markPaid } = useCommissionStore()
   const logAudit = useAuditStore(s => s.log)
   const { transactions, lines: transactionLines, lineMechanics } = useTransactionStore()
   const { mechanics, rates } = useMechanicStore()
@@ -181,6 +182,27 @@ export default function PeriodeKomisiPage() {
     setShowClosePeriodDialog(false)
   }
 
+  // Mark paid dialog
+  const [showMarkPaidDialog, setShowMarkPaidDialog] = useState(false)
+
+  async function handleConfirmMarkPaid(paidNotes?: string) {
+    if (!selectedPayout || !user) return
+    const stored = getStoredPayout(selectedPayout.mechanicId)
+    if (!stored) return
+    markPaid(stored.id, new Date().toISOString(), user.username, paidNotes)
+    logAudit({
+      userId: user.username,
+      action: 'update',
+      entityType: 'payout',
+      entityId: stored.id,
+      source: 'mark-paid',
+      beforeData: { status: 'pending' },
+      afterData: { status: 'paid', paidNotes },
+    })
+    toast(`Komisi ${selectedPayout.mechanicName} ditandai dibayar`, { variant: 'success' })
+    setShowMarkPaidDialog(false)
+  }
+
   // ── Empty state ────────────────────────────────────────────────────────────
 
   if (periods.length === 0) {
@@ -336,6 +358,7 @@ export default function PeriodeKomisiPage() {
               storedPayout={getStoredPayout(selectedPayout.mechanicId)}
               rates={rates}
               isOwner={isOwner}
+              onMarkPaid={() => setShowMarkPaidDialog(true)}
             />
           ) : (
             <div style={{
@@ -350,6 +373,17 @@ export default function PeriodeKomisiPage() {
           )}
         </div>
       </div>
+
+      {/* Mark Paid Dialog */}
+      {selectedPayout && selectedPeriod && showMarkPaidDialog && (
+        <MarkPaidDialog
+          open={showMarkPaidDialog}
+          payout={selectedPayout}
+          period={selectedPeriod}
+          onClose={() => setShowMarkPaidDialog(false)}
+          onConfirm={handleConfirmMarkPaid}
+        />
+      )}
 
       {/* Close Period Dialog */}
       {selectedPeriod && showClosePeriodDialog && (

@@ -567,11 +567,12 @@ _(none)_
   > router.tsx: `/komisi/slip/:periodId/:mechanicId` → SlipPage (outside Layout)
   > Build clean ✅
 
-- [ ] **M005-T4**: Mark As Paid workflow
-  > "TANDAI DIBAYAR" button in slip viewer actions (owner only, pending status)
-  > MarkPaidDialog: mechanic name + komisi amount + optional paidNotes textarea
-  > On confirm: `markPaid(payoutId, now, userId, notes)` → badge updates to DIBAYAR
-  > Toast + audit log entry
+- [x] **M005-T4**: Mark As Paid workflow
+  > `MarkPaidDialog` — mechanic avatar+name, periode, jobs+basis+komisi info card, notes textarea (max 200 char), BATAL + TANDAI DIBAYAR
+  > `SlipPaper` updated: `onMarkPaid?: () => void` prop; TANDAI DIBAYAR button now active (was disabled placeholder)
+  > `PeriodeKomisiPage`: `showMarkPaidDialog` state + `handleConfirmMarkPaid` → `markPaid(stored.id, now, username, notes)` + audit log `mark-paid` + toast success
+  > Post-action: badge updates PENDING → DIBAYAR, button disappears, paidAt shown in footer
+  > Build clean ✅
 
 - [ ] **M005-T5**: Mekanik & Komisi overview page (`/komisi/mekanik`)
   > Cross-periode view: filter mekanik + filter periode
