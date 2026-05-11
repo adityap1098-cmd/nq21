@@ -15,6 +15,7 @@ import DaftarTransaksiPage from './pages/transaksi/DaftarTransaksiPage'
 import DetailTransaksiPage from './pages/transaksi/DetailTransaksiPage'
 import EditTransaksiPage from './pages/transaksi/EditTransaksiPage'
 import LaporanKategoriPage from './pages/laporan/LaporanKategoriPage'
+import LaporanCashFlowPage from './pages/laporan/LaporanCashFlowPage'
 import ProtectedRoute from '@/components/layout/ProtectedRoute'
 
 const ph = (heading: string, sub?: string) => (
@@ -39,7 +40,7 @@ export const router = createBrowserRouter([
           { path: 'transaksi/:id',                   element: <DetailTransaksiPage /> },
           { path: 'transaksi/:id/edit',              element: <EditTransaksiPage /> },
           { path: 'laporan/kategori',                element: <LaporanKategoriPage /> },
-          { path: 'laporan/cash-flow',               element: ph('CASH FLOW') },
+          { path: 'laporan/cash-flow',               element: <LaporanCashFlowPage /> },
           { path: 'laporan/jasa',                    element: ph('JASA & MEKANIK') },
           { path: 'laporan/dyno',                    element: ph('DYNO') },
           { path: 'komisi/periode',                  element: ph('PERIODE MINGGUAN') },

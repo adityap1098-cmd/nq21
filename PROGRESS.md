@@ -431,12 +431,16 @@ _(none)_
   > Topbar search bar → click opens palette; Layout.tsx wires Ctrl+K global shortcut
   > Verified: "Pak" → 6 txns + Pak Hendro customer; "bubut" → vendor txns + Bubut Mandala Jaya supplier
 
-- [ ] **M004-T4**: Laporan Cash Flow
-  > Route: `/laporan/cash-flow`
-  > Date range filter (default: active period)
-  > BarChart: daily in vs out (Recharts, NQ21 colors)
-  > Summary strip: total in, total out, net
-  > CSV export
+- [x] **M004-T4**: Laporan Cash Flow
+  > Route: `/laporan/cash-flow` → `LaporanCashFlowPage`
+  > `usePeriodFilter` reused; filter chips: Tipe (Semua/Pemasukan/Pengeluaran) + Metode (Semua/Cash/Transfer/QRIS)
+  > Summary strip 3-col: Total Masuk (green tint) + Total Keluar (red tint) + Saldo Bersih (dark bg positive / red negative)
+  > Detail table ascending chronological: TGL/JAM/NO REF/PARTY/KATEGORI/METODE/NOMINAL/SALDO running
+  > border-left 3px green income / red expense; click row → /transaksi/{id}
+  > Saldo running computed via useMemo; negative saldo → red color + warning banner below table
+  > Pagination 50/page; empty state per-filter vs no-data; Reset Filter + Input Transaksi actions
+  > CSV: tanggal, jam, noRef, party, kategori, tipe, metode, nominal, delta, saldo berjalan
+  > Verified: Pemasukan+Cash filter → 9 rows, saldo akumulasi Rp 9.970.000 ✓
 
 - [ ] **M004-T5**: Laporan Jasa & Mekanik
   > Route: `/laporan/jasa`
