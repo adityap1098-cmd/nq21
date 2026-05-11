@@ -385,8 +385,7 @@ export default function DetailTransaksiPage() {
 
         {/* ── Info card ── */}
         <Card>
-          {/* Adaptive: 3-col compact when no notes, 2-col when notes present */}
-          <div style={{ display: 'grid', gridTemplateColumns: hasNotes ? '1fr 1fr' : '1fr 1fr 1fr', gap: '16px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 24px' }}>
             {/* Party */}
             <div>
               <SectionLabel>{isIncome ? 'CUSTOMER' : 'SUPPLIER'}</SectionLabel>
@@ -425,17 +424,17 @@ export default function DetailTransaksiPage() {
                 {fmtTs(tx.createdAt)}
               </div>
             </div>
-
-            {/* Notes — only rendered when has content (avoids wasted space in 2-col layout) */}
-            {hasNotes && (
-              <div>
-                <SectionLabel>CATATAN</SectionLabel>
-                <div style={{ fontSize: 12, color: 'var(--text)' }}>
-                  {tx.notes}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Notes — below 3-col row with dashed separator */}
+          {hasNotes && (
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px dashed var(--border)' }}>
+              <SectionLabel>CATATAN</SectionLabel>
+              <div style={{ fontSize: 12, color: 'var(--text)', fontStyle: 'italic' }}>
+                {tx.notes}
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* ── Line items ── */}
@@ -466,29 +465,34 @@ export default function DetailTransaksiPage() {
                   {!cat?.isActive && <Badge label="KATEGORI DIHAPUS" color="var(--text-muted)" bg="var(--surface-alt)" />}
                 </div>
 
-                {/* Line amounts grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: isJasa ? 'repeat(3, 1fr)' : '1fr', gap: '8px 16px', marginBottom: isJasa && mechRows.length ? 14 : 0 }}>
-                  <div>
-                    <SectionLabel>NOMINAL</SectionLabel>
-                    <CurrencyDisplay value={line.nominal} size="sm" />
+                {/* Line amounts — adaptive by type */}
+                {isJasa ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 16px', marginBottom: mechRows.length ? 14 : 0 }}>
+                    <div>
+                      <SectionLabel>NOMINAL</SectionLabel>
+                      <CurrencyDisplay value={line.nominal} size="sm" />
+                    </div>
+                    <div>
+                      <SectionLabel>BIAYA MATERIAL</SectionLabel>
+                      <CurrencyDisplay value={line.biayaMaterial} size="sm" />
+                    </div>
+                    <div>
+                      <SectionLabel>BASIS KOMISI</SectionLabel>
+                      <CurrencyDisplay value={basis} size="sm" />
+                    </div>
                   </div>
-                  {isJasa && (
-                    <>
-                      <div>
-                        <SectionLabel>BIAYA MATERIAL</SectionLabel>
-                        <CurrencyDisplay value={line.biayaMaterial} size="sm" />
-                      </div>
-                      <div>
-                        <SectionLabel>BASIS KOMISI</SectionLabel>
-                        <CurrencyDisplay value={basis} size="sm" />
-                      </div>
-                    </>
-                  )}
-                </div>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                    <SectionLabel>NOMINAL</SectionLabel>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 700 }}>
+                      Rp {line.nominal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                )}
 
-                {/* Jasa notes */}
+                {/* Notes (non-jasa) */}
                 {!isJasa && line.notes && (
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', marginBottom: 10 }}>
+                  <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed var(--border)', fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>
                     {line.notes}
                   </div>
                 )}
@@ -630,27 +634,23 @@ export default function DetailTransaksiPage() {
             </div>
           )}
 
-          {/* Period info */}
+          {/* Period info — compact inline */}
           {period && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-              <div>
-                <SectionLabel>PERIODE KOMISI</SectionLabel>
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
-                  {fmtTgl(period.weekStart, 'short')} – {fmtTgl(period.weekEnd, 'short')}
-                </span>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <Badge
-                  label={period.status === 'open' ? 'OPEN' : 'CLOSED'}
-                  color={period.status === 'open' ? 'var(--success)' : 'var(--text-muted)'}
-                  bg={period.status === 'open' ? 'rgba(16,185,129,0.1)' : 'var(--surface-alt)'}
-                />
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 4 }}>
-                  {period.status === 'open'
-                    ? 'Komisi akan masuk slip mingguan'
-                    : 'Periode ditutup, komisi sudah dibayarkan'}
-                </div>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
+                PERIODE KOMISI
+              </span>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
+                {fmtTgl(period.weekStart, 'short')} – {fmtTgl(period.weekEnd, 'short')}
+              </span>
+              <Badge
+                label={period.status === 'open' ? 'OPEN' : 'CLOSED'}
+                color={period.status === 'open' ? 'var(--success)' : 'var(--text-muted)'}
+                bg={period.status === 'open' ? 'rgba(16,185,129,0.1)' : 'var(--surface-alt)'}
+              />
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-muted)' }}>
+                · {period.status === 'open' ? 'Komisi akan masuk slip mingguan' : 'Periode ditutup, komisi sudah dibayarkan'}
+              </span>
             </div>
           )}
         </Card>

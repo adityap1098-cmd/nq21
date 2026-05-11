@@ -468,6 +468,12 @@ _(none)_
   > Issue #2 — Daftar Transaksi sortable columns: click header toggles asc/desc; active column shows accent ▲/▼ indicator; sort by noReferensi/tglTransaksi/tipe/party/paymentMethod/totalNominal; default tglTransaksi desc; filter + sort independent
   > Issue #3 — Laporan Per Kategori grand total sticky bottom: grand total moved out of `<tbody>` into separate `<div>` at bottom of flex column; both panels (income + expense) always have grand total at same Y position regardless of row count difference
 
+- [x] **M004-T7-patch**: Detail Transaksi final polish
+  > FIX #1 (button order) — already correct from T6.5; confirmed KEMBALI → HAPUS → EDIT ✅
+  > FIX #2 (info card) — always 3-col horizontal (Party · Metode · Dibuat); notes rendered BELOW row with `border-top: 1px dashed var(--border)` separator; removed adaptive 2-col/3-col switching
+  > FIX #3 (line items) — adaptive render: jasa = 3-col grid (NOMINAL|MATERIAL|BASIS) + mechanic chips; non-jasa = compact flex-row (NOMINAL label left · value right, ~50% shorter card); non-jasa notes below dashed separator
+  > FIX #4 (period inline) — period section refactored to single flex-row: PERIODE KOMISI label · date range · badge · note text all inline, no stacked vertical whitespace
+
 - [x] **M004-T7**: Closer — Verify + Tag vM004
   > All 4 laporan routes live (swap PlaceholderPage — LaporanJasaPage + LaporanDynoPage wired in T5/T6)
   > Smoke test via Playwright: /dashboard, /laporan/kategori, /laporan/cash-flow, /laporan/jasa, /laporan/dyno, /transaksi, /transaksi/:id (2 variants), Command Palette
