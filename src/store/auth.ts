@@ -26,11 +26,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
   loadSession: async () => {
     console.log('[auth] loadSession start')
     try {
-      // Race getSession against 3s timeout — corrupt localStorage token hangs forever
+      // Race getSession against 8s timeout — gives SDK enough time on cold/multi-tab start.
+      // 3s was too aggressive: fresh tab on slow connection reliably hit the timeout.
       const result = await Promise.race([
         supabase.auth.getSession(),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('getSession_timeout')), 3000)
+          setTimeout(() => reject(new Error('getSession_timeout')), 8000)
         ),
       ])
 
