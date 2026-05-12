@@ -158,7 +158,7 @@ export default function DetailTransaksiPage() {
 
   const period = useMemo(() => {
     if (!tx) return null
-    return getPeriodForDate(tx.tgl_transaksi, periods)
+    return getPeriodForDate(tx.tgl, periods)
   }, [tx, periods])
 
   const hasJasaLine = useMemo(() => {
@@ -386,7 +386,7 @@ export default function DetailTransaksiPage() {
             bg={isIncome ? 'rgba(16,185,129,0.1)' : 'rgba(200,16,46,0.1)'}
           />
           <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-secondary)' }}>
-            {fmtTgl(tx.tgl_transaksi)}
+            {fmtTgl(tx.tgl)}
           </span>
           {isDeleted
             ? <Badge label="DIHAPUS" color="var(--accent)" bg="rgba(200,16,46,0.1)" />

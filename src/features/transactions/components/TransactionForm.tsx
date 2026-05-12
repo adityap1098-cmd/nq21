@@ -393,7 +393,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         // ── ADD PATH ───────────────────────────────────────────────────────
         const result = await createTransaction.mutateAsync({
           no_referensi: formData.noReferensi,
-          tgl_transaksi: formData.tgl,
+          tgl: formData.tgl,
           tipe: formData.tipe,
           customer_id: formData.tipe === 'income' ? (formData.customerId ?? null) : null,
           supplier_id: formData.tipe === 'expense' ? (formData.supplierId ?? null) : null,

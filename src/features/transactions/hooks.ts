@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 export interface TransactionRow {
   id: string
   no_referensi: string
-  tgl_transaksi: string
+  tgl: string
   tipe: 'income' | 'expense'
   customer_id: string | null
   supplier_id: string | null
@@ -29,7 +29,7 @@ export interface TransactionLineRow {
 
 export interface TransactionLineMechanicRow {
   id: string
-  transaction_line_id: string
+  line_id: string
   mechanic_id: string
   share_percent: number
   rate_override: number | null
@@ -70,13 +70,13 @@ export function useTransactions(filters: TransactionFilters = {}) {
       let query = supabase
         .from('transactions')
         .select('*')
-        .order('tgl_transaksi', { ascending: false })
+        .order('tgl', { ascending: false })
         .order('created_at', { ascending: false })
 
       if (!filters.includeDeleted) query = query.is('deleted_at', null)
       if (filters.tipe) query = query.eq('tipe', filters.tipe)
-      if (filters.dateFrom) query = query.gte('tgl_transaksi', filters.dateFrom)
-      if (filters.dateTo) query = query.lte('tgl_transaksi', filters.dateTo)
+      if (filters.dateFrom) query = query.gte('tgl', filters.dateFrom)
+      if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
 
       const { data, error } = await query
       if (error) throw error
@@ -109,7 +109,7 @@ export function useNextNoReferensi(tipe: 'income' | 'expense', tgl: string) {
 
 export interface TransactionCreateInput {
   no_referensi: string
-  tgl_transaksi: string
+  tgl: string
   tipe: 'income' | 'expense'
   customer_id?: string | null
   supplier_id?: string | null
@@ -162,7 +162,7 @@ export function useCreateTransaction() {
           .from('transactions')
           .insert({
             no_referensi: input.no_referensi,
-            tgl_transaksi: input.tgl_transaksi,
+            tgl: input.tgl,
             tipe: input.tipe,
             customer_id: input.customer_id ?? null,
             supplier_id: input.supplier_id ?? null,
@@ -199,7 +199,7 @@ export function useCreateTransaction() {
               .from('transaction_line_mechanics')
               .insert(
                 line.mechanics.map((m) => ({
-                  transaction_line_id: lineRow.id,
+                  line_id: lineRow.id,
                   mechanic_id: m.mechanic_id,
                   share_percent: m.share_percent,
                   rate_override: m.rate_override ?? null,
@@ -217,7 +217,7 @@ export function useCreateTransaction() {
               .from('transactions')
               .insert({
                 no_referensi: `${input.no_referensi}-VENDOR`,
-                tgl_transaksi: input.tgl_transaksi,
+                tgl: input.tgl,
                 tipe: 'expense' as const,
                 supplier_id: vendorSupplierId,
                 payment_method: input.payment_method,

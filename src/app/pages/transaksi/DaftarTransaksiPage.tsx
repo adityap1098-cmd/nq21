@@ -15,7 +15,7 @@ const PAGE_SIZE = 20
 
 type PeriodFilter = 'today' | 'week' | 'month' | 'all'
 type TipeFilter = 'all' | 'income' | 'expense'
-type SortKey = 'no_referensi' | 'tgl_transaksi' | 'tipe' | 'party' | 'payment_method' | 'total_nominal'
+type SortKey = 'no_referensi' | 'tgl' | 'tipe' | 'party' | 'payment_method' | 'total_nominal'
 type SortDir = 'asc' | 'desc'
 
 function getInterval(period: PeriodFilter): { start: Date; end: Date } | null {
@@ -121,7 +121,7 @@ export default function DaftarTransaksiPage() {
   const [tipe, setTipe]       = useState<TipeFilter>('all')
   const [period, setPeriod]   = useState<PeriodFilter>('week')
   const [page, setPage]       = useState(1)
-  const [sortBy, setSortBy]   = useState<SortKey>('tgl_transaksi')
+  const [sortBy, setSortBy]   = useState<SortKey>('tgl')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   const filtered = useMemo(() => {
@@ -132,7 +132,7 @@ export default function DaftarTransaksiPage() {
       if (tipe !== 'all' && t.tipe !== tipe) return false
 
       if (interval) {
-        const d = parseISO(t.tgl_transaksi + 'T00:00:00')
+        const d = parseISO(t.tgl + 'T00:00:00')
         if (!isWithinInterval(d, interval)) return false
       }
 
@@ -163,8 +163,8 @@ export default function DaftarTransaksiPage() {
       } else if (sortBy === 'total_nominal') {
         cmp = a.total_nominal - b.total_nominal
       } else {
-        const aVal = a[sortBy as 'no_referensi' | 'tgl_transaksi' | 'tipe' | 'payment_method']
-        const bVal = b[sortBy as 'no_referensi' | 'tgl_transaksi' | 'tipe' | 'payment_method']
+        const aVal = a[sortBy as 'no_referensi' | 'tgl' | 'tipe' | 'payment_method']
+        const bVal = b[sortBy as 'no_referensi' | 'tgl' | 'tipe' | 'payment_method']
         cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0
       }
       return sortDir === 'asc' ? cmp : -cmp
@@ -301,7 +301,7 @@ export default function DaftarTransaksiPage() {
                 {(
                   [
                     { label: 'NO. REFERENSI', col: 'no_referensi' as SortKey, align: 'left' },
-                    { label: 'TANGGAL',       col: 'tgl_transaksi' as SortKey, align: 'left' },
+                    { label: 'TANGGAL',       col: 'tgl' as SortKey, align: 'left' },
                     { label: 'TIPE',          col: 'tipe' as SortKey, align: 'center' },
                     { label: 'CUSTOMER / SUPPLIER', col: 'party' as SortKey, align: 'left' },
                     { label: 'METODE',        col: 'payment_method' as SortKey, align: 'center' },
@@ -349,7 +349,7 @@ export default function DaftarTransaksiPage() {
                       </span>
                     </td>
                     <td style={colStyle}>
-                      <DateDisplay value={tx.tgl_transaksi + 'T00:00:00'} format="short" />
+                      <DateDisplay value={tx.tgl + 'T00:00:00'} format="short" />
                     </td>
                     <td style={{ ...colStyle, textAlign: 'center' }}>
                       <TipeBadge tipe={tx.tipe} />
