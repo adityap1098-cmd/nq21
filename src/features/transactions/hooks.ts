@@ -294,7 +294,7 @@ export function useTransaction(id: string | undefined) {
         .from('transaction_lines')
         .select('*, transaction_line_mechanics(*)')
         .eq('transaction_id', id!)
-        .order('created_at')
+        .order('line_order')
       if (linesErr) throw linesErr
 
       const lineIds = (linesRaw ?? []).map((l) => l.id as string)
