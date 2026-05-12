@@ -178,7 +178,8 @@ export function useCreateTransaction() {
 
         let expenseTxId: string | null = null
 
-        for (const line of input.lines) {
+        for (let i = 0; i < input.lines.length; i++) {
+          const line = input.lines[i]
           const { data: lineRow, error: lineErr } = await supabase
             .from('transaction_lines')
             .insert({
@@ -188,6 +189,7 @@ export function useCreateTransaction() {
               biaya_material: line.biaya_material,
               item_name: line.item_name ?? null,
               notes: line.notes ?? null,
+              line_order: i,
             })
             .select('id')
             .single()
@@ -240,6 +242,7 @@ export function useCreateTransaction() {
                 biaya_material: 0,
                 item_name: null,
                 notes: null,
+                line_order: 0,
               })
               .select('id')
               .single()
