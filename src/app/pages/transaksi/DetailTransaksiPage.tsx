@@ -230,13 +230,10 @@ export default function DetailTransaksiPage() {
     if (!tx) return
     const now = new Date().toISOString()
 
-    const updates: Promise<unknown>[] = [
-      supabase.from('transactions').update({ deleted_at: now }).eq('id', tx.id),
-    ]
+    await supabase.from('transactions').update({ deleted_at: now }).eq('id', tx.id)
     if (bubutLink) {
-      updates.push(supabase.from('transactions').update({ deleted_at: now }).eq('id', bubutLink.expense_transaction_id))
+      await supabase.from('transactions').update({ deleted_at: now }).eq('id', bubutLink.expense_transaction_id)
     }
-    await Promise.all(updates)
 
     const userId = users.find((u) => u.name === user?.name)?.id ?? 'unknown'
     auditLog({ userId, action: 'delete', entityType: 'transaction', entityId: tx.id, source: 'detail-page', beforeData: { no_referensi: tx.no_referensi } })

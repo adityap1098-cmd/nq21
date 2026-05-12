@@ -9,6 +9,7 @@ import { RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useTransactionStore } from '@/store/transactions'
 import type { UpdateTransactionFullInput } from '@/store/transactions'
+import { useCreateTransaction, useNextNoReferensi, useTransactions } from '../hooks'
 import { useAuthStore } from '@/store/auth'
 import { useCategories } from '@/features/categories/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
@@ -43,22 +44,6 @@ type HeaderForm = z.infer<typeof headerSchema>
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const NO_REF_REGEX = /^(TRX|EXP)-\d{8}-\d{3}$/
-
-function generateNextNoReferensi(
-  tipe: TransactionType,
-  dateStr: string,
-  transactions: Array<{ noReferensi: string; tipe: TransactionType }>,
-): string {
-  const prefix = tipe === 'income' ? 'TRX' : 'EXP'
-  const compact = dateStr.replace(/-/g, '')
-  const dayPattern = `${prefix}-${compact}-`
-  const existing = transactions
-    .filter((t) => t.noReferensi.startsWith(dayPattern) && !t.noReferensi.endsWith('-VENDOR'))
-    .map((t) => parseInt(t.noReferensi.slice(-3), 10))
-    .filter((n) => !isNaN(n))
-  const max = existing.length > 0 ? Math.max(...existing) : 0
-  return `${dayPattern}${String(max + 1).padStart(3, '0')}`
-}
 
 type NoRefStatus = 'UNIK' | 'DUPLIKAT' | 'INVALID FORMAT'
 
@@ -104,7 +89,7 @@ interface TransactionFormProps {
 export function TransactionForm({ mode = 'add', transactionId, initialData, onSuccess, onDirtyChange }: TransactionFormProps) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { transactions, addTransactionFull, updateTransactionFull } = useTransactionStore()
+  const { updateTransactionFull } = useTransactionStore()
   const { data: categories = [] } = useCategories()
   const { data: mechanics = [] } = useMechanics()
   const { data: rates = [] } = useCommissionRates()
@@ -143,6 +128,10 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const noReferensi = watch('noReferensi')
   const paymentMethod = watch('paymentMethod') as PaymentMethod
 
+  const createTransaction = useCreateTransaction()
+  const { data: nextNoRef } = useNextNoReferensi(tipe, tgl)
+  const { data: allTxRows = [] } = useTransactions()
+
   // Line items state (hybrid approach — Decision A)
   const [lines, setLines] = useState<Line[]>(() => {
     if (mode === 'edit' && initialData?.lines.length) return initialData.lines
@@ -152,10 +141,13 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   // Tipe-change confirm dialog (when lines have data)
   const [pendingTipe, setPendingTipe] = useState<TransactionType | null>(null)
 
-  // Auto-generate noRef + clear party on tipe/tgl change (add mode only)
   useEffect(() => {
     if (mode !== 'add') return
-    setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
+    if (nextNoRef) setValue('noReferensi', nextNoRef)
+  }, [nextNoRef, mode, setValue])
+
+  useEffect(() => {
+    if (mode !== 'add') return
     setValue('customerId', undefined)
     setValue('supplierId', undefined)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -168,14 +160,19 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
     onDirtyChange?.(rhfDirty || linesChanged)
   }, [rhfDirty, linesChanged, mode, onDirtyChange])
 
+  const txsForCheck = useMemo(
+    () => allTxRows.map((t) => ({ id: t.id, noReferensi: t.no_referensi })),
+    [allTxRows],
+  )
+
   const noRefStatus: NoRefStatus = noReferensi
-    ? getNoRefStatus(noReferensi, transactions, transactionId)
+    ? getNoRefStatus(noReferensi, txsForCheck, transactionId)
     : 'INVALID FORMAT'
 
   const { color: statusColor, bg: statusBg } = STATUS_STYLES[noRefStatus]
 
   function handleRegenNoRef() {
-    setValue('noReferensi', generateNextNoReferensi(tipe, tgl, transactions))
+    if (nextNoRef) setValue('noReferensi', nextNoRef)
   }
 
   // ── Line helpers ────────────────────────────────────────────────────────────
@@ -291,11 +288,10 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   }
 
   function resetForm() {
-    const freshTx = useTransactionStore.getState().transactions
     const currentTipe = form.getValues('tipe')
     const newDate = format(new Date(), 'yyyy-MM-dd')
     form.reset({
-      noReferensi: generateNextNoReferensi(currentTipe, newDate, freshTx),
+      noReferensi: '',
       tgl: newDate,
       tipe: currentTipe,
       paymentMethod: 'cash',
@@ -328,15 +324,19 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
     try {
       const formData = form.getValues()
 
-      const freshTx = useTransactionStore.getState().transactions
+      const freshZustandTx = useTransactionStore.getState().transactions
       const freshCats = categories
       const freshMechanics = mechanics
       const freshSuppliers = suppliers
 
+      const txsForValidation = mode === 'edit'
+        ? freshZustandTx
+        : allTxRows.map((t) => ({ id: t.id, noReferensi: t.no_referensi }))
+
       const errors = validateTransactionFull(
         { noReferensi: formData.noReferensi, tipe: formData.tipe, customerId: formData.customerId, supplierId: formData.supplierId },
         lines,
-        { transactions: freshTx, categories: freshCats, mechanics: freshMechanics, suppliers: freshSuppliers, currentId: transactionId },
+        { transactions: txsForValidation, categories: freshCats, mechanics: freshMechanics, suppliers: freshSuppliers, currentId: transactionId },
       )
 
       if (errors.length > 0) {
@@ -359,7 +359,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
 
       if (mode === 'edit' && transactionId) {
         // ── EDIT PATH ──────────────────────────────────────────────────────
-        const beforeTx = freshTx.find((t) => t.id === transactionId)
+        const beforeTx = freshZustandTx.find((t) => t.id === transactionId)
         const editInput: UpdateTransactionFullInput = {
           header: {
             tglTransaksi: formData.tgl,
@@ -391,24 +391,40 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         else navigate(`/transaksi/${transactionId}`)
       } else {
         // ── ADD PATH ───────────────────────────────────────────────────────
-        const result = addTransactionFull({
-          header: {
-            noReferensi: formData.noReferensi,
-            tglTransaksi: formData.tgl,
-            tipe: formData.tipe,
-            customerId: formData.tipe === 'income' ? formData.customerId : undefined,
-            supplierId: formData.tipe === 'expense' ? formData.supplierId : undefined,
-            paymentMethod: formData.paymentMethod,
-            notes: formData.notes || undefined,
-            createdBy: userId,
-          },
-          lines: buildLinesInput(),
-          bayarVendorBubutCategoryId: bayarVendorCat?.id ?? null,
+        const result = await createTransaction.mutateAsync({
+          no_referensi: formData.noReferensi,
+          tgl_transaksi: formData.tgl,
+          tipe: formData.tipe,
+          customer_id: formData.tipe === 'income' ? (formData.customerId ?? null) : null,
+          supplier_id: formData.tipe === 'expense' ? (formData.supplierId ?? null) : null,
+          payment_method: formData.paymentMethod,
+          notes: formData.notes || null,
+          created_by: user?.id ?? 'unknown',
+          lines: buildLinesInput().map((l) => ({
+            category_id: l.categoryId,
+            nominal: l.nominal,
+            biaya_material: l.biayaMaterial,
+            item_name: l.itemName ?? null,
+            notes: l.notes ?? null,
+            mechanics: l.mechanics.map((m) => ({
+              mechanic_id: m.mechanicId,
+              share_percent: m.sharePercent,
+              rate_override: m.rateOverride ?? null,
+            })),
+            bubut_vendor: l.bubutVendor?.supplierId
+              ? {
+                  supplier_id: l.bubutVendor.supplierId,
+                  vendor_cost: l.bubutVendor.vendorCost,
+                  bayar_vendor_category_id: bayarVendorCat!.id,
+                }
+              : null,
+          })),
         })
 
-        auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.transactionId, source: 'transaction-form', afterData: { noReferensi: formData.noReferensi, tipe: formData.tipe } })
-        if (result.expenseTransactionId) {
-          auditLog({ userId, action: 'create', entityType: 'transaction', entityId: result.expenseTransactionId, source: 'bubut-luar-auto-link', afterData: { linkedTo: result.transactionId } })
+        const createdBy = user?.id ?? 'unknown'
+        auditLog({ userId: createdBy, action: 'create', entityType: 'transaction', entityId: result.txId, source: 'transaction-form', afterData: { noReferensi: formData.noReferensi, tipe: formData.tipe } })
+        if (result.expenseTxId) {
+          auditLog({ userId: createdBy, action: 'create', entityType: 'transaction', entityId: result.expenseTxId, source: 'bubut-luar-auto-link', afterData: { linkedTo: result.txId } })
         }
 
         const hasJasaLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.is_jasa)
@@ -423,14 +439,14 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         }
 
         toast(`${formData.noReferensi} berhasil disimpan`, {
-          description: result.expenseTransactionId ? 'Expense vendor Bubut Luar auto-created.' : undefined,
+          description: result.expenseTxId ? 'Expense vendor Bubut Luar auto-created.' : undefined,
           variant: 'success',
         })
 
         if (submitMode === 'continue') {
           resetForm()
         } else {
-          navigate('/transaksi')
+          navigate(`/transaksi/${result.txId}`)
         }
       }
     } catch (err) {

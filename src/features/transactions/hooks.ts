@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 
 export interface TransactionRow {
@@ -81,6 +81,194 @@ export function useTransactions(filters: TransactionFilters = {}) {
       const { data, error } = await query
       if (error) throw error
       return (data ?? []) as TransactionRow[]
+    },
+  })
+}
+
+export function useNextNoReferensi(tipe: 'income' | 'expense', tgl: string) {
+  return useQuery({
+    queryKey: ['next-no-referensi', tipe, tgl],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const prefix = tipe === 'income' ? 'TRX' : 'EXP'
+      const compact = tgl.replace(/-/g, '')
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('no_referensi')
+        .ilike('no_referensi', `${prefix}-${compact}-%`)
+        .not('no_referensi', 'ilike', '%-VENDOR')
+      if (error) throw error
+      const existing = (data ?? [])
+        .map((r: { no_referensi: string }) => parseInt(r.no_referensi.slice(-3), 10))
+        .filter((n: number) => !isNaN(n))
+      const max = existing.length > 0 ? Math.max(...existing) : 0
+      return `${prefix}-${compact}-${String(max + 1).padStart(3, '0')}`
+    },
+  })
+}
+
+export interface TransactionCreateInput {
+  no_referensi: string
+  tgl_transaksi: string
+  tipe: 'income' | 'expense'
+  customer_id?: string | null
+  supplier_id?: string | null
+  payment_method: 'cash' | 'transfer' | 'qris'
+  notes?: string | null
+  created_by: string
+  lines: Array<{
+    category_id: string
+    nominal: number
+    biaya_material: number
+    item_name?: string | null
+    notes?: string | null
+    mechanics: Array<{
+      mechanic_id: string
+      share_percent: number
+      rate_override?: number | null
+    }>
+    bubut_vendor?: {
+      supplier_id: string
+      vendor_cost: number
+      bayar_vendor_category_id: string
+    } | null
+  }>
+}
+
+export function useCreateTransaction() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: TransactionCreateInput): Promise<{ txId: string; expenseTxId: string | null }> => {
+      const insertedTxIds: string[] = []
+      const insertedLineIds: string[] = []
+      const insertedMechanicIds: string[] = []
+      const insertedBubutLinkIds: string[] = []
+
+      async function rollback() {
+        if (insertedBubutLinkIds.length > 0)
+          await supabase.from('bubut_luar_links').delete().in('id', insertedBubutLinkIds)
+        if (insertedMechanicIds.length > 0)
+          await supabase.from('transaction_line_mechanics').delete().in('id', insertedMechanicIds)
+        if (insertedLineIds.length > 0)
+          await supabase.from('transaction_lines').delete().in('id', insertedLineIds)
+        if (insertedTxIds.length > 0)
+          await supabase.from('transactions').delete().in('id', insertedTxIds)
+      }
+
+      try {
+        const totalNominal = input.lines.reduce((s, l) => s + l.nominal, 0)
+
+        const { data: tx, error: txErr } = await supabase
+          .from('transactions')
+          .insert({
+            no_referensi: input.no_referensi,
+            tgl_transaksi: input.tgl_transaksi,
+            tipe: input.tipe,
+            customer_id: input.customer_id ?? null,
+            supplier_id: input.supplier_id ?? null,
+            payment_method: input.payment_method,
+            total_nominal: totalNominal,
+            notes: input.notes ?? null,
+            created_by: input.created_by,
+          })
+          .select('id')
+          .single()
+        if (txErr) throw txErr
+        insertedTxIds.push(tx.id as string)
+
+        let expenseTxId: string | null = null
+
+        for (const line of input.lines) {
+          const { data: lineRow, error: lineErr } = await supabase
+            .from('transaction_lines')
+            .insert({
+              transaction_id: tx.id,
+              category_id: line.category_id,
+              nominal: line.nominal,
+              biaya_material: line.biaya_material,
+              item_name: line.item_name ?? null,
+              notes: line.notes ?? null,
+            })
+            .select('id')
+            .single()
+          if (lineErr) throw lineErr
+          insertedLineIds.push(lineRow.id as string)
+
+          if (line.mechanics.length > 0) {
+            const { data: mechRows, error: mechErr } = await supabase
+              .from('transaction_line_mechanics')
+              .insert(
+                line.mechanics.map((m) => ({
+                  transaction_line_id: lineRow.id,
+                  mechanic_id: m.mechanic_id,
+                  share_percent: m.share_percent,
+                  rate_override: m.rate_override ?? null,
+                })),
+              )
+              .select('id')
+            if (mechErr) throw mechErr
+            insertedMechanicIds.push(...(mechRows ?? []).map((r: { id: string }) => r.id))
+          }
+
+          if (line.bubut_vendor) {
+            const { supplier_id: vendorSupplierId, vendor_cost, bayar_vendor_category_id } = line.bubut_vendor
+
+            const { data: expTx, error: expTxErr } = await supabase
+              .from('transactions')
+              .insert({
+                no_referensi: `${input.no_referensi}-VENDOR`,
+                tgl_transaksi: input.tgl_transaksi,
+                tipe: 'expense' as const,
+                supplier_id: vendorSupplierId,
+                payment_method: input.payment_method,
+                total_nominal: vendor_cost,
+                notes: `Auto-linked ke ${input.no_referensi}`,
+                created_by: input.created_by,
+              })
+              .select('id')
+              .single()
+            if (expTxErr) throw expTxErr
+            insertedTxIds.push(expTx.id as string)
+            expenseTxId = expTx.id as string
+
+            const { data: expLine, error: expLineErr } = await supabase
+              .from('transaction_lines')
+              .insert({
+                transaction_id: expTx.id,
+                category_id: bayar_vendor_category_id,
+                nominal: vendor_cost,
+                biaya_material: 0,
+                item_name: null,
+                notes: null,
+              })
+              .select('id')
+              .single()
+            if (expLineErr) throw expLineErr
+            insertedLineIds.push(expLine.id as string)
+
+            const { data: bubutLink, error: bubutLinkErr } = await supabase
+              .from('bubut_luar_links')
+              .insert({
+                revenue_line_id: lineRow.id,
+                expense_transaction_id: expTx.id,
+                vendor_cost,
+              })
+              .select('id')
+              .single()
+            if (bubutLinkErr) throw bubutLinkErr
+            insertedBubutLinkIds.push(bubutLink.id as string)
+          }
+        }
+
+        return { txId: tx.id as string, expenseTxId }
+      } catch (err) {
+        await rollback()
+        throw err
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['next-no-referensi'] })
     },
   })
 }
