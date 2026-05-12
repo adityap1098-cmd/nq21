@@ -835,9 +835,19 @@ _(none)_
 
 - [ ] **M006-V2-T3**: Transactions migration — CRUD + Bubut Luar dual-leg
   - [x] T3.0: Master data reads in TransactionForm ✅ (done in T2.1 above)
-  - [ ] T3.1.1: Transaction list + detail read-only (DaftarTransaksiPage + DetailTransaksiPage)
+  - [x] T3.1.1: Transaction list + detail read-only (DaftarTransaksiPage + DetailTransaksiPage) ✅ (2026-05-12)
+    - `src/features/transactions/hooks.ts`: `useTransactions(filters)` + `useTransaction(id)` — snake_case types, TanStack Query, staleTime 5min
+    - `DaftarTransaksiPage`: migrated to useTransactions, snake_case fields, loading state, real Date.now() filter
+    - `DetailTransaksiPage`: migrated to useTransaction(id), embedded customer/supplier, Supabase delete (update deleted_at), categories/mechanics from hooks
+    - Commit: `5205c99`
   - [ ] T3.1.2: Transaction CRUD writes (create/update/delete via Supabase)
   - [ ] T3.2: Bubut Luar dual-leg save (Supabase transaction)
+
+**Known issue (low priority, deferred post-T3)**: Multi-tab cascade logout — root cause identified 2026-05-12.
+  Root cause: Tab B getSession() timeout (3s) → catch handler previously purged sb-* tokens → Supabase SDK broadcast SIGNED_OUT to Tab A.
+  Fix applied: removed localStorage purge from timeout catch. Token stays intact, Tab B just falls to login page.
+  Remaining issue: Tab B still fails to restore session (getSession slow on cold start). Single-tab usage is the workaround.
+  Defer ke polish phase post-T3.
 - [ ] **M006-V2-T4**: Commission periods + payouts migration
 - [ ] **M006-V2-T5**: Audit log migration
 - [ ] **M006-V2-T6**: E2E verification + tag vM006-V2

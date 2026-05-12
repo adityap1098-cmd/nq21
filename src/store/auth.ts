@@ -35,14 +35,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
       const { data: { session }, error } = result
       if (error || !session) {
-        // Defensive: if no error but also no session, check whether a stored token exists.
-        // Token present = SDK hydration delay (token is being read/refreshed), NOT a real logout.
-        // In this case do NOT call signOut() — that would cascade-logout other tabs.
-        // Just surface loading=false and let onAuthStateChange handle auth state once ready.
         if (!error) {
           const hasStoredToken = Object.keys(localStorage).some(
             k => k.startsWith('sb-') && localStorage.getItem(k)
           )
+          // Token present = SDK hydration delay, NOT a real logout.
+          // Don't signOut — would cascade to other tabs.
           if (hasStoredToken) {
             set({ user: null, loading: false })
             return
@@ -80,12 +78,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
         loading: false,
       })
     } catch (err) {
-      // On timeout: purge corrupt sb-* tokens so next load works cleanly
-      if (err instanceof Error && err.message === 'getSession_timeout') {
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith('sb-')) localStorage.removeItem(k)
-        })
-      }
+      // CRITICAL: Do NOT purge localStorage on timeout.
+      // localStorage is shared across same-origin tabs — removing sb-* tokens here
+      // broadcasts SIGNED_OUT to all tabs (root cause of cascade logout bug, 2026-05-12).
+      // Just fall back to logged-out UI; token stays intact for retry on next mount.
+      void err
       set({ user: null, loading: false })
     }
   },
