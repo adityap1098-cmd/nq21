@@ -67,6 +67,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
     queryKey: ['transactions', filters],
     staleTime: STALE_5MIN,
     queryFn: async () => {
+      console.log('[useTransactions] fetch start, filters:', filters)
       let query = supabase
         .from('transactions')
         .select('*')
@@ -79,6 +80,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
       if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
 
       const { data, error } = await query
+      console.log('[useTransactions] result:', { rows: data?.length ?? 0, error: error?.message ?? null })
       if (error) throw error
       return (data ?? []) as TransactionRow[]
     },

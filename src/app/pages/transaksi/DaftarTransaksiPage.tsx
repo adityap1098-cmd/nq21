@@ -113,9 +113,11 @@ function SummaryStrip({ filtered }: { filtered: TransactionRow[] }) {
 
 export default function DaftarTransaksiPage() {
   const navigate = useNavigate()
-  const { data: transactions = [], isLoading } = useTransactions({ includeDeleted: false })
+  const { data: transactions = [], isLoading, error } = useTransactions({ includeDeleted: false })
   const { data: customers = [] } = useCustomers()
   const { data: suppliers = [] } = useSuppliers()
+
+  console.log('[DaftarTransaksi] state:', { rows: transactions.length, isLoading, error: (error as Error | null)?.message ?? null })
 
   const [search, setSearch]   = useState('')
   const [tipe, setTipe]       = useState<TipeFilter>('all')
