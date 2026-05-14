@@ -14,7 +14,7 @@ import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
 import { useAuditStore } from '@/store/audit'
-import { useCommissionStore } from '@/store/commission'
+import { useCommissionPeriods } from '@/features/komisi/hooks'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { LineItemCard } from './LineItemCard'
@@ -92,7 +92,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const { data: customers = [] } = useCustomers()
   const { data: suppliers = [] } = useSuppliers()
   const { log: auditLog } = useAuditStore()
-  const { periods } = useCommissionStore()
+  const { data: periods = [] } = useCommissionPeriods()
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const [isSubmitting, setIsSubmitting] = useState(false)

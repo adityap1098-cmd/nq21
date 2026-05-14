@@ -6,7 +6,7 @@ import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { TransactionForm } from '@/features/transactions/components/TransactionForm'
 import type { TransactionFormInitialData } from '@/features/transactions/components/TransactionForm'
 import { useTransaction } from '@/features/transactions/hooks'
-import { useCommissionStore } from '@/store/commission'
+import { useCommissionPeriods } from '@/features/komisi/hooks'
 import { supabase } from '@/lib/supabase'
 import type { Line } from '@/features/transactions/types'
 
@@ -15,7 +15,7 @@ export default function EditTransaksiPage() {
   const navigate = useNavigate()
 
   const { data: tx, isLoading } = useTransaction(id)
-  const { periods } = useCommissionStore()
+  const { data: periods = [] } = useCommissionPeriods()
 
   const [isDirty, setIsDirty] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
