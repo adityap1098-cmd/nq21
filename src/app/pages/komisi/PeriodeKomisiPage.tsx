@@ -243,19 +243,36 @@ export default function PeriodeKomisiPage() {
           Belum Ada Periode
         </div>
         <p style={{ color: 'var(--text-muted)', marginBottom: 24, fontFamily: 'var(--mono)', fontSize: 12 }}>
-          Periode pertama akan otomatis dibuat saat input transaksi jasa.
+          Buka periode pertama untuk mulai tracking komisi minggu ini.
         </p>
-        <button
-          onClick={() => navigate('/transaksi/baru')}
-          style={{
-            padding: '10px 20px', borderRadius: 6, border: 'none',
-            background: 'var(--text)', color: '#fff',
-            fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
-            letterSpacing: '0.1em', cursor: 'pointer',
-          }}
-        >
-          + INPUT TRANSAKSI JASA
-        </button>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+          {isOwner && (
+            <button
+              onClick={() => openNewPeriod.mutate(currentWeek)}
+              disabled={openNewPeriod.isPending}
+              style={{
+                padding: '10px 20px', borderRadius: 6, border: 'none',
+                background: 'var(--accent)', color: '#fff',
+                fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.1em', cursor: openNewPeriod.isPending ? 'wait' : 'pointer',
+                opacity: openNewPeriod.isPending ? 0.6 : 1,
+              }}
+            >
+              {openNewPeriod.isPending ? 'MEMBUKA...' : `+ BUKA PERIODE ${currentWeek.weekStart} – ${currentWeek.weekEnd}`}
+            </button>
+          )}
+          <button
+            onClick={() => navigate('/transaksi/baru')}
+            style={{
+              padding: '10px 20px', borderRadius: 6, border: '1px solid var(--border)',
+              background: 'transparent', color: 'var(--text)',
+              fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.1em', cursor: 'pointer',
+            }}
+          >
+            + INPUT TRANSAKSI JASA
+          </button>
+        </div>
       </div>
     )
   }
