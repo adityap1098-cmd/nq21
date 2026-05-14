@@ -918,6 +918,26 @@ _(none)_
 
 ---
 
+## M006-V2 Post-tag Fixes ✅ (2026-05-14)
+
+**Tag**: vM006-V2 (unchanged — patches forward, no rollback)
+**Commit**: `627a747`
+**Verified**: Live production post-fresh-reset
+
+### Bug #1 — useOpenNewPeriod duplicate period
+- **Root cause**: `PeriodeKomisiPage` passed `getCurrentWeek()` to `useOpenNewPeriod` — same dates as just-closed period, creating duplicate.
+- **Fix**: `useOpenNewPeriod` now no-arg; queries `MAX(week_end)` from `commission_periods`, computes `nextStart = week_end + 1 day`, `nextEnd = week_end + 7 days`. Falls back to `getCurrentWeek()` only when zero periods exist (first-ever open).
+- **Verified**: Fresh reset → open period = 2026-05-11 to 2026-05-17 ✅
+
+### Bug #2 — period_id NULL on all transactions
+- **Root cause**: `useCreateTransaction` never set `period_id` in insert payload. `useUpdateTransaction` didn't re-bind on tgl change. `useClosePeriod` didn't backfill existing NULLs.
+- **Fix A (create)**: Before main insert, query `commission_periods` where `week_start ≤ tgl ≤ week_end AND status='open'`. Set `period_id` on both income tx and vendor expense (-VENDOR) insert.
+- **Fix B (update)**: Same lookup on `input.tgl`, added `period_id` to header UPDATE payload.
+- **Fix C (close backfill)**: `useClosePeriod` now backfills `period_id` on all in-range NULL transactions before marking period closed. `ClosePeriodInput.weekStart` field added.
+- **Verified**: TRX-20260514-001 saved dengan `period_id = 61d2bfca...` (auto-bind ke OPEN period) ✅
+
+---
+
 ## M006-V1 — Backend Integration ⏸ DEFERRED (archived)
 
 **Status**: Rolled back to vM007 state (2026-05-11). Superseded by M006-V2 Supabase strategy.
@@ -940,3 +960,4 @@ _(none)_
 - **M006-V2-T2.1** ✅ 2026-05-12 — Master data reads (customers/suppliers/categories/mechanics) migrated to Supabase hooks in TransactionForm
 - **M006-V2-T3.5** ✅ 2026-05-14 — Dashboard + 4 Laporan + Komisi pages migrated; PINNED_TODAY fix; UTC+7 addDays fix; useOpenNewPeriod for new period creation
 - **M006-V2 SEALED** ✅ 2026-05-14 — All critical paths on Supabase, multi-device verified, tag vM006-V2
+- **M006-V2 Post-tag patches** ✅ 2026-05-14 — period_id auto-bind (create/update/close) + useOpenNewPeriod next-week range fix, verified production

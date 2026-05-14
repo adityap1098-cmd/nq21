@@ -290,6 +290,11 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
   - **PINNED_TODAY bug**: was hardcoded `'2026-05-10'` in `selectors.ts`. Fixed to `new Date().toISOString().slice(0,10)`. All period filter presets now real-date anchored.
   - **Production**: https://nq21.vercel.app · owner@nq21.app / kasir@nq21.app
 
+- **M006-V2 Post-tag — period_id auto-bind on create (2026-05-14)**: `useCreateTransaction` queries `commission_periods` BEFORE insert — `SELECT id WHERE week_start ≤ tgl AND week_end ≥ tgl AND status='open'`. Result set as `period_id` on both the income transaction and the paired -VENDOR expense insert. NULL if no matching open period (backdated or no active period).
+- **M006-V2 Post-tag — period_id re-bind on update (2026-05-14)**: `useUpdateTransaction` repeats same period lookup on `input.tgl` (not `existing.tgl`) before the header UPDATE. Handles case where kasir backdates transaction to different week.
+- **M006-V2 Post-tag — period_id backfill on close (2026-05-14)**: `useClosePeriod` backfills `UPDATE transactions SET period_id=periodId WHERE period_id IS NULL AND tgl BETWEEN weekStart AND weekEnd` BEFORE marking period closed. `ClosePeriodInput.weekStart` field added to carry the range.
+- **M006-V2 Post-tag — useOpenNewPeriod next-week compute (2026-05-14)**: Hook is now no-arg. Queries `MAX(week_end)` from DB, computes `nextStart = addDaysToStr(week_end, 1)`, `nextEnd = addDaysToStr(week_end, 7)`. Falls back to `getCurrentWeek()` only when zero periods exist. Fixes duplicate period bug where passing `getCurrentWeek()` from call site recreated same week range.
+
 ---
 
 ## Tech Stack (LOCKED — match plan.md Section 1)
