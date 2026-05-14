@@ -152,7 +152,7 @@ type CategoryInfo = { name: string; type: string; isJasa: boolean }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PINNED_TODAY = '2026-05-10'
+const PINNED_TODAY = new Date().toISOString().slice(0, 10)
 const DAY_LABELS = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB']
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
