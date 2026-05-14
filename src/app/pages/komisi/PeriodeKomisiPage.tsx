@@ -178,6 +178,7 @@ export default function PeriodeKomisiPage() {
     try {
       await closePeriod.mutateAsync({
         periodId: selectedPeriod.id,
+        weekStart: selectedPeriod.weekStart,
         weekEnd: selectedPeriod.weekEnd,
         closedBy: user.id,
         payouts: computedPayouts.map(p => ({
@@ -247,7 +248,7 @@ export default function PeriodeKomisiPage() {
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button
-            onClick={() => openNewPeriod.mutate(currentWeek)}
+            onClick={() => openNewPeriod.mutate()}
             disabled={openNewPeriod.isPending}
             style={{
               padding: '10px 20px', borderRadius: 6, border: 'none',
@@ -345,7 +346,7 @@ export default function PeriodeKomisiPage() {
             </div>
           </div>
           <button
-            onClick={() => openNewPeriod.mutate(currentWeek)}
+            onClick={() => openNewPeriod.mutate()}
             disabled={openNewPeriod.isPending}
             style={{
               flexShrink: 0, marginLeft: 20,

@@ -259,6 +259,7 @@ export function usePeriodTransactions(
 
 interface ClosePeriodInput {
   periodId: string
+  weekStart: string
   weekEnd: string
   closedBy: string
   payouts: Array<{
@@ -272,8 +273,16 @@ interface ClosePeriodInput {
 export function useClosePeriod() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ periodId, weekEnd, closedBy, payouts }: ClosePeriodInput): Promise<void> => {
+    mutationFn: async ({ periodId, weekStart, weekEnd, closedBy, payouts }: ClosePeriodInput): Promise<void> => {
       const now = new Date().toISOString()
+
+      // Backfill period_id for transactions in range that are still NULL
+      await supabase
+        .from('transactions')
+        .update({ period_id: periodId })
+        .is('period_id', null)
+        .gte('tgl', weekStart)
+        .lte('tgl', weekEnd)
 
       const { error: periodErr } = await supabase
         .from('commission_periods')
@@ -343,10 +352,18 @@ export function getCurrentWeek(): { weekStart: string; weekEnd: string } {
 export function useOpenNewPeriod() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ weekStart, weekEnd }: { weekStart: string; weekEnd: string }) => {
+    mutationFn: async () => {
+      const { data: latest } = await supabase
+        .from('commission_periods')
+        .select('week_end')
+        .order('week_end', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      const nextStart = latest?.week_end ? addDaysToStr(latest.week_end, 1) : getCurrentWeek().weekStart
+      const nextEnd = latest?.week_end ? addDaysToStr(latest.week_end, 7) : getCurrentWeek().weekEnd
       const { error } = await supabase
         .from('commission_periods')
-        .insert({ week_start: weekStart, week_end: weekEnd, status: 'open' })
+        .insert({ week_start: nextStart, week_end: nextEnd, status: 'open' })
       if (error) throw error
     },
     onSuccess: () => {

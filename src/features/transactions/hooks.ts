@@ -215,6 +215,15 @@ export function useCreateTransaction() {
       try {
         const totalNominal = input.lines.reduce((s, l) => s + l.nominal, 0)
 
+        const { data: matchingPeriod } = await supabase
+          .from('commission_periods')
+          .select('id')
+          .lte('week_start', input.tgl)
+          .gte('week_end', input.tgl)
+          .eq('status', 'open')
+          .maybeSingle()
+        const periodId = matchingPeriod?.id ?? null
+
         const { data: tx, error: txErr } = await supabase
           .from('transactions')
           .insert({
@@ -227,6 +236,7 @@ export function useCreateTransaction() {
             total_nominal: totalNominal,
             notes: input.notes ?? null,
             created_by: input.created_by,
+            period_id: periodId,
           })
           .select('id')
           .single()
@@ -283,6 +293,7 @@ export function useCreateTransaction() {
                 total_nominal: vendor_cost,
                 notes: `Auto-linked ke ${input.no_referensi}`,
                 created_by: input.created_by,
+                period_id: periodId,
               })
               .select('id')
               .single()
@@ -496,10 +507,18 @@ export function useUpdateTransaction() {
           }
         }
 
-        // Update header (no_referensi stays unchanged)
+        // Update header — re-bind period_id in case tgl changed
+        const { data: updPeriod } = await supabase
+          .from('commission_periods')
+          .select('id')
+          .lte('week_start', input.tgl)
+          .gte('week_end', input.tgl)
+          .eq('status', 'open')
+          .maybeSingle()
+
         const { error: updErr } = await supabase
           .from('transactions')
-          .update({ tgl: input.tgl, customer_id: input.customer_id ?? null, supplier_id: input.supplier_id ?? null, payment_method: input.payment_method, total_nominal: totalNominal, notes: input.notes ?? null })
+          .update({ tgl: input.tgl, customer_id: input.customer_id ?? null, supplier_id: input.supplier_id ?? null, payment_method: input.payment_method, total_nominal: totalNominal, notes: input.notes ?? null, period_id: updPeriod?.id ?? null })
           .eq('id', id)
         if (updErr) throw updErr
 
