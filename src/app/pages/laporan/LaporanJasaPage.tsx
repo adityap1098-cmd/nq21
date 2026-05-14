@@ -5,11 +5,10 @@ import { PeriodSelector } from '@/components/nq21/PeriodSelector'
 import { exportCSV, fmtRupiah, fmtDate, fmtPercent } from '@/lib/csv'
 import { usePeriodFilter } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
-import { useCommissionRates } from '@/features/komisi/hooks'
-import type { CommissionRate } from '@/store/types'
-import { useMechanics } from '@/features/mechanics/hooks'
-import { useCategories } from '@/features/categories/hooks'
 import type { TransactionWithLines } from '@/features/transactions/hooks'
+import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
+import type { CommissionRate } from '@/features/mechanics/hooks'
+import { useCategories } from '@/features/categories/hooks'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 const fmtRp = (n: number) => `Rp ${_fmt.format(n)}`
@@ -192,7 +191,7 @@ function computeJasaReport(
       const basis = line.nominal - line.biaya_material
 
       const mechDetails: MechDetail[] = lms.map(lm => {
-        const masterRate = safeRates.find(r => r.mechanicId === lm.mechanic_id && r.categoryId === cat.id)?.ratePercent ?? 0
+        const masterRate = safeRates.find(r => r.mechanic_id === lm.mechanic_id && r.category_id === cat.id)?.rate_percent ?? 0
         const rateOverride = lm.rate_override !== null ? lm.rate_override : undefined
         const effectiveRate = rateOverride !== undefined ? rateOverride : masterRate
         const komisi = Math.round(basis * (lm.share_percent / 100) * (effectiveRate / 100))
