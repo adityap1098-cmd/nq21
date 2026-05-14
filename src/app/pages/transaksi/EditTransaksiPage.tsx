@@ -1,97 +1,102 @@
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/nq21/PageHeader'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { TransactionForm } from '@/features/transactions/components/TransactionForm'
 import type { TransactionFormInitialData } from '@/features/transactions/components/TransactionForm'
-import { useTransactionStore } from '@/store/transactions'
-import { useCategoryStore } from '@/store/master/categories'
+import { useTransaction } from '@/features/transactions/hooks'
 import { useCommissionStore } from '@/store/commission'
+import { supabase } from '@/lib/supabase'
 import type { Line } from '@/features/transactions/types'
 
 export default function EditTransaksiPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { transactions, lines: allLines, lineMechanics, bubutLuarLinks } = useTransactionStore()
-  const { categories } = useCategoryStore()
+  const { data: tx, isLoading } = useTransaction(id)
   const { periods } = useCommissionStore()
 
   const [isDirty, setIsDirty] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
-  // All hooks must run unconditionally — guards are below
-  const tx = useMemo(() => transactions.find((t) => t.id === id), [transactions, id])
+  // All hooks must run unconditionally
+  const txPeriod = useMemo(() => {
+    if (!tx) return null
+    return periods.find((p) => tx.tgl >= p.weekStart && tx.tgl <= p.weekEnd) ?? null
+  }, [tx, periods])
 
-  const txLines = useMemo(
-    () => (tx ? allLines.filter((l) => l.transactionId === tx.id) : []),
-    [tx, allLines],
-  )
-
-  const hasJasaLine = useMemo(
-    () => txLines.some((l) => categories.find((c) => c.id === l.categoryId)?.isJasa),
-    [txLines, categories],
-  )
-
-  const txPeriod = useMemo(
-    () => tx && hasJasaLine
-      ? periods.find((p) => tx.tglTransaksi >= p.weekStart && tx.tglTransaksi <= p.weekEnd) ?? null
-      : null,
-    [tx, hasJasaLine, periods],
-  )
+  // Fetch vendor expense supplier for bubut_luar pre-fill
+  const bubutLink = (tx?.bubut_luar_links ?? [])[0] ?? null
+  const vendorExpenseId = bubutLink?.expense_transaction_id ?? null
+  const { data: vendorExpense } = useQuery({
+    queryKey: ['vendor-expense-supplier', vendorExpenseId],
+    enabled: !!vendorExpenseId,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('supplier_id')
+        .eq('id', vendorExpenseId!)
+        .single()
+      if (error) throw error
+      return data as { supplier_id: string | null }
+    },
+  })
 
   const initialData = useMemo((): TransactionFormInitialData | null => {
     if (!tx) return null
 
-    const initialLines: Line[] = txLines.map((l) => {
-      const lm = lineMechanics.filter((m) => m.transactionLineId === l.id)
-      const bubutLink = bubutLuarLinks.find((bl) => bl.revenueLineId === l.id)
-      const expTx = bubutLink ? transactions.find((t) => t.id === bubutLink.expenseTransactionId) : null
-
+    const initialLines: Line[] = tx.lines.map((l) => {
+      const link = tx.bubut_luar_links.find((b) => b.revenue_line_id === l.id)
       return {
         id: l.id,
-        categoryId: l.categoryId,
+        categoryId: l.category_id,
         nominal: l.nominal,
-        biayaMaterial: l.biayaMaterial,
-        notes: l.notes,
-        itemName: l.itemName,
-        mechanics: lm.map((m) => ({
-          mechanicId: m.mechanicId,
-          sharePercent: m.sharePercent,
-          rateOverride: m.rateOverride,
+        biayaMaterial: l.biaya_material,
+        notes: l.notes ?? undefined,
+        itemName: l.item_name ?? undefined,
+        mechanics: l.mechanics.map((m) => ({
+          mechanicId: m.mechanic_id,
+          sharePercent: m.share_percent,
+          rateOverride: m.rate_override ?? undefined,
         })),
-        bubutVendor: bubutLink
-          ? { supplierId: expTx?.supplierId ?? null, vendorCost: bubutLink.vendorCost }
+        bubutVendor: link
+          ? { supplierId: vendorExpense?.supplier_id ?? null, vendorCost: link.vendor_cost }
           : undefined,
       }
     })
 
     return {
       header: {
-        noReferensi: tx.noReferensi,
-        tglTransaksi: tx.tglTransaksi,
+        noReferensi: tx.no_referensi,
+        tglTransaksi: tx.tgl,
         tipe: tx.tipe,
-        customerId: tx.customerId,
-        supplierId: tx.supplierId,
-        paymentMethod: tx.paymentMethod,
-        notes: tx.notes,
+        customerId: tx.customer_id ?? undefined,
+        supplierId: tx.supplier_id ?? undefined,
+        paymentMethod: tx.payment_method,
+        notes: tx.notes ?? undefined,
       },
       lines: initialLines,
     }
-  }, [tx, txLines, lineMechanics, bubutLuarLinks, transactions])
+  }, [tx, vendorExpense])
 
   // ── Guards (after all hooks) ────────────────────────────────────────────────
 
-  if (!tx) return <Navigate to="/transaksi" replace />
-
-  if (tx.deletedAt) return <Navigate to={`/transaksi/${id}`} replace />
-
-  if (tx.noReferensi.endsWith('-VENDOR')) {
-    const link = bubutLuarLinks.find((bl) => bl.expenseTransactionId === tx.id)
-    const revLine = link ? allLines.find((l) => l.id === link.revenueLineId) : null
-    return <Navigate to={revLine ? `/transaksi/${revLine.transactionId}` : '/transaksi'} replace />
+  if (isLoading) {
+    return (
+      <>
+        <PageHeader title="EDIT TRANSAKSI" />
+        <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
+          Memuat...
+        </div>
+      </>
+    )
   }
 
+  if (!tx) return <Navigate to="/transaksi" replace />
+  if (tx.deleted_at) return <Navigate to={`/transaksi/${id}`} replace />
+  if (tx.no_referensi.endsWith('-VENDOR')) return <Navigate to="/transaksi" replace />
   if (txPeriod?.status === 'closed') return <Navigate to={`/transaksi/${id}`} replace />
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -105,7 +110,7 @@ export default function EditTransaksiPage() {
     <>
       <PageHeader
         title="EDIT TRANSAKSI"
-        subtitle={tx.noReferensi}
+        subtitle={tx.no_referensi}
         action={
           <button
             onClick={handleBackClick}

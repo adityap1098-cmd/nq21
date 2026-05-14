@@ -7,9 +7,7 @@ import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 import { RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { useTransactionStore } from '@/store/transactions'
-import type { UpdateTransactionFullInput } from '@/store/transactions'
-import { useCreateTransaction, useNextNoReferensi, useTransactions } from '../hooks'
+import { useCreateTransaction, useNextNoReferensi, useTransactions, useUpdateTransaction } from '../hooks'
 import { useAuthStore } from '@/store/auth'
 import { useCategories } from '@/features/categories/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
@@ -17,7 +15,6 @@ import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
 import { useAuditStore } from '@/store/audit'
 import { useCommissionStore } from '@/store/commission'
-import { useUserStore } from '@/store/master/users'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { LineItemCard } from './LineItemCard'
@@ -89,7 +86,6 @@ interface TransactionFormProps {
 export function TransactionForm({ mode = 'add', transactionId, initialData, onSuccess, onDirtyChange }: TransactionFormProps) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { updateTransactionFull } = useTransactionStore()
   const { data: categories = [] } = useCategories()
   const { data: mechanics = [] } = useMechanics()
   const { data: rates = [] } = useCommissionRates()
@@ -97,7 +93,6 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const { data: suppliers = [] } = useSuppliers()
   const { log: auditLog } = useAuditStore()
   const { periods } = useCommissionStore()
-  const { users } = useUserStore()
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -129,6 +124,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const paymentMethod = watch('paymentMethod') as PaymentMethod
 
   const createTransaction = useCreateTransaction()
+  const updateTransaction = useUpdateTransaction()
   const { data: nextNoRef } = useNextNoReferensi(tipe, tgl)
   const { data: allTxRows = [] } = useTransactions()
 
@@ -282,11 +278,6 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
 
   // ── Submit helpers ───────────────────────────────────────────────────────────
 
-  function getUserId(): string {
-    if (!user) return 'unknown'
-    return users.find((u) => u.name === user.name)?.id ?? 'unknown'
-  }
-
   function resetForm() {
     const currentTipe = form.getValues('tipe')
     const newDate = format(new Date(), 'yyyy-MM-dd')
@@ -324,14 +315,11 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
     try {
       const formData = form.getValues()
 
-      const freshZustandTx = useTransactionStore.getState().transactions
       const freshCats = categories
       const freshMechanics = mechanics
       const freshSuppliers = suppliers
 
-      const txsForValidation = mode === 'edit'
-        ? freshZustandTx
-        : allTxRows.map((t) => ({ id: t.id, noReferensi: t.no_referensi }))
+      const txsForValidation = allTxRows.map((t) => ({ id: t.id, noReferensi: t.no_referensi }))
 
       const errors = validateTransactionFull(
         { noReferensi: formData.noReferensi, tipe: formData.tipe, customerId: formData.customerId, supplierId: formData.supplierId },
@@ -355,36 +343,38 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         return
       }
 
-      const userId = getUserId()
+      const userId = user?.id ?? 'unknown'
 
       if (mode === 'edit' && transactionId) {
-        // ── EDIT PATH ──────────────────────────────────────────────────────
-        const beforeTx = freshZustandTx.find((t) => t.id === transactionId)
-        const editInput: UpdateTransactionFullInput = {
-          header: {
-            tglTransaksi: formData.tgl,
-            customerId: formData.tipe === 'income' ? formData.customerId : undefined,
-            supplierId: formData.tipe === 'expense' ? formData.supplierId : undefined,
-            paymentMethod: formData.paymentMethod,
-            notes: formData.notes || undefined,
-          },
-          lines: buildLinesInput(),
-          bayarVendorBubutCategoryId: bayarVendorCat?.id ?? null,
-        }
-        const result = updateTransactionFull(transactionId, editInput)
-
-        auditLog({
-          userId, action: 'update', entityType: 'transaction', entityId: transactionId,
-          source: 'edit-form',
-          beforeData: { totalNominal: beforeTx?.totalNominal, tglTransaksi: beforeTx?.tglTransaksi },
-          afterData: {
-            totalNominal: lines.reduce((s, l) => s + l.nominal, 0),
-            tglTransaksi: formData.tgl,
+        // ── EDIT PATH (Supabase) ───────────────────────────────────────────
+        await updateTransaction.mutateAsync({
+          id: transactionId,
+          input: {
+            no_referensi: formData.noReferensi,
+            tgl: formData.tgl,
+            tipe: formData.tipe,
+            customer_id: formData.tipe === 'income' ? (formData.customerId ?? null) : null,
+            supplier_id: formData.tipe === 'expense' ? (formData.supplierId ?? null) : null,
+            payment_method: formData.paymentMethod,
+            notes: formData.notes || null,
+            created_by: userId,
+            lines: buildLinesInput().map((l) => ({
+              category_id: l.categoryId,
+              nominal: l.nominal,
+              biaya_material: l.biayaMaterial,
+              item_name: l.itemName ?? null,
+              notes: l.notes ?? null,
+              mechanics: l.mechanics.map((m) => ({
+                mechanic_id: m.mechanicId,
+                share_percent: m.sharePercent,
+                rate_override: m.rateOverride ?? null,
+              })),
+              bubut_vendor: l.bubutVendor?.supplierId
+                ? { supplier_id: l.bubutVendor.supplierId, vendor_cost: l.bubutVendor.vendorCost, bayar_vendor_category_id: bayarVendorCat!.id }
+                : null,
+            })),
           },
         })
-        if (result.expenseTransactionId) {
-          auditLog({ userId, action: 'update', entityType: 'transaction', entityId: result.expenseTransactionId, source: 'bubut-luar-edit-cascade', afterData: { linkedTo: transactionId } })
-        }
 
         toast(`${formData.noReferensi} berhasil diupdate`, { variant: 'success' })
         if (onSuccess) onSuccess(transactionId)

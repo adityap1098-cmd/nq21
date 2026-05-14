@@ -3,11 +3,11 @@ import type { CSSProperties } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/nq21/PageHeader'
 import { CurrencyDisplay } from '@/components/nq21/CurrencyDisplay'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
-import { useTransaction, type TransactionLineMechanicRow } from '@/features/transactions/hooks'
+import { useTransaction, useDeleteTransaction, type TransactionLineMechanicRow } from '@/features/transactions/hooks'
 import { useCategories } from '@/features/categories/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import { useUserStore } from '@/store/master/users'
@@ -104,15 +104,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function DetailTransaksiPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const queryClient = useQueryClient()
-
   const { data: tx, isLoading } = useTransaction(id)
+  const deleteTransaction = useDeleteTransaction()
   const { data: categories = [] } = useCategories(true)
   const { data: mechanics = [] } = useMechanics(true)
   const { data: rates = [] } = useCommissionRates()
   const { users } = useUserStore()
   const { user } = useAuthStore()
-  const { logs, log: auditLog } = useAuditStore()
+  const { logs } = useAuditStore()
   const { periods } = useCommissionStore()
 
   const [showDelete, setShowDelete] = useState(false)
@@ -228,18 +227,13 @@ export default function DetailTransaksiPage() {
 
   async function handleDelete() {
     if (!tx) return
-    const now = new Date().toISOString()
-
-    await supabase.from('transactions').update({ deleted_at: now }).eq('id', tx.id)
-    if (bubutLink) {
-      await supabase.from('transactions').update({ deleted_at: now }).eq('id', bubutLink.expense_transaction_id)
+    try {
+      await deleteTransaction.mutateAsync(tx.id)
+      toast('Transaksi dihapus', { description: tx.no_referensi })
+      navigate('/transaksi')
+    } catch (err) {
+      toast('Gagal menghapus transaksi', { description: (err as Error).message, variant: 'destructive' })
     }
-
-    const userId = users.find((u) => u.name === user?.name)?.id ?? 'unknown'
-    auditLog({ userId, action: 'delete', entityType: 'transaction', entityId: tx.id, source: 'detail-page', beforeData: { no_referensi: tx.no_referensi } })
-    toast('Transaksi dihapus', { description: tx.no_referensi })
-    await queryClient.invalidateQueries({ queryKey: ['transactions'] })
-    navigate('/transaksi')
   }
 
   // ── Loading / Not Found ──────────────────────────────────────────────────────
