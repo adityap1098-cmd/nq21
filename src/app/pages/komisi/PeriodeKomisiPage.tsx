@@ -179,7 +179,7 @@ export default function PeriodeKomisiPage() {
       await closePeriod.mutateAsync({
         periodId: selectedPeriod.id,
         weekEnd: selectedPeriod.weekEnd,
-        closedBy: user.name,
+        closedBy: user.id,
         payouts: computedPayouts.map(p => ({
           mechanicId: p.mechanicId,
           totalJobs: p.totalJobs,

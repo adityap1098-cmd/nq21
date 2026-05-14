@@ -367,7 +367,7 @@ export function useMarkPaid() {
         .update({
           status: 'paid',
           paid_at: new Date().toISOString(),
-          paid_by: user?.name ?? 'unknown',
+          paid_by: user?.id ?? null,
           paid_notes: paidNotes ?? null,
         })
         .eq('id', payoutId)
