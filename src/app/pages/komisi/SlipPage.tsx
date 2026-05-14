@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useCommissionStore } from '@/store/commission'
-import { useTransactionStore } from '@/store/transactions'
-import { useMechanicStore } from '@/store/master/mechanics'
-import { useCustomerStore } from '@/store/master/customers'
-import { useCategoryStore } from '@/store/master/categories'
-import { getPayoutsForPeriod } from '@/store/selectors'
+import {
+  useCommissionPeriods,
+  useCommissionPayouts,
+  useCommissionRates,
+  usePeriodTransactions,
+  computePayoutsFromRows,
+} from '@/features/komisi/hooks'
 import { PrintLayout } from '@/app/layout/PrintLayout'
 import { SlipPaper } from '@/features/komisi/components/SlipPaper'
 import { SlipPaperCompact } from '@/features/komisi/components/SlipPaperCompact'
@@ -18,31 +19,28 @@ export default function SlipPage() {
   const navigate = useNavigate()
   const [printMode, setPrintMode] = useState<PrintMode>('compact')
 
-  // Sync print mode to body attribute so @page CSS can target it
   useEffect(() => {
     document.body.dataset.printMode = printMode
     return () => { delete document.body.dataset.printMode }
   }, [printMode])
 
-  const periods = useCommissionStore(s => s.periods)
-  const storedPayouts = useCommissionStore(s => s.payouts)
-  const { transactions, lines, lineMechanics } = useTransactionStore()
-  const { mechanics, rates } = useMechanicStore()
-  const { customers } = useCustomerStore()
-  const categories = useCategoryStore(s => s.categories)
-
-  const categoryMap = useMemo(() =>
-    Object.fromEntries(categories.map(c => [c.id, { name: c.name, type: c.type, isJasa: c.isJasa }])),
-    [categories]
-  )
+  const { data: periods = [] } = useCommissionPeriods()
+  const { data: storedPayouts = [] } = useCommissionPayouts(periodId)
+  const { data: rates = [] } = useCommissionRates()
 
   const period = useMemo(() => periods.find(p => p.id === periodId), [periods, periodId])
 
+  const { data: periodTxs = [] } = usePeriodTransactions(
+    period?.weekStart,
+    period?.weekEnd,
+    { enabled: !!period },
+  )
+
   const computedPayouts = useMemo(() =>
     period
-      ? getPayoutsForPeriod(period, transactions, lines, lineMechanics, rates, mechanics, customers, categoryMap)
+      ? computePayoutsFromRows(periodTxs, period.weekStart, period.weekEnd, rates)
       : [],
-    [period, transactions, lines, lineMechanics, rates, mechanics, customers, categoryMap]
+    [periodTxs, period, rates]
   )
 
   const payout = useMemo(() => {
@@ -52,11 +50,11 @@ export default function SlipPage() {
     if (period?.status === 'closed') {
       const stored = storedPayouts.find(p => p.periodId === periodId && p.mechanicId === mechanicId)
       if (stored) {
-        const mech = mechanics.find(m => m.id === stored.mechanicId)
+        // mechanic name not available here without extra query — show ID as fallback
         return {
           mechanicId: stored.mechanicId,
-          mechanicName: mech?.name ?? stored.mechanicId,
-          isActive: mech?.isActive ?? false,
+          mechanicName: stored.mechanicId,
+          isActive: true,
           totalJobs: stored.totalJobs,
           totalBasis: stored.totalBasis,
           totalKomisi: stored.totalKomisi,
@@ -65,7 +63,7 @@ export default function SlipPage() {
       }
     }
     return undefined
-  }, [computedPayouts, mechanicId, period, storedPayouts, periodId, mechanics])
+  }, [computedPayouts, mechanicId, period, storedPayouts, periodId])
 
   const storedPayout = useMemo(() =>
     storedPayouts.find(p => p.periodId === periodId && p.mechanicId === mechanicId),

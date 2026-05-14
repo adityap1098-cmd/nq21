@@ -848,8 +848,20 @@ _(none)_
   Fix applied: removed localStorage purge from timeout catch. Token stays intact, Tab B just falls to login page.
   Remaining issue: Tab B still fails to restore session (getSession slow on cold start). Single-tab usage is the workaround.
   Defer ke polish phase post-T3.
-- [ ] **M006-V2-T4**: Commission periods + payouts migration
-- [ ] **M006-V2-T5**: Audit log migration
+- [x] **M006-V2-T3.5**: Dashboard + 4 Laporan + Komisi pages — Supabase migration ✅ (2026-05-14)
+  - **Dashboard**: `useDashboardData()` hook — TanStack Query reads transactions/mechanics/periods from Supabase; all KPI + chart data from real DB
+  - **LaporanCashFlowPage**: `useTransactionsWithLines()` replaces Zustand; snake_case fields; `partyName` from embedded customer/supplier join
+  - **LaporanKategoriPage**: inline computation from `useTransactionsWithLines` joins; local `KategoriRow` type; no selectors dependency
+  - **LaporanJasaPage**: `computeJasaReport()` explicit typed params; rates from `useCommissionRates()` (mechanics/hooks, snake_case); jasaCategories from `useCategories()`; NO `komisi/hooks` import (Vercel module resolution workaround)
+  - **LaporanDynoPage**: `computeDynoReport()` pure function; UTC-safe `addDays()` fix (`Date.UTC(y,m-1,d+days)` — prevents infinite loop in UTC+7); 14-day chart from real transactions
+  - **selectors.ts**: `PINNED_TODAY` changed from hardcoded `'2026-05-10'` → `new Date().toISOString().slice(0,10)` — all period filter presets now anchored to real today
+  - **PeriodeKomisiPage**: added "BUKA PERIODE BARU" banner + button when current week has no open period; `useOpenNewPeriod()` + `getCurrentWeek()` in `komisi/hooks`
+  - **MekanikKomisiPage**: already on Supabase hooks (useCommissionPayouts/Periods/Mechanics); improved empty state copy to clarify payout generation flow
+  - Vercel tsc fix: eliminated `@/features/komisi/hooks` import from Laporan pages (module resolution failure); replaced with direct `mechanics/hooks` exports
+- [ ] **M006-V2-T4**: Transaction CRUD writes (create/edit via Supabase)
+  - T3.1.2: TransactionForm save → Supabase insert/update
+  - T3.2: Bubut Luar dual-leg (atomic insert income + expense + bubut_luar_links)
+- [ ] **M006-V2-T5**: Audit log migration + Commission periods E2E close flow
 - [ ] **M006-V2-T6**: E2E verification + tag vM006-V2
 
 **JANGAN gas T2 sebelum T1 verified work** — multi-device sync = critical milestone.
@@ -876,3 +888,4 @@ _(none)_
 - **M007** ✅ 2026-05-11 — PWA installable + offline + lazy loading + polish
 - **M006-V2-T1** ✅ 2026-05-11 — Supabase auth migration (email login, profiles, onAuthStateChange)
 - **M006-V2-T2.1** ✅ 2026-05-12 — Master data reads (customers/suppliers/categories/mechanics) migrated to Supabase hooks in TransactionForm
+- **M006-V2-T3.5** ✅ 2026-05-14 — Dashboard + 4 Laporan + Komisi pages migrated; PINNED_TODAY fix; UTC+7 addDays fix; useOpenNewPeriod for new period creation

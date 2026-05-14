@@ -172,15 +172,7 @@ export default function DaftarTransaksiPage() {
     return arr
   }, [filtered, sortBy, sortDir, customers, suppliers])
 
-  console.log('[Daftar]', {
-    totalRows: transactions.length,
-    filteredRows: filtered.length,
-    period,
-    tipe,
-    search,
-    isLoading,
-    firstRow: transactions[0]?.no_referensi ?? null,
-  })
+
 
   function handleSort(key: SortKey) {
     if (sortBy === key) {

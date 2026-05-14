@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCommissionStore } from '@/store/commission'
-import { useMechanicStore } from '@/store/master/mechanics'
 import { useAuthStore } from '@/store/auth'
 import { useAuditStore } from '@/store/audit'
+import { useCommissionPeriods, useCommissionPayouts, useMechanics, useMarkPaid } from '@/features/komisi/hooks'
 import { toast } from '@/hooks/use-toast'
 import { exportCSV, fmtDate } from '@/lib/csv'
 import { PageHeader } from '@/components/nq21/PageHeader'
@@ -27,11 +26,14 @@ function currentMonthRange(): { start: string; end: string } {
 
 export default function MekanikKomisiPage() {
   const navigate = useNavigate()
-  const { periods, payouts: allPayouts, markPaid } = useCommissionStore()
-  const { mechanics } = useMechanicStore()
   const user = useAuthStore(s => s.user)
   const isOwner = user?.role === 'owner'
   const logAudit = useAuditStore(s => s.log)
+
+  const { data: periods = [] } = useCommissionPeriods()
+  const { data: allPayouts = [], isLoading } = useCommissionPayouts()
+  const { data: mechanics = [] } = useMechanics()
+  const markPaidMutation = useMarkPaid()
 
   // ── Filters ──────────────────────────────────────────────────────────────
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all')
@@ -41,7 +43,11 @@ export default function MekanikKomisiPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   // ── Mark Paid ─────────────────────────────────────────────────────────────
-  const [markPaidTarget, setMarkPaidTarget] = useState<{ payout: CommissionPayout; computed: PayoutComputed; period: (typeof periods)[0] } | null>(null)
+  const [markPaidTarget, setMarkPaidTarget] = useState<{
+    payout: CommissionPayout
+    computed: PayoutComputed
+    period: (typeof periods)[0]
+  } | null>(null)
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -109,19 +115,18 @@ export default function MekanikKomisiPage() {
   async function handleConfirmMarkPaid(paidNotes?: string) {
     if (!markPaidTarget || !user) return
     const { payout, period } = markPaidTarget
-    markPaid(payout.id, new Date().toISOString(), user.name, paidNotes)
-    logAudit({
-      userId: user.name,
-      action: 'update',
-      entityType: 'payout',
-      entityId: payout.id,
-      source: 'mark-paid-overview',
-      beforeData: { status: 'pending' },
-      afterData: { status: 'paid', paidNotes },
-    })
-    const mechName = mechanicMap.get(payout.mechanicId)?.name ?? payout.mechanicId
-    toast(`Komisi ${mechName} (${fmtPeriodShort(period.weekStart, period.weekEnd)}) ditandai dibayar`, { variant: 'success' })
-    setMarkPaidTarget(null)
+    try {
+      await markPaidMutation.mutateAsync({ payoutId: payout.id, paidNotes })
+      logAudit({
+        userId: user.name, action: 'update', entityType: 'payout', entityId: payout.id,
+        source: 'mark-paid-overview', beforeData: { status: 'pending' }, afterData: { status: 'paid', paidNotes },
+      })
+      const mechName = mechanicMap.get(payout.mechanicId)?.name ?? payout.mechanicId
+      toast(`Komisi ${mechName} (${fmtPeriodShort(period.weekStart, period.weekEnd)}) ditandai dibayar`, { variant: 'success' })
+      setMarkPaidTarget(null)
+    } catch (err) {
+      toast('Gagal tandai dibayar', { description: (err as Error).message, variant: 'destructive' })
+    }
   }
 
   function handleExportCSV() {
@@ -135,7 +140,7 @@ export default function MekanikKomisiPage() {
         basis: p.totalBasis,
         komisi: p.totalKomisi,
         status: p.status === 'pending' ? 'PENDING' : 'PAID',
-        dibayar: p.paidAt ? p.paidAt : '',
+        dibayar: p.paidAt ?? '',
         catatan: p.paidNotes ?? '',
       }
     })
@@ -176,7 +181,18 @@ export default function MekanikKomisiPage() {
     verticalAlign: 'middle',
   }
 
-  // ── Empty state ────────────────────────────────────────────────────────────
+  // ── Loading / empty state ──────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div>
+        <PageHeader title="MEKANIK & KOMISI" subtitle="Overview komisi per mekanik lintas periode + status pembayaran" />
+        <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
+          Memuat...
+        </div>
+      </div>
+    )
+  }
+
   if (allPayouts.length === 0) {
     return (
       <div>
@@ -188,8 +204,11 @@ export default function MekanikKomisiPage() {
           <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: 'var(--text-muted)', marginBottom: 8 }}>
             Belum Ada Payout
           </div>
+          <p style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+            Payout dibuat otomatis saat periode komisi ditutup.
+          </p>
           <p style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', marginBottom: 20 }}>
-            Belum ada payout. Buka periode komisi dan input transaksi jasa.
+            Buka periode aktif, input transaksi jasa, lalu tutup periode untuk generate payout pertama.
           </p>
           <button
             onClick={() => navigate('/komisi/periode')}
@@ -200,7 +219,7 @@ export default function MekanikKomisiPage() {
               letterSpacing: '0.1em', cursor: 'pointer',
             }}
           >
-            BUKA PERIODE KOMISI
+            KE PERIODE KOMISI
           </button>
         </div>
       </div>
@@ -427,7 +446,7 @@ export default function MekanikKomisiPage() {
                             <div style={{ fontFamily: 'var(--display)', fontSize: 13 }}>
                               {mech?.name ?? payout.mechanicId}
                             </div>
-                            {mech && !mech.isActive && (
+                            {mech && !mech.is_active && (
                               <span style={{
                                 display: 'inline-block', padding: '1px 5px', borderRadius: 3,
                                 fontFamily: 'var(--mono)', fontSize: 8, fontWeight: 700,
@@ -500,7 +519,7 @@ export default function MekanikKomisiPage() {
                                 const computed: PayoutComputed = {
                                   mechanicId: payout.mechanicId,
                                   mechanicName: mech?.name ?? payout.mechanicId,
-                                  isActive: mech?.isActive ?? false,
+                                  isActive: mech?.is_active ?? false,
                                   totalJobs: payout.totalJobs,
                                   totalBasis: payout.totalBasis,
                                   totalKomisi: payout.totalKomisi,
