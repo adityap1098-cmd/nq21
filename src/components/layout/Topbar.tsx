@@ -37,9 +37,15 @@ export default function Topbar() {
 
   const { data: periods = [] } = useCommissionPeriods()
   const activePeriod = periods.find(p => p.status === 'open')
-  const periodLabel = activePeriod
-    ? format(new Date(activePeriod.weekStart + 'T00:00:00'), 'd MMM yyyy', { locale: id })
-    : format(new Date(), 'd MMM yyyy', { locale: id })
+
+  function parseLocalDate(dateStr: string | undefined): Date {
+    if (!dateStr) return new Date()
+    const parts = dateStr.split('-').map(Number)
+    if (parts.length !== 3 || parts.some(isNaN)) return new Date()
+    return new Date(parts[0], parts[1] - 1, parts[2])
+  }
+
+  const periodLabel = format(parseLocalDate(activePeriod?.weekStart), 'd MMM yyyy', { locale: id })
   const periodSub = activePeriod ? 'Periode Aktif' : 'Hari Ini'
 
   return (
