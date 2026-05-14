@@ -13,7 +13,7 @@ import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import { useUserStore } from '@/store/master/users'
 import { useAuthStore } from '@/store/auth'
 import { useAuditStore } from '@/store/audit'
-import { useCommissionStore } from '@/store/commission'
+import { useCommissionPeriods } from '@/features/komisi/hooks'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/hooks/use-toast'
 import type { CommissionPeriod, AuditLog } from '@/store/types'
@@ -112,7 +112,7 @@ export default function DetailTransaksiPage() {
   const { users } = useUserStore()
   const { user } = useAuthStore()
   const { logs } = useAuditStore()
-  const { periods } = useCommissionStore()
+  const { data: periods = [] } = useCommissionPeriods()
 
   const [showDelete, setShowDelete] = useState(false)
   const [auditExpanded, setAuditExpanded] = useState(false)

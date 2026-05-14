@@ -282,6 +282,14 @@ Catat keputusan teknis penting yang nggak obvious dari plan.md:
   - `user.username` removed everywhere — audit log `userId` fields now use `user.name`
   - Supabase vendor chunk isolated (207kB raw / 53kB gzip) via `manualChunks` in vite.config.ts
 
+- **M006-V2 SEALED (2026-05-14)**: Backend migration complete. Verified multi-device sync laptop ↔ HP. All critical paths on Supabase real data. Tag: `vM006-V2`
+  - **closed_by / paid_by pattern**: `commission_periods.closed_by` + `commission_payouts.paid_by` are `uuid` FK → always pass `user.id` (NOT `user.name`). Display name diperoleh via join ke profiles kalau perlu.
+  - **Topbar period pill**: reads `useCommissionPeriods()`, shows `weekStart` of open period. Safe parse via `parseLocalDate()` guard (no `new Date(str + 'T00:00:00')` — timezone bug).
+  - **Deprecated store deleted**: `src/store/commission.ts` deleted post-seal. Remaining Zustand stores intentional defer: `transactions.ts` (CommandPalette/MechanicChipRow), `master/categories.ts` (T2.3), `master/mechanics.ts` (T2.4).
+  - **Audit log**: fire-and-forget `.then(()=>{}, ()=>{})` pattern — intentional, non-blocking. Actions: `create_customer`, `create_supplier`, `create_transaction`, `update_transaction`, `delete_transaction`.
+  - **PINNED_TODAY bug**: was hardcoded `'2026-05-10'` in `selectors.ts`. Fixed to `new Date().toISOString().slice(0,10)`. All period filter presets now real-date anchored.
+  - **Production**: https://nq21.vercel.app · owner@nq21.app / kasir@nq21.app
+
 ---
 
 ## Tech Stack (LOCKED — match plan.md Section 1)

@@ -848,6 +848,12 @@ _(none)_
   Fix applied: removed localStorage purge from timeout catch. Token stays intact, Tab B just falls to login page.
   Remaining issue: Tab B still fails to restore session (getSession slow on cold start). Single-tab usage is the workaround.
   Defer ke polish phase post-T3.
+- [x] **M006-V2-T2.6**: SEALER — cleanup + docs + tag vM006-V2 ✅ (2026-05-14)
+  - `DetailTransaksiPage`: `useCommissionStore` → `useCommissionPeriods` (last deprecated ref)
+  - `src/store/commission.ts` deleted (dead after T2.6)
+  - PROGRESS.md + CLAUDE.md + README.md updated
+  - Build clean ✅ · Tag `vM006-V2` · Push
+
 - [x] **M006-V2-T3.5**: Dashboard + 4 Laporan + Komisi pages — Supabase migration ✅ (2026-05-14)
   - **Dashboard**: `useDashboardData()` hook — TanStack Query reads transactions/mechanics/periods from Supabase; all KPI + chart data from real DB
   - **LaporanCashFlowPage**: `useTransactionsWithLines()` replaces Zustand; snake_case fields; `partyName` from embedded customer/supplier join
@@ -865,6 +871,50 @@ _(none)_
 - [ ] **M006-V2-T6**: E2E verification + tag vM006-V2
 
 **JANGAN gas T2 sebelum T1 verified work** — multi-device sync = critical milestone.
+
+---
+
+## M006-V2 — COMPLETE ✅
+
+**Completed**: 2026-05-14
+**Tag**: vM006-V2
+**Production**: https://nq21.vercel.app
+
+### Milestones (dengan commit hash)
+| Task | Commit | Deskripsi |
+|------|--------|-----------|
+| T1 Auth | `6263ffb` | Supabase signInWithPassword, profiles, onAuthStateChange |
+| T2.1 Customers | `b81e87c` | useCustomers + useCreateCustomer |
+| T2.2 Suppliers | `4de2873` | useSuppliers + useCreateSupplier |
+| T3.0 Bridge | `c5f76a2` | TransactionForm master reads → Supabase |
+| T3.1.1 List/Detail | `5205c99` | DaftarTransaksiPage + DetailTransaksiPage reads |
+| T3.2 Atomic Create | `c5cb251` | create + Bubut Luar dual-leg + rollback |
+| T3.3 Edit/Delete | `1898e34` | updateTransaction + deleteTransaction + period guard |
+| T2.5 Komisi | `cd6b9cb` + `e9c45d0` | close period + mark paid (UUID fix) |
+| T3.1.2 Guard refs | `fd9bbdd` | Dashboard + 4 Laporan + Komisi pages → Supabase |
+| T2.6 Sealer | _(this commit)_ | cleanup + tag |
+
+### Migration Coverage: 17 pages baca dari Supabase
+`/dashboard`, `/transaksi`, `/transaksi/:id`, `/transaksi/baru`, `/transaksi/:id/edit`, `/laporan/cash-flow`, `/laporan/kategori`, `/laporan/jasa`, `/laporan/dyno`, `/komisi/periode`, `/komisi/mekanik`, `/komisi/slip/:periodId/:mechanicId`, `/master/customer`, `/master/supplier`, `Topbar`, `TransactionForm` (create/edit submit), `DetailTransaksiPage` (period badge)
+
+### Verified Scenarios (2026-05-14)
+- ✅ Edit transaksi period OPEN
+- ✅ Delete transaksi period OPEN
+- ✅ Edit/Delete period CLOSED block proper
+- ✅ Multi-device sync laptop ↔ HP
+- ✅ DetailTransaksiPage badge correct
+
+### Known Issues — Acceptable Defer
+- **T2.3**: MasterKategoriPage CRUD masih Zustand (`useCategoryStore`) — reads OK via Supabase
+- **T2.4**: MasterMekanikPage CRUD masih Zustand (`useMechanicStore`) — reads OK via Supabase
+- **CommandPalette** (Ctrl+K): search baca Zustand mock, cosmetic — stale di device baru
+- **MechanicChipRow** last-used pre-fill: baca Zustand, cosmetic
+- **ItemNameAutocomplete**: baca Zustand, cosmetic
+- **Multi-tab Tab B** occasional session restore timeout — single-tab workaround, tidak blocking
+
+### Demo Credentials
+- owner@nq21.app (role: owner — full access + mark paid + close period)
+- kasir@nq21.app (role: kasir — input + edit transaksi)
 
 ---
 
@@ -889,3 +939,4 @@ _(none)_
 - **M006-V2-T1** ✅ 2026-05-11 — Supabase auth migration (email login, profiles, onAuthStateChange)
 - **M006-V2-T2.1** ✅ 2026-05-12 — Master data reads (customers/suppliers/categories/mechanics) migrated to Supabase hooks in TransactionForm
 - **M006-V2-T3.5** ✅ 2026-05-14 — Dashboard + 4 Laporan + Komisi pages migrated; PINNED_TODAY fix; UTC+7 addDays fix; useOpenNewPeriod for new period creation
+- **M006-V2 SEALED** ✅ 2026-05-14 — All critical paths on Supabase, multi-device verified, tag vM006-V2
