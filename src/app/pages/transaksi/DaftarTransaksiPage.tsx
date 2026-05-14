@@ -113,15 +113,13 @@ function SummaryStrip({ filtered }: { filtered: TransactionRow[] }) {
 
 export default function DaftarTransaksiPage() {
   const navigate = useNavigate()
-  const { data: transactions = [], isLoading, error } = useTransactions({ includeDeleted: false })
+  const { data: transactions = [], isLoading } = useTransactions({ includeDeleted: false })
   const { data: customers = [] } = useCustomers()
   const { data: suppliers = [] } = useSuppliers()
 
-  console.log('[DaftarTransaksi] state:', { rows: transactions.length, isLoading, error: (error as Error | null)?.message ?? null })
-
   const [search, setSearch]   = useState('')
   const [tipe, setTipe]       = useState<TipeFilter>('all')
-  const [period, setPeriod]   = useState<PeriodFilter>('week')
+  const [period, setPeriod]   = useState<PeriodFilter>('all')
   const [page, setPage]       = useState(1)
   const [sortBy, setSortBy]   = useState<SortKey>('tgl')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -173,6 +171,16 @@ export default function DaftarTransaksiPage() {
     })
     return arr
   }, [filtered, sortBy, sortDir, customers, suppliers])
+
+  console.log('[Daftar]', {
+    totalRows: transactions.length,
+    filteredRows: filtered.length,
+    period,
+    tipe,
+    search,
+    isLoading,
+    firstRow: transactions[0]?.no_referensi ?? null,
+  })
 
   function handleSort(key: SortKey) {
     if (sortBy === key) {

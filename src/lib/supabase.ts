@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { processLock } from '@supabase/auth-js'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
@@ -12,5 +13,8 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken: true,
     detectSessionInUrl: false,
     storageKey: `sb-${projectRef}-auth-token`,
+    // Bypass cross-tab LockManager contention. Without this, Tab B's getSession()
+    // hangs waiting for Tab A's autoRefresh token tick to release navigator.locks.
+    lock: processLock,
   },
 })
