@@ -157,8 +157,8 @@ export function useCommissionPeriods() {
       if (error) throw error
       return (data ?? []).map(r => ({
         id: r.id as string,
-        weekStart: r.week_start as string,
-        weekEnd: r.week_end as string,
+        weekStart: (r.week_start as string).slice(0, 10),
+        weekEnd: (r.week_end as string).slice(0, 10),
         status: r.status as 'open' | 'closed',
         closedBy: (r.closed_by as string | null) ?? undefined,
         closedAt: (r.closed_at as string | null) ?? undefined,

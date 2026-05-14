@@ -18,6 +18,7 @@ import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
 import { useMechanics } from '@/features/mechanics/hooks'
 import type { CommissionPeriod } from '@/store/types'
+import { formatWeekRange } from '@/lib/format'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,6 +27,7 @@ function fmtRp(n: number) {
 }
 
 function fmtRpShort(n: number) {
+  if (isNaN(n)) return '0'
   const a = Math.abs(n)
   if (a >= 1_000_000) return (n / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'jt'
   if (a >= 1_000) return Math.round(n / 1_000) + 'rb'
@@ -48,10 +50,6 @@ function kpiChange(delta: number | undefined): { value: string; up: boolean; con
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
 const MONTH_UPPER = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES']
 
-function fmtPeriodLabel(weekStart: string, weekEnd: string) {
-  const m = MONTH_UPPER[parseInt(weekEnd.slice(5, 7)) - 1]
-  return `${weekStart.slice(8)} – ${weekEnd.slice(8)} ${m} ${weekEnd.slice(0, 4)}`
-}
 
 // ── Chart data builders (using TransactionRow snake_case) ──────────────────────
 
@@ -474,10 +472,8 @@ export default function Dashboard() {
     )
   }
 
-  const periodSubtitle = `Snapshot bisnis minggu ini · ${fmtPeriodLabel(activePeriod.weekStart, activePeriod.weekEnd)}`
-  const chartPeriodLabel = activePeriod
-    ? `${activePeriod.weekStart.slice(8)} – ${activePeriod.weekEnd.slice(8)} ${MONTH_UPPER[parseInt(activePeriod.weekEnd.slice(5,7))-1]}`
-    : ''
+  const periodSubtitle = `Snapshot bisnis minggu ini · ${formatWeekRange(activePeriod.weekStart, activePeriod.weekEnd)}`
+  const chartPeriodLabel = formatWeekRange(activePeriod.weekStart, activePeriod.weekEnd)
   const topKatSubtitle = `Pemasukan · ${MONTH_UPPER[parseInt(activePeriod.weekStart.slice(5,7))-1]} ${activePeriod.weekStart.slice(0,4)}`
 
   return (
@@ -555,7 +551,7 @@ export default function Dashboard() {
                 }}>
                   <div>
                     <div style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700, color: 'var(--text)', letterSpacing: '0.04em' }}>
-                      {fmtPeriodLabel(p.weekStart, p.weekEnd)}
+                      {formatWeekRange(p.weekStart, p.weekEnd)}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                       <Badge variant={p.status === 'open' ? 'open' : 'closed'}>
