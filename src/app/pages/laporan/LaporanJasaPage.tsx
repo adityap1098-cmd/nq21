@@ -6,8 +6,10 @@ import { exportCSV, fmtRupiah, fmtDate, fmtPercent } from '@/lib/csv'
 import { usePeriodFilter } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
 import { useCommissionRates } from '@/features/komisi/hooks'
+import type { CommissionRate } from '@/store/types'
 import { useMechanics } from '@/features/mechanics/hooks'
 import { useCategories } from '@/features/categories/hooks'
+import type { TransactionWithLines } from '@/features/transactions/hooks'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 const fmtRp = (n: number) => `Rp ${_fmt.format(n)}`
@@ -165,12 +167,12 @@ function MechStack({ line }: { line: JasaDetailLine }) {
 // ── Computation ───────────────────────────────────────────────────────────────
 
 function computeJasaReport(
-  txsWithLines: ReturnType<typeof useTransactionsWithLines>['data'],
-  rates: ReturnType<typeof useCommissionRates>['data'],
+  txsWithLines: TransactionWithLines[],
+  rates: CommissionRate[],
   filters?: { mechanicIds?: string[]; categoryIds?: string[] },
 ) {
-  const safeTxs = txsWithLines ?? []
-  const safeRates = rates ?? []
+  const safeTxs = txsWithLines
+  const safeRates = rates
 
   const detailLines: JasaDetailLine[] = []
   const mechStats: Record<string, { totalBasis: number; totalKomisi: number; jobsCount: number; categoryIds: Set<string> }> = {}
