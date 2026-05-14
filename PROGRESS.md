@@ -936,6 +936,25 @@ _(none)_
 - **Fix C (close backfill)**: `useClosePeriod` now backfills `period_id` on all in-range NULL transactions before marking period closed. `ClosePeriodInput.weekStart` field added.
 - **Verified**: TRX-20260514-001 saved dengan `period_id = 61d2bfca...` (auto-bind ke OPEN period) ✅
 
+### Bug #3 — Date format broken di Dashboard (ISO timestamp leak)
+- **Root cause**: `commission_periods.week_start`/`week_end` returned from Supabase sebagai full ISO timestamp (`"2026-05-11T00:00:00+00:00"`), bukan plain date string. Dashboard.tsx local `fmtPeriodLabel` used `.slice(8)` → captured `"11T00:00:00+00:00"` instead of `"11"`. Affected: header subtitle, chart card, period komisi card. Topbar `parseLocalDate` fell back to today (NaN guard triggered).
+- **Fix root**: `useCommissionPeriods` normalizes `weekStart`/`weekEnd` via `.slice(0,10)` — fixes all consumers at source. Commit: `1d42e60`
+- **Fix display**: New `src/lib/format.ts` → `formatWeekRange(weekStart, weekEnd)` outputs "11–17 Mei 2026". Replaced local `fmtPeriodLabel` in Dashboard.tsx.
+- **Verified**: Dashboard subtitle, chart label, period card all show clean Indonesian format ✅
+
+### Bug #4 — Chart X-axis "NaN" labels (7 ticks)
+- **Root cause**: Same ISO timestamp leak. `buildWeekData(allTxs, activePeriod.weekStart, today)` called `addDaysToStr("2026-05-11T00:00:00+00:00", i)` → `Number("11T00:00:00+00:00")` = NaN → all 7 date buckets = `"NaN-NaN-NaN"` → `day = "NaN"`, `dayTx` filter matched nothing.
+- **Fix root**: Same hook normalization (Bug #3 fix) cleans weekStart before it reaches chart builder.
+- **Fix defensive**: `fmtRpShort` (Y-axis tickFormatter) now guards `isNaN(n) → '0'`.
+- **Verified**: Chart renders 7 valid day labels, single bar on day with transaction ✅
+
+### Lesson learned
+T2.6 SEALER harus include full E2E verification (new transaction + close period + reopen) BEFORE tagging. 4 post-tag bugs caught via audit-driven senior debug habit — manual SQL inspection of live data setelah tag. Flow checklist yang seharusnya dilakukan sebelum `vM006-V2`:
+1. Input transaksi → verify `period_id` set in DB
+2. Tutup periode → verify transactions backfilled, next period correct dates
+3. Buka periode baru → verify next week range (tidak duplicate)
+4. Dashboard → visual inspect date labels + chart
+
 ---
 
 ## M006-V1 — Backend Integration ⏸ DEFERRED (archived)
@@ -960,4 +979,4 @@ _(none)_
 - **M006-V2-T2.1** ✅ 2026-05-12 — Master data reads (customers/suppliers/categories/mechanics) migrated to Supabase hooks in TransactionForm
 - **M006-V2-T3.5** ✅ 2026-05-14 — Dashboard + 4 Laporan + Komisi pages migrated; PINNED_TODAY fix; UTC+7 addDays fix; useOpenNewPeriod for new period creation
 - **M006-V2 SEALED** ✅ 2026-05-14 — All critical paths on Supabase, multi-device verified, tag vM006-V2
-- **M006-V2 Post-tag patches** ✅ 2026-05-14 — period_id auto-bind (create/update/close) + useOpenNewPeriod next-week range fix, verified production
+- **M006-V2 Post-tag patches** ✅ 2026-05-14 — 4 bugs: period_id binding, useOpenNewPeriod next-week, date format (ISO leak), chart NaN — all verified production
