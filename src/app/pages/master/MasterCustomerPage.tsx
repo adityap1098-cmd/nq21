@@ -84,14 +84,6 @@ export default function MasterCustomerPage() {
     defaultValues: { name: '', motor_type: '', phone: '', notes: '' },
   })
 
-  if (!isOwner) {
-    return (
-      <EmptyState
-        message="Hanya owner yang bisa mengakses halaman ini."
-      />
-    )
-  }
-
   if (error) {
     return (
       <EmptyState
@@ -163,8 +155,8 @@ export default function MasterCustomerPage() {
         columns={columns}
         searchKeys={['name', 'motor_type', 'phone']}
         onAdd={openAdd}
-        onEdit={openEdit}
-        onDelete={openDelete}
+        onEdit={isOwner ? openEdit : undefined}
+        onDelete={isOwner ? openDelete : undefined}
         emptyState={{
           message: isLoading
             ? 'Memuat data...'

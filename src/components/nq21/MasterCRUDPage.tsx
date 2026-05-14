@@ -31,8 +31,8 @@ interface MasterCRUDPageProps<T extends { id: string }> {
   columns: ColumnConfig<T>[]
   searchKeys?: (keyof T)[]
   onAdd: () => void
-  onEdit: (item: T) => void
-  onDelete: (item: T) => void
+  onEdit?: (item: T) => void
+  onDelete?: (item: T) => void
   emptyState?: EmptyStateConfig
   children?: React.ReactNode
   enableSearch?: boolean
@@ -95,6 +95,7 @@ export function MasterCRUDPage<T extends { id: string }>({
 
   const showSearch = enableSearch && !!searchKeys?.length
   const showFilterRow = showSearch || !!enableFilters
+  const hasActions = !!onEdit || !!onDelete
 
   return (
     <div>
@@ -180,7 +181,7 @@ export function MasterCRUDPage<T extends { id: string }>({
                     </span>
                   </TableHead>
                 ))}
-                <TableHead style={{ width: 88 }} />
+                {hasActions && <TableHead style={{ width: 88 }} />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -194,27 +195,28 @@ export function MasterCRUDPage<T extends { id: string }>({
                       {col.render ? col.render(item) : getCellValue(item, col.key)}
                     </TableCell>
                   ))}
-                  <TableCell>
-                    <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(item)}
-                        title="Edit"
-                      >
-                        <Pencil size={13} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDelete(item)}
-                        title="Hapus"
-                        className="text-[var(--accent)] hover:text-[var(--accent-dark)] hover:bg-[var(--accent-tint)]"
-                      >
-                        <Trash2 size={13} />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {hasActions && (
+                    <TableCell>
+                      <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                        {onEdit && (
+                          <Button variant="ghost" size="sm" onClick={() => onEdit(item)} title="Edit">
+                            <Pencil size={13} />
+                          </Button>
+                        )}
+                        {onDelete && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete(item)}
+                            title="Hapus"
+                            className="text-[var(--accent)] hover:text-[var(--accent-dark)] hover:bg-[var(--accent-tint)]"
+                          >
+                            <Trash2 size={13} />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>

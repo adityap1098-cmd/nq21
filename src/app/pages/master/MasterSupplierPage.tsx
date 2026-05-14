@@ -117,10 +117,6 @@ export default function MasterSupplierPage() {
   })
   const isVendorBubut = watch('is_vendor_bubut')
 
-  if (!isOwner) {
-    return <EmptyState message="Hanya owner yang bisa mengakses halaman ini." />
-  }
-
   if (error) {
     return <EmptyState message={`Gagal memuat data: ${(error as Error).message}`} />
   }
@@ -188,8 +184,8 @@ export default function MasterSupplierPage() {
         columns={columns}
         searchKeys={['name', 'phone']}
         onAdd={openAdd}
-        onEdit={openEdit}
-        onDelete={openDelete}
+        onEdit={isOwner ? openEdit : undefined}
+        onDelete={isOwner ? openDelete : undefined}
         emptyState={{
           message: isLoading
             ? 'Memuat data...'
