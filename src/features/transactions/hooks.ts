@@ -68,7 +68,6 @@ export function useTransactions(filters: TransactionFilters = {}) {
     queryKey: ['transactions', filters],
     staleTime: STALE_5MIN,
     queryFn: async () => {
-      console.log('[useTransactions] fetch start, filters:', filters)
       let query = supabase
         .from('transactions')
         .select('*')
@@ -81,9 +80,64 @@ export function useTransactions(filters: TransactionFilters = {}) {
       if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
 
       const { data, error } = await query
-      console.log('[useTransactions] result:', { rows: data?.length ?? 0, error: error?.message ?? null })
       if (error) throw error
       return (data ?? []) as TransactionRow[]
+    },
+  })
+}
+
+// ── useTransactionsWithLines ──────────────────────────────────────────────────
+// Fetches transactions with embedded lines, categories, mechanics, and party.
+// Used by laporan pages that need per-line category breakdown.
+
+export interface TransactionLineMechanicWithMechanic {
+  id: string
+  line_id: string
+  mechanic_id: string
+  share_percent: number
+  rate_override: number | null
+  mechanics: { id: string; name: string; is_active: boolean } | null
+}
+
+export interface TransactionLineWithCategory extends TransactionLineRow {
+  categories: { id: string; name: string; type: string; is_jasa: boolean } | null
+  transaction_line_mechanics: TransactionLineMechanicWithMechanic[]
+}
+
+export interface TransactionWithLines extends TransactionRow {
+  customer: { id: string; name: string; motor_type: string | null } | null
+  supplier: { id: string; name: string } | null
+  transaction_lines: TransactionLineWithCategory[]
+}
+
+export function useTransactionsWithLines(filters: TransactionFilters = {}) {
+  return useQuery({
+    queryKey: ['transactions-with-lines', filters],
+    staleTime: STALE_5MIN,
+    queryFn: async () => {
+      let query = supabase
+        .from('transactions')
+        .select(`
+          *,
+          customers(id, name, motor_type),
+          suppliers(id, name),
+          transaction_lines(
+            id, transaction_id, category_id, nominal, biaya_material, item_name, notes,
+            categories(id, name, type, is_jasa),
+            transaction_line_mechanics(id, line_id, mechanic_id, share_percent, rate_override, mechanics(id, name, is_active))
+          )
+        `)
+        .order('tgl', { ascending: false })
+        .order('created_at', { ascending: false })
+
+      if (!filters.includeDeleted) query = query.is('deleted_at', null)
+      if (filters.tipe) query = query.eq('tipe', filters.tipe)
+      if (filters.dateFrom) query = query.gte('tgl', filters.dateFrom)
+      if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
+
+      const { data, error } = await query
+      if (error) throw error
+      return (data ?? []) as unknown as TransactionWithLines[]
     },
   })
 }
