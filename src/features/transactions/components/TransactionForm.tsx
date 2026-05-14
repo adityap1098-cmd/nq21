@@ -551,7 +551,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                   fontFamily: 'var(--mono)',
                 }}>
                   {tgl
-                    ? format(new Date(tgl + 'T00:00:00'), 'd MMMM yyyy', { locale: localeId })
+                    ? format(new Date(tgl.slice(0, 10) + 'T00:00:00'), 'd MMMM yyyy', { locale: localeId })
                     : '—'}
                 </div>
               )}

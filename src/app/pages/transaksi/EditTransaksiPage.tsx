@@ -70,7 +70,7 @@ export default function EditTransaksiPage() {
     return {
       header: {
         noReferensi: tx.no_referensi,
-        tglTransaksi: tx.tgl,
+        tglTransaksi: tx.tgl.slice(0, 10),
         tipe: tx.tipe,
         customerId: tx.customer_id ?? undefined,
         supplierId: tx.supplier_id ?? undefined,
