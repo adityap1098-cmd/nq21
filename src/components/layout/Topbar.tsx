@@ -1,6 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Search, Calendar, Plus } from 'lucide-react'
 import { useUiStore } from '@/store/ui'
+import { useCommissionPeriods } from '@/features/komisi/hooks'
+import { format } from 'date-fns'
+import { id } from 'date-fns/locale'
 
 const PAGE_MAP: Record<string, { crumb: string }> = {
   '/dashboard':         { crumb: 'DASHBOARD' },
@@ -31,6 +34,13 @@ export default function Topbar() {
   const navigate = useNavigate()
   const openCommandPalette = useUiStore((s) => s.openCommandPalette)
   const crumb = resolveCrumb(pathname)
+
+  const { data: periods = [] } = useCommissionPeriods()
+  const activePeriod = periods.find(p => p.status === 'open')
+  const periodLabel = activePeriod
+    ? format(new Date(activePeriod.weekStart + 'T00:00:00'), 'd MMM yyyy', { locale: id })
+    : format(new Date(), 'd MMM yyyy', { locale: id })
+  const periodSub = activePeriod ? 'Periode Aktif' : 'Hari Ini'
 
   return (
     <div
@@ -148,9 +158,9 @@ export default function Topbar() {
         <span style={{ color: 'var(--text-muted)', display: 'grid', placeItems: 'center' }}>
           <Calendar size={13} />
         </span>
-        <strong style={{ color: 'var(--text)', fontWeight: 600 }}>10 Mei 2026</strong>
+        <strong style={{ color: 'var(--text)', fontWeight: 600 }}>{periodLabel}</strong>
         <span style={{ color: 'var(--text-muted)' }}>·</span>
-        <span>Minggu ini</span>
+        <span>{periodSub}</span>
       </div>
 
       {/* CTA */}
