@@ -42,8 +42,11 @@ export default function Login() {
           : error
       )
       setIsSubmitting(false)
+      return
     }
-    // success: onAuthStateChange fires → user set → Navigate to "/" fires
+    // Success: onAuthStateChange SIGNED_IN → _setUser → Navigate to "/" fires.
+    // Safety: reset button if auth flow stalls (profile fetch fail, inactive user, etc.)
+    setTimeout(() => setIsSubmitting(false), 6000)
   }
 
   return (
