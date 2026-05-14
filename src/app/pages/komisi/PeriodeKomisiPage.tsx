@@ -246,21 +246,19 @@ export default function PeriodeKomisiPage() {
           Buka periode pertama untuk mulai tracking komisi minggu ini.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          {isOwner && (
-            <button
-              onClick={() => openNewPeriod.mutate(currentWeek)}
-              disabled={openNewPeriod.isPending}
-              style={{
-                padding: '10px 20px', borderRadius: 6, border: 'none',
-                background: 'var(--accent)', color: '#fff',
-                fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
-                letterSpacing: '0.1em', cursor: openNewPeriod.isPending ? 'wait' : 'pointer',
-                opacity: openNewPeriod.isPending ? 0.6 : 1,
-              }}
-            >
-              {openNewPeriod.isPending ? 'MEMBUKA...' : `+ BUKA PERIODE ${currentWeek.weekStart} – ${currentWeek.weekEnd}`}
-            </button>
-          )}
+          <button
+            onClick={() => openNewPeriod.mutate(currentWeek)}
+            disabled={openNewPeriod.isPending}
+            style={{
+              padding: '10px 20px', borderRadius: 6, border: 'none',
+              background: 'var(--accent)', color: '#fff',
+              fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.1em', cursor: openNewPeriod.isPending ? 'wait' : 'pointer',
+              opacity: openNewPeriod.isPending ? 0.6 : 1,
+            }}
+          >
+            {openNewPeriod.isPending ? 'MEMBUKA...' : `+ BUKA PERIODE ${currentWeek.weekStart} – ${currentWeek.weekEnd}`}
+          </button>
           <button
             onClick={() => navigate('/transaksi/baru')}
             style={{
