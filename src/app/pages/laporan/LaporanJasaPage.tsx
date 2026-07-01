@@ -179,6 +179,7 @@ function computeJasaReport(
     for (const line of tx.transaction_lines) {
       const cat = line.categories
       if (!cat?.is_jasa) continue
+      if (cat.name === 'Dyno') continue
       if (filters?.categoryIds?.length && !filters.categoryIds.includes(cat.id)) continue
 
       const lms = line.transaction_line_mechanics

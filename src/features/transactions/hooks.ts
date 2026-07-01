@@ -119,8 +119,8 @@ export function useTransactionsWithLines(filters: TransactionFilters = {}) {
         .from('transactions')
         .select(`
           *,
-          customers(id, name, motor_type),
-          suppliers(id, name),
+          customer:customers(id, name, motor_type),
+          supplier:suppliers(id, name),
           transaction_lines(
             id, transaction_id, category_id, nominal, biaya_material, item_name, notes,
             categories(id, name, type, is_jasa),
