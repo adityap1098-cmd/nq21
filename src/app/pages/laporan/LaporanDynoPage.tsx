@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
-import { PageHeader } from '@/components/nq21/PageHeader'
-import { PeriodSelector } from '@/components/nq21/PeriodSelector'
+import { PageHeader, PeriodSelector, CustomDateRangeInput } from '@/components/nq21'
 import { exportCSV, fmtDate } from '@/lib/csv'
 import { usePeriodFilter } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
@@ -241,6 +240,13 @@ export default function LaporanDynoPage() {
         value={period.preset}
         onChange={(v) => period.setPreset(v as import('@/lib/hooks/usePeriodFilter').PeriodPreset)}
       />
+      {period.preset === 'custom' && (
+        <CustomDateRangeInput
+          start={period.customRange?.start ?? ''}
+          end={period.customRange?.end ?? ''}
+          onChange={(start, end) => period.setCustomRange({ start, end })}
+        />
+      )}
       <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--mono)' }}>
         {fmtShortDate(period.range.start)} — {fmtShortDate(period.range.end)}
       </div>

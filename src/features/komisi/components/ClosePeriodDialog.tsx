@@ -64,63 +64,77 @@ export function ClosePeriodDialog({ open, period, payouts, onClose, onConfirm }:
             RINGKASAN KOMISI YANG AKAN DI-GENERATE
           </div>
 
-          <div style={{
-            border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden',
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: 'var(--surface-alt)' }}>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>MEKANIK</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>JOBS</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>BASIS</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>KOMISI</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payouts.map((p, i) => (
-                  <tr key={p.mechanicId} style={{ borderTop: i === 0 ? '1px solid var(--border)' : '1px dashed var(--border)' }}>
-                    <td style={{ padding: '10px 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{
-                          width: 28, height: 28, borderRadius: '50%',
-                          background: 'var(--accent)', color: '#fff',
-                          display: 'grid', placeItems: 'center',
-                          fontFamily: 'var(--display)', fontSize: 14, flexShrink: 0,
-                        }}>
-                          {getInitial(p.mechanicName)}
+          {payouts.length === 0 ? (
+            <div style={{
+              border: '1px solid var(--border)', borderRadius: 8,
+              padding: '24px 28px', textAlign: 'center',
+            }}>
+              <div style={{ fontFamily: 'var(--display)', fontSize: 15, color: 'var(--text-muted)', marginBottom: 6 }}>
+                Tidak Ada Komisi Mekanik
+              </div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                Tidak ada transaksi jasa di periode ini. Periode akan ditutup tanpa menghasilkan payout.
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden',
+            }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface-alt)' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>MEKANIK</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>JOBS</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>BASIS</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)', fontWeight: 600 }}>KOMISI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payouts.map((p, i) => (
+                    <tr key={p.mechanicId} style={{ borderTop: i === 0 ? '1px solid var(--border)' : '1px dashed var(--border)' }}>
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div style={{
+                            width: 28, height: 28, borderRadius: '50%',
+                            background: 'var(--accent)', color: '#fff',
+                            display: 'grid', placeItems: 'center',
+                            fontFamily: 'var(--display)', fontSize: 14, flexShrink: 0,
+                          }}>
+                            {getInitial(p.mechanicName)}
+                          </div>
+                          <span style={{ fontFamily: 'var(--display)', fontSize: 13 }}>{p.mechanicName}</span>
                         </div>
-                        <span style={{ fontFamily: 'var(--display)', fontSize: 13 }}>{p.mechanicName}</span>
-                      </div>
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12 }}>
+                        {p.totalJobs}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>
+                        {fmtRp(p.totalBasis)}
+                      </td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+                        {fmtRp(p.totalKomisi)}
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Total row */}
+                  <tr style={{ borderTop: '2px solid var(--text)', background: 'var(--surface-alt)' }}>
+                    <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', fontWeight: 700 }}>
+                      TOTAL — {payouts.length} MEKANIK
                     </td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12 }}>
-                      {p.totalJobs}
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700 }}>
+                      {totalJobs}
                     </td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>
-                      {fmtRp(p.totalBasis)}
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700 }}>
+                      {fmtRp(totalBasis)}
                     </td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
-                      {fmtRp(p.totalKomisi)}
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--display)', fontSize: 16, color: 'var(--accent)' }}>
+                      Rp {FMT.format(totalKomisi)}
                     </td>
                   </tr>
-                ))}
-                {/* Total row */}
-                <tr style={{ borderTop: '2px solid var(--text)', background: 'var(--surface-alt)' }}>
-                  <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', fontWeight: 700 }}>
-                    TOTAL — {payouts.length} MEKANIK
-                  </td>
-                  <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700 }}>
-                    {totalJobs}
-                  </td>
-                  <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700 }}>
-                    {fmtRp(totalBasis)}
-                  </td>
-                  <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--display)', fontSize: 16, color: 'var(--accent)' }}>
-                    Rp {FMT.format(totalKomisi)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Backdated warning */}

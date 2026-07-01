@@ -37,16 +37,15 @@ export default function PeriodeKomisiPage() {
   const { data: mechanics = [] } = useMechanics()
   const openNewPeriod = useOpenNewPeriod()
 
-  const hasOpenPeriod = periods.some(p => p.status === 'open')
   const currentWeek = getCurrentWeek()
   const currentWeekCovered = periods.some(
     p => p.weekStart <= currentWeek.weekStart && p.weekEnd >= currentWeek.weekEnd
   )
-  const showNewPeriodBanner = !periodsLoading && isOwner && !hasOpenPeriod && !currentWeekCovered
+  const showNewPeriodBanner = !periodsLoading && isOwner && !currentWeekCovered
 
   // Top 3 periods, newest first
   const displayPeriods = useMemo(() =>
-    [...periods].sort((a, b) => b.weekStart.localeCompare(a.weekStart)).slice(0, 3),
+    [...periods].sort((a, b) => b.weekStart.localeCompare(a.weekStart)),
     [periods]
   )
 
@@ -296,34 +295,24 @@ export default function PeriodeKomisiPage() {
             >
               CETAK SEMUA SLIP
             </button>
-            {isOpenSelected && (() => {
-              const noJasa = computedPayouts.length === 0
-              const notOwner = !isOwner
-              const disabled = noJasa || notOwner
-              const title = notOwner
-                ? 'Hanya owner yang bisa tutup periode.'
-                : noJasa
-                  ? 'Belum ada jasa di periode ini. Input transaksi jasa dulu.'
-                  : undefined
-              return (
-                <button
-                  onClick={() => setShowClosePeriodDialog(true)}
-                  disabled={disabled}
-                  title={title}
-                  style={{
-                    padding: '8px 18px', borderRadius: 6,
-                    fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-                    background: disabled ? 'var(--border)' : 'var(--text)',
-                    border: `1px solid ${disabled ? 'var(--border)' : 'var(--text)'}`,
-                    color: disabled ? 'var(--text-muted)' : '#fff',
-                    cursor: disabled ? 'not-allowed' : 'pointer',
-                    opacity: disabled ? 0.6 : 1,
-                  }}
-                >
-                  TUTUP PERIODE ▶
-                </button>
-              )
-            })()}
+            {isOpenSelected && (
+              <button
+                onClick={() => setShowClosePeriodDialog(true)}
+                disabled={!isOwner}
+                title={!isOwner ? 'Hanya owner yang bisa tutup periode.' : undefined}
+                style={{
+                  padding: '8px 18px', borderRadius: 6,
+                  fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                  background: !isOwner ? 'var(--border)' : 'var(--text)',
+                  border: `1px solid ${!isOwner ? 'var(--border)' : 'var(--text)'}`,
+                  color: !isOwner ? 'var(--text-muted)' : '#fff',
+                  cursor: !isOwner ? 'not-allowed' : 'pointer',
+                  opacity: !isOwner ? 0.6 : 1,
+                }}
+              >
+                TUTUP PERIODE ▶
+              </button>
+            )}
           </div>
         }
       />

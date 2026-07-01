@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PageHeader } from '@/components/nq21/PageHeader'
-import { PeriodSelector } from '@/components/nq21/PeriodSelector'
+import { PageHeader, PeriodSelector, CustomDateRangeInput } from '@/components/nq21'
 import { exportCSV, fmtRupiah, fmtDate, fmtPercent } from '@/lib/csv'
-import { usePeriodFilter } from '@/lib/hooks/usePeriodFilter'
+import { usePeriodFilter, type PeriodPreset } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
 import type { TransactionWithLines } from '@/features/transactions/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
@@ -269,7 +268,7 @@ function computeJasaReport(
 
 export default function LaporanJasaPage() {
   const navigate = useNavigate()
-  const { preset, range, setPreset } = usePeriodFilter('week')
+  const { preset, customRange, range, setPreset, setCustomRange } = usePeriodFilter('week')
   const [mechanicFilter, setMechanicFilter] = useState<string[]>([])
   const [categoryFilter, setCategoryFilter] = useState<string[]>([])
 
@@ -383,7 +382,14 @@ export default function LaporanJasaPage() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
         <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PERIODE</span>
-        <PeriodSelector value={preset} onChange={(v) => setPreset(v as typeof preset)} />
+        <PeriodSelector value={preset} onChange={(v) => setPreset(v as PeriodPreset)} />
+        {preset === 'custom' && (
+          <CustomDateRangeInput
+            start={customRange?.start ?? ''}
+            end={customRange?.end ?? ''}
+            onChange={(start, end) => setCustomRange({ start, end })}
+          />
+        )}
         <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
           {fmtDate(range.start)} → {fmtDate(range.end)}
         </span>

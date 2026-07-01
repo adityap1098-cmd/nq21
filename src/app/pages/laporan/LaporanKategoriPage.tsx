@@ -1,8 +1,7 @@
 import { useMemo } from 'react'
-import { PageHeader } from '@/components/nq21/PageHeader'
-import { PeriodSelector } from '@/components/nq21/PeriodSelector'
+import { PageHeader, PeriodSelector, CustomDateRangeInput } from '@/components/nq21'
 import { exportCSV, fmtRupiah, fmtDate } from '@/lib/csv'
-import { usePeriodFilter } from '@/lib/hooks/usePeriodFilter'
+import { usePeriodFilter, type PeriodPreset } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
 
 const _fmt = new Intl.NumberFormat('id-ID')
@@ -145,7 +144,7 @@ function Panel({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function LaporanKategoriPage() {
-  const { preset, range, setPreset } = usePeriodFilter('week')
+  const { preset, customRange, range, setPreset, setCustomRange } = usePeriodFilter('week')
   const { data: txsWithLines = [], isLoading } = useTransactionsWithLines({
     dateFrom: range.start,
     dateTo: range.end,
@@ -236,7 +235,14 @@ export default function LaporanKategoriPage() {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--border)' }}>
         <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PERIODE</span>
-        <PeriodSelector value={preset} onChange={(v) => setPreset(v as 'today' | 'week' | 'month' | 'custom')} />
+        <PeriodSelector value={preset} onChange={(v) => setPreset(v as PeriodPreset)} />
+        {preset === 'custom' && (
+          <CustomDateRangeInput
+            start={customRange?.start ?? ''}
+            end={customRange?.end ?? ''}
+            onChange={(start, end) => setCustomRange({ start, end })}
+          />
+        )}
         <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
           {fmtDate(range.start)} → {fmtDate(range.end)}
         </span>
