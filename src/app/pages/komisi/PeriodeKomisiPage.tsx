@@ -363,6 +363,11 @@ export default function PeriodeKomisiPage() {
               totalJobs={stats?.totalJobs ?? 0}
               totalKomisi={stats?.totalKomisi ?? 0}
               onClick={() => setSelectedPeriodId(period.id)}
+              onClosePeriod={isOwner ? () => {
+                // Select it first so the dialog previews this period's payouts
+                setSelectedPeriodId(period.id)
+                setShowClosePeriodDialog(true)
+              } : undefined}
             />
           )
         })}

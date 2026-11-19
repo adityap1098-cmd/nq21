@@ -10,19 +10,34 @@ interface Props {
   totalJobs?: number
   totalKomisi?: number
   onClick: () => void
+  /** Owner only: shown on open periods. Called to open the close-period dialog. */
+  onClosePeriod?: () => void
 }
 
-export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi, onClick }: Props) {
+const DAY_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+
+/** First day the period can be closed (the day after week_end), e.g. "Sen, 23 Nov". */
+function closableFrom(weekEnd: string): string {
+  const [y, m, d] = weekEnd.split('-').map(Number)
+  const next = new Date(y, m - 1, d + 1)
+  const iso = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+  return `${DAY_SHORT[next.getDay()]}, ${fmtShortDate(iso)}`
+}
+
+export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi, onClick, onClosePeriod }: Props) {
   const isOpen = period.status === 'open'
   const today = todayLocal()
   const isCurrent = period.weekStart <= today && period.weekEnd >= today
+  const hasEnded = period.weekEnd < today
   const openMeta = isCurrent
     ? `Berjalan · ${fmtShortDate(today)}`
-    : period.weekEnd < today
+    : hasEnded
       ? 'Selesai · belum ditutup'
       : 'Belum dimulai'
+  const showCloseAction = isOpen && onClosePeriod !== undefined
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
     <button
       onClick={onClick}
       style={{
@@ -71,5 +86,33 @@ export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi,
         {totalKomisi === undefined ? 'Rp —' : fmtRp(totalKomisi)}
       </div>
     </button>
+
+    {showCloseAction && (hasEnded ? (
+      <button
+        type="button"
+        onClick={onClosePeriod}
+        title={`Tutup periode ${fmtPeriodShort(period.weekStart, period.weekEnd)} dan generate payout`}
+        style={{
+          padding: '7px 10px', borderRadius: 6, border: 'none',
+          background: 'var(--accent)', color: '#fff',
+          fontFamily: 'var(--mono)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em',
+          cursor: 'pointer',
+        }}
+      >
+        TUTUP PERIODE ▶
+      </button>
+    ) : (
+      <div
+        title="Periode baru bisa ditutup setelah hari Minggu terakhirnya lewat"
+        style={{
+          padding: '6px 10px', borderRadius: 6, border: '1px dashed var(--border)',
+          fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.06em',
+          color: 'var(--text-muted)', textAlign: 'center',
+        }}
+      >
+        Bisa ditutup mulai {closableFrom(period.weekEnd)}
+      </div>
+    ))}
+    </div>
   )
 }
