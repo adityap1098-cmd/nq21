@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { todayLocal } from '@/lib/format'
 import { useNavigate } from 'react-router-dom'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -145,7 +146,7 @@ function computeDynoReport(txsWithLines: TransactionWithLines[]) {
     .sort((a, b) => b.sessionCount - a.sessionCount)
 
   // Last 14 days rolling window
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
   const end14 = today
   const start14 = addDays(end14, -13)
   const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']

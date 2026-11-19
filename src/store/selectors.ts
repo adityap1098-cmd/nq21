@@ -3,6 +3,7 @@ import type {
   CommissionRate, CommissionPeriod, Mechanic, Customer,
 } from './types'
 import { SEED_MECHANICS, SEED_RATES } from './master/mechanics'
+import { todayLocal } from '@/lib/format'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -152,7 +153,6 @@ type CategoryInfo = { name: string; type: string; isJasa: boolean }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const PINNED_TODAY = new Date().toISOString().slice(0, 10)
 const DAY_LABELS = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB']
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -217,14 +217,14 @@ export function getPeriodRange(
 ): DateRange {
   if (preset === 'custom' && customRange) return customRange
 
-  const today = parseDate(PINNED_TODAY)
+  const today = parseDate(todayLocal())
 
   if (preset === 'hari-ini') {
-    return { start: PINNED_TODAY, end: PINNED_TODAY }
+    return { start: todayLocal(), end: todayLocal() }
   }
 
   if (preset === 'minggu-ini') {
-    const start = getMondayOf(PINNED_TODAY)
+    const start = getMondayOf(todayLocal())
     const end = addDaysStr(start, 6)
     return { start, end }
   }
@@ -237,7 +237,7 @@ export function getPeriodRange(
     return { start, end }
   }
 
-  return { start: PINNED_TODAY, end: PINNED_TODAY }
+  return { start: todayLocal(), end: todayLocal() }
 }
 
 export function getPrevPeriodRange(current: DateRange): DateRange {
@@ -263,7 +263,7 @@ function resolveCashFlowRange(period: '7H' | '30H' | '90H' | DateRange): { range
   }
   const daysBack = period === '7H' ? 6 : period === '30H' ? 29 : 89
   return {
-    range: { start: addDaysStr(PINNED_TODAY, -daysBack), end: PINNED_TODAY },
+    range: { start: addDaysStr(todayLocal(), -daysBack), end: todayLocal() },
     autoGran: period === '90H' ? 'week' : 'day',
   }
 }
@@ -335,7 +335,7 @@ export function getCashFlow(
         label,
         income: v.income,
         expense: v.expense,
-        isToday: dateStr === PINNED_TODAY || undefined,
+        isToday: dateStr === todayLocal() || undefined,
       }
     })
 }
@@ -590,7 +590,7 @@ export function getReportDyno(
     .sort((a, b) => b.sessionCount - a.sessionCount)
 
   // Sessions by date — last 14 days
-  const end14 = PINNED_TODAY
+  const end14 = todayLocal()
   const start14 = addDaysStr(end14, -13)
   const dateBuckets: Record<string, number> = {}
   let dc = start14
@@ -639,7 +639,7 @@ export function getDashboardStats(
 
   // Build 7-day cashflow (dashboard week view)
   const start = new Date(period.weekStart)
-  const today = parseDate(PINNED_TODAY)
+  const today = parseDate(todayLocal())
   const cashflowByDay = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start)
     d.setDate(start.getDate() + i)

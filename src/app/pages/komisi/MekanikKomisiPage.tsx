@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { todayLocal } from '@/lib/format'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
 import { useAuditStore } from '@/store/audit'
@@ -144,7 +145,7 @@ export default function MekanikKomisiPage() {
         catatan: p.paidNotes ?? '',
       }
     })
-    const ts = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const ts = todayLocal().replace(/-/g, '')
     exportCSV(rows, [
       { key: 'mekanik', label: 'Mekanik' },
       { key: 'periode', label: 'Periode' },

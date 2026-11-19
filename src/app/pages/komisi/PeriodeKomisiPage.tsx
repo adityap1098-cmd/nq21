@@ -175,24 +175,13 @@ export default function PeriodeKomisiPage() {
   async function handleConfirmClose() {
     if (!selectedPeriod || !user) return
     try {
-      await closePeriod.mutateAsync({
-        periodId: selectedPeriod.id,
-        weekStart: selectedPeriod.weekStart,
-        weekEnd: selectedPeriod.weekEnd,
-        closedBy: user.id,
-        payouts: computedPayouts.map(p => ({
-          mechanicId: p.mechanicId,
-          totalJobs: p.totalJobs,
-          totalBasis: p.totalBasis,
-          totalKomisi: p.totalKomisi,
-        })),
-      })
+      const result = await closePeriod.mutateAsync({ periodId: selectedPeriod.id })
       logAudit({
         userId: user.name, action: 'update', entityType: 'period',
         entityId: selectedPeriod.id, source: 'close-period', afterData: { status: 'closed' },
       })
       toast(`Periode ${fmtPeriodFull(selectedPeriod.weekStart, selectedPeriod.weekEnd)} berhasil ditutup`, {
-        description: `${computedPayouts.length} payout di-generate.`,
+        description: `${result.payouts} payout di-generate.`,
         variant: 'success',
       })
       toast('Periode baru otomatis dibuat', { variant: 'success' })

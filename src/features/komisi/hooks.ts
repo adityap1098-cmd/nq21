@@ -257,72 +257,29 @@ export function usePeriodTransactions(
 
 // ── useClosePeriod ────────────────────────────────────────────────────────────
 
-interface ClosePeriodInput {
-  periodId: string
-  weekStart: string
-  weekEnd: string
-  closedBy: string
-  payouts: Array<{
-    mechanicId: string
-    totalJobs: number
-    totalBasis: number
-    totalKomisi: number
-  }>
+export interface ClosePeriodResult {
+  payouts: number
+  total_komisi: number
 }
 
+/**
+ * Closes a period atomically in the database (supabase/migrations/20261119_period_lock_and_close_rpc.sql):
+ * backfills period_id, computes payouts from fresh DB data, inserts them, marks the period
+ * closed and opens the next week — all or nothing. Owner-only (enforced in the function).
+ */
 export function useClosePeriod() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ periodId, weekStart, weekEnd, closedBy, payouts }: ClosePeriodInput): Promise<void> => {
-      const now = new Date().toISOString()
-
-      // Backfill period_id for transactions in range that are still NULL
-      await supabase
-        .from('transactions')
-        .update({ period_id: periodId })
-        .is('period_id', null)
-        .gte('tgl', weekStart)
-        .lte('tgl', weekEnd)
-
-      const { error: periodErr } = await supabase
-        .from('commission_periods')
-        .update({ status: 'closed', closed_by: closedBy, closed_at: now })
-        .eq('id', periodId)
-      if (periodErr) throw periodErr
-
-      if (payouts.length > 0) {
-        const { error: payoutsErr } = await supabase
-          .from('commission_payouts')
-          .insert(payouts.map(p => ({
-            period_id: periodId,
-            mechanic_id: p.mechanicId,
-            total_jobs: p.totalJobs,
-            total_basis: p.totalBasis,
-            total_komisi: p.totalKomisi,
-            status: 'pending',
-            created_at: now,
-          })))
-        if (payoutsErr) throw payoutsErr
-      }
-
-      // Auto-create next week period (idempotent)
-      const nextStart = addDaysToStr(weekEnd, 1)
-      const nextEnd = addDaysToStr(weekEnd, 7)
-      const { data: existing } = await supabase
-        .from('commission_periods')
-        .select('id')
-        .eq('week_start', nextStart)
-        .maybeSingle()
-      if (!existing) {
-        await supabase
-          .from('commission_periods')
-          .insert({ week_start: nextStart, week_end: nextEnd, status: 'open' })
-      }
+    mutationFn: async ({ periodId }: { periodId: string }): Promise<ClosePeriodResult> => {
+      const { data, error } = await supabase.rpc('close_period', { p_period_id: periodId })
+      if (error) throw error
+      return data as ClosePeriodResult
     },
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['commission-periods'] })
       queryClient.invalidateQueries({ queryKey: ['commission-payouts'] })
       queryClient.invalidateQueries({ queryKey: ['period-transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
     },
   })
 }
@@ -379,7 +336,9 @@ export function useMarkPaid() {
   const user = useAuthStore(s => s.user)
   return useMutation({
     mutationFn: async ({ payoutId, paidNotes }: { payoutId: string; paidNotes?: string }): Promise<void> => {
-      const { error } = await supabase
+      // Only a pending payout may become paid: a second click / second tab must not
+      // overwrite paid_at, paid_by and paid_notes.
+      const { data, error } = await supabase
         .from('commission_payouts')
         .update({
           status: 'paid',
@@ -388,7 +347,12 @@ export function useMarkPaid() {
           paid_notes: paidNotes ?? null,
         })
         .eq('id', payoutId)
+        .eq('status', 'pending')
+        .select('id')
       if (error) throw error
+      if (!data || data.length === 0) {
+        throw new Error('Payout sudah ditandai dibayar sebelumnya, atau kamu tidak punya akses.')
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['commission-payouts'] })

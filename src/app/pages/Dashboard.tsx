@@ -18,7 +18,7 @@ import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
 import { useMechanics } from '@/features/mechanics/hooks'
 import type { CommissionPeriod } from '@/store/types'
-import { formatWeekRange } from '@/lib/format'
+import { formatWeekRange, todayLocal } from '@/lib/format'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -331,7 +331,7 @@ function RecentTxPanel({
 // ── Main Dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const today = todayLocal()
   const from90 = useMemo(() => addDaysToStr(today, -90), [today])
 
   const { data: periods = [] }    = useCommissionPeriods()

@@ -1,6 +1,7 @@
 import type { CommissionPeriod } from '@/store/types'
 import { fmtPeriodShort, fmtShortDate, fmtClosedAt, fmtRp } from '../utils'
 import { KomisiBadge } from './KomisiBadge'
+import { todayLocal } from '@/lib/format'
 
 interface Props {
   period: CommissionPeriod
@@ -12,7 +13,7 @@ interface Props {
 
 export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi, onClick }: Props) {
   const isOpen = period.status === 'open'
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocal()
 
   return (
     <button
