@@ -10,6 +10,7 @@ interface RateMatrixTableProps {
   jasaCategories: Category[]
   rates: CommissionRate[]
   onRateChange: (mechanicId: string, categoryId: string, value: number) => void
+  readOnly?: boolean
 }
 
 interface EditingCell { mechanicId: string; categoryId: string }
@@ -18,11 +19,12 @@ function getRate(rates: CommissionRate[], mechanicId: string, categoryId: string
   return rates.find(r => r.mechanicId === mechanicId && r.categoryId === categoryId)?.ratePercent ?? 0
 }
 
-export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange }: RateMatrixTableProps) {
+export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange, readOnly = false }: RateMatrixTableProps) {
   const [editing, setEditing] = useState<EditingCell | null>(null)
   const [draft, setDraft] = useState('')
 
   function startEdit(mechanicId: string, categoryId: string) {
+    if (readOnly) return
     setDraft(String(getRate(rates, mechanicId, categoryId)))
     setEditing({ mechanicId, categoryId })
   }
@@ -30,8 +32,11 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
   function commitEdit() {
     if (!editing) return
     const parsed = parseFloat(draft)
-    const value = isNaN(parsed) ? 0 : Math.round(Math.min(100, Math.max(0, parsed)) * 10) / 10
-    onRateChange(editing.mechanicId, editing.categoryId, value)
+    // commission_rates.rate_percent is an integer column
+    const value = isNaN(parsed) ? 0 : Math.round(Math.min(100, Math.max(0, parsed)))
+    if (value !== getRate(rates, editing.mechanicId, editing.categoryId)) {
+      onRateChange(editing.mechanicId, editing.categoryId, value)
+    }
     setEditing(null)
   }
 
@@ -104,7 +109,7 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
                           type="number"
                           min={0}
                           max={100}
-                          step={0.5}
+                          step={1}
                           value={draft}
                           autoFocus
                           onChange={e => setDraft(e.target.value)}
@@ -121,13 +126,14 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
                       ) : (
                         <button
                           onClick={() => startEdit(m.id, cat.id)}
-                          title={`Edit rate ${cat.name} untuk ${m.name}`}
+                          disabled={readOnly}
+                          title={readOnly ? 'Hanya owner yang bisa mengubah rate' : `Edit rate ${cat.name} untuk ${m.name}`}
                           style={{
-                            background: 'none', border: 'none', cursor: 'pointer',
+                            background: 'none', border: 'none', cursor: readOnly ? 'default' : 'pointer',
                             padding: '2px 6px', borderRadius: 4, width: '100%',
                             transition: 'background 0.1s',
                           }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface-alt)')}
+                          onMouseEnter={e => { if (!readOnly) e.currentTarget.style.background = 'var(--surface-alt)' }}
                           onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                         >
                           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1 }}>
@@ -167,7 +173,9 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
         padding: '8px 16px', borderTop: '1px solid var(--border)',
         fontSize: 10.5, color: 'var(--text-muted)', fontFamily: 'var(--mono)', letterSpacing: '0.04em',
       }}>
-        Klik sel untuk edit inline · Enter atau blur untuk simpan · Esc untuk batal
+        {readOnly
+          ? 'Hanya owner yang bisa mengubah rate komisi'
+          : 'Klik sel untuk edit inline · Enter atau blur untuk simpan · Esc untuk batal'}
       </div>
     </div>
   )

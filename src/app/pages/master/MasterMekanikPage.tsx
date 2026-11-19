@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMechanicStore } from '@/store/master/mechanics'
-import { useCategoryStore } from '@/store/master/categories'
-import { useTransactionStore } from '@/store/transactions'
-import { useAuditStore } from '@/store/audit'
 import { useAuthStore } from '@/store/auth'
+import {
+  useMechanics, useCommissionRates, useMechanicJobCounts,
+  useCreateMechanic, useUpdateMechanic, useUpsertCommissionRate,
+} from '@/features/mechanics/hooks'
+import { useCategories } from '@/features/categories/hooks'
 import { MasterCRUDPage, type ColumnConfig } from '@/components/nq21/MasterCRUDPage'
 import { AddEditDialog } from '@/components/nq21/AddEditDialog'
 import { RateMatrixTable } from '@/components/nq21/RateMatrixTable'
@@ -14,18 +15,23 @@ import { Section } from '@/components/nq21/Section'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { FormField } from '@/components/nq21/FormField'
 import { DateDisplay } from '@/components/nq21/DateDisplay'
+import { EmptyState } from '@/components/nq21/EmptyState'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
-import type { Mechanic } from '@/store/types'
+import type { Mechanic, Category, CommissionRate } from '@/store/types'
 
-// Default rates for new mechanics (mirrors Doni's rates)
-const DEFAULT_RATES: Record<string, number> = {
-  'cat-01': 30,
-  'cat-02': 25,
-  'cat-03': 20,
-  'cat-04': 40,
+// Default rates for a new mechanic, keyed by category name (matches docs/M006-V2-seed.sql)
+const DEFAULT_RATES_BY_CATEGORY: Record<string, number> = {
+  'Jasa': 30,
+  'Dyno': 25,
+  'Bubut Luar': 20,
+  'Bubut Dalam': 40,
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Terjadi kesalahan'
 }
 
 const schema = z.object({
@@ -36,21 +42,37 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 export default function MasterMekanikPage() {
-  const { mechanics, rates, addMechanic, updateMechanic, upsertRate } = useMechanicStore()
-  const { categories } = useCategoryStore()
-  const { lineMechanics } = useTransactionStore()
-  const { log: auditLog } = useAuditStore()
   const { user } = useAuthStore()
+  const isOwner = user?.role === 'owner'
 
-  const jasaCategories = useMemo(() => categories.filter(c => c.isJasa && c.isActive), [categories])
+  const { data: mechanicRows = [], error: mechanicsError } = useMechanics(true)
+  const { data: rateRows = [], error: ratesError } = useCommissionRates()
+  const { data: categoryRows = [], error: categoriesError } = useCategories()
+  const createMutation = useCreateMechanic()
+  const updateMutation = useUpdateMechanic()
+  const rateMutation = useUpsertCommissionRate()
 
-  const jobCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    lineMechanics.forEach(lm => {
-      counts[lm.mechanicId] = (counts[lm.mechanicId] ?? 0) + 1
-    })
-    return counts
-  }, [lineMechanics])
+  const mechanics = useMemo<Mechanic[]>(
+    () => mechanicRows.map(m => ({
+      id: m.id, name: m.name, isActive: m.is_active, notes: m.notes ?? undefined, createdAt: m.created_at,
+    })),
+    [mechanicRows]
+  )
+  const rates = useMemo<CommissionRate[]>(
+    () => rateRows.map(r => ({
+      id: r.id, mechanicId: r.mechanic_id, categoryId: r.category_id, ratePercent: r.rate_percent,
+    })),
+    [rateRows]
+  )
+  const jasaCategories = useMemo<Category[]>(
+    () => categoryRows
+      .filter(c => c.is_jasa && c.is_active)
+      .map(c => ({ id: c.id, name: c.name, type: c.type, isJasa: c.is_jasa, isActive: c.is_active, createdAt: c.created_at })),
+    [categoryRows]
+  )
+
+  const mechanicIds = useMemo(() => mechanicRows.map(m => m.id), [mechanicRows])
+  const { data: jobCounts = {} } = useMechanicJobCounts(mechanicIds)
 
   // UI state
   const [showInactive, setShowInactive] = useState(false)
@@ -71,7 +93,16 @@ export default function MasterMekanikPage() {
     defaultValues: { name: '', notes: '', isActive: true },
   })
 
+  const loadError = mechanicsError ?? ratesError ?? categoriesError
+  if (loadError) {
+    return <EmptyState message={`Gagal memuat data: ${errorMessage(loadError)}`} />
+  }
+
   function openAdd() {
+    if (!isOwner) {
+      toast('Hanya owner', { description: 'Hanya owner yang bisa menambah mekanik.' })
+      return
+    }
     reset({ name: '', notes: '', isActive: true })
     setDialogMode('add')
     setEditing(null)
@@ -90,38 +121,45 @@ export default function MasterMekanikPage() {
     setConfirmOpen(true)
   }
 
-  function onSubmit(data: FormData) {
-    if (dialogMode === 'add') {
-      const before = useMechanicStore.getState().mechanics
-      addMechanic({ name: data.name, notes: data.notes, isActive: data.isActive })
-      const after = useMechanicStore.getState().mechanics
-      const newM = after.find(m => !before.some(b => b.id === m.id))
-      if (newM) {
-        jasaCategories.forEach(cat => {
-          upsertRate({ mechanicId: newM.id, categoryId: cat.id, ratePercent: DEFAULT_RATES[cat.id] ?? 0 })
-        })
-        auditLog({ userId: user?.name ?? '', action: 'create', entityType: 'mechanic', entityId: newM.id, afterData: { name: data.name } })
+  async function onSubmit(data: FormData) {
+    const input = { name: data.name.trim(), notes: data.notes?.trim() || null, is_active: data.isActive }
+    try {
+      if (dialogMode === 'add') {
+        const defaultRates = jasaCategories.map(cat => ({
+          category_id: cat.id,
+          rate_percent: DEFAULT_RATES_BY_CATEGORY[cat.name] ?? 0,
+        }))
+        await createMutation.mutateAsync({ input, defaultRates })
+        toast('Mekanik ditambahkan', { description: `${input.name} berhasil ditambahkan dengan default rates.`, variant: 'success' })
+      } else if (editing) {
+        await updateMutation.mutateAsync({ id: editing.id, input })
+        toast('Mekanik diperbarui', { description: `${input.name} berhasil disimpan.`, variant: 'success' })
       }
-      toast('Mekanik ditambahkan', { description: `${data.name} berhasil ditambahkan dengan default rates.`, variant: 'success' })
-    } else if (editing) {
-      updateMechanic(editing.id, { name: data.name, notes: data.notes, isActive: data.isActive })
-      auditLog({ userId: user?.name ?? '', action: 'update', entityType: 'mechanic', entityId: editing.id, afterData: { name: data.name, isActive: data.isActive } })
-      toast('Mekanik diperbarui', { description: `${data.name} berhasil disimpan.`, variant: 'success' })
+      setDialogOpen(false)
+    } catch (err) {
+      toast('Gagal menyimpan', { description: errorMessage(err), variant: 'destructive' })
     }
-    setDialogOpen(false)
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!pendingDelete) return
-    updateMechanic(pendingDelete.id, { isActive: false })
-    auditLog({ userId: user?.name ?? '', action: 'delete', entityType: 'mechanic', entityId: pendingDelete.id, afterData: { isActive: false } })
-    toast('Mekanik dinonaktifkan', { description: `${pendingDelete.name} tidak ditampilkan di list aktif.` })
-    setPendingDelete(null)
+    try {
+      await updateMutation.mutateAsync({ id: pendingDelete.id, input: { is_active: false } })
+      toast('Mekanik dinonaktifkan', { description: `${pendingDelete.name} tidak ditampilkan di list aktif.` })
+    } catch (err) {
+      toast('Gagal menonaktifkan', { description: errorMessage(err), variant: 'destructive' })
+    } finally {
+      setPendingDelete(null)
+    }
   }
 
-  function handleRateChange(mechanicId: string, categoryId: string, value: number) {
-    upsertRate({ mechanicId, categoryId, ratePercent: value })
-    auditLog({ userId: user?.name ?? '', action: 'update', entityType: 'commission_rate', entityId: `${mechanicId}:${categoryId}`, afterData: { ratePercent: value } })
+  async function handleRateChange(mechanicId: string, categoryId: string, value: number) {
+    try {
+      await rateMutation.mutateAsync({ mechanic_id: mechanicId, category_id: categoryId, rate_percent: value })
+      toast('Rate disimpan', { description: `Rate komisi diubah ke ${value}%.`, variant: 'success' })
+    } catch (err) {
+      toast('Gagal menyimpan rate', { description: errorMessage(err), variant: 'destructive' })
+    }
   }
 
   // Columns for top list table
@@ -182,8 +220,8 @@ export default function MasterMekanikPage() {
         columns={columns}
         searchKeys={['name']}
         onAdd={openAdd}
-        onEdit={openEdit}
-        onDelete={openDelete}
+        onEdit={isOwner ? openEdit : undefined}
+        onDelete={isOwner ? openDelete : undefined}
         emptyState={{ message: showInactive ? 'Tidak ada mekanik.' : 'Tidak ada mekanik aktif. Tambahkan mekanik atau tampilkan yang nonaktif.' }}
         enableFilters={
           <Button
@@ -212,6 +250,7 @@ export default function MasterMekanikPage() {
                 jasaCategories={jasaCategories}
                 rates={rates}
                 onRateChange={handleRateChange}
+                readOnly={!isOwner || rateMutation.isPending}
               />
             </div>
           </Section>
@@ -227,6 +266,7 @@ export default function MasterMekanikPage() {
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit(onSubmit)}
         submitLabel={dialogMode === 'add' ? 'Tambah' : 'Simpan'}
+        loading={createMutation.isPending || updateMutation.isPending}
       >
         <FormField label="Nama" htmlFor="m-name" required error={errors.name?.message}>
           <Input id="m-name" placeholder="Contoh: Budi Santoso" {...register('name')} />

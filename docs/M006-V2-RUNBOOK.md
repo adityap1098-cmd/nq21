@@ -30,7 +30,7 @@ These are intentional defers, not bugs. Do not fix without scoping a proper mile
 |-------|--------|-------|
 | Responsive mobile layout | Medium | Sidebar + search overlap on narrow viewport, table overflow. Defer ke M008. |
 | T2.3 MasterKategoriPage CRUD | Low | Create/edit/delete masih Zustand (`useCategoryStore`). Reads OK via Supabase. Cosmetic on multi-device. |
-| T2.4 MasterMekanikPage CRUD | Low | Same — `useMechanicStore`. Rate override edits = Zustand only. |
+| ~~T2.4 MasterMekanikPage CRUD~~ | Fixed 2026-11-19 | Mechanics, rate matrix and job counts now read/write Supabase (`features/mechanics/hooks.ts`); owner-only edits. |
 | CommandPalette (Ctrl+K) | Low | Search reads Zustand mock → stale on fresh device. Cosmetic. |
 | MechanicChipRow last-used pre-fill | Low | Reads Zustand, not DB. Pre-fill empty on fresh device. |
 | ItemNameAutocomplete | Low | Reads Zustand transaction history. Empty on fresh device. |
