@@ -3,10 +3,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Pencil, Trash2, Search } from 'lucide-react'
-import { useCategoryStore } from '@/store/master/categories'
-import { useTransactionStore } from '@/store/transactions'
-import { useAuditStore } from '@/store/audit'
 import { useAuthStore } from '@/store/auth'
+import {
+  useCategories, useCategoryLineCounts, useCreateCategory, useUpdateCategory, SYSTEM_CATEGORY_NAMES,
+} from '@/features/categories/hooks'
 import { PageHeader } from '@/components/nq21/PageHeader'
 import { AddEditDialog } from '@/components/nq21/AddEditDialog'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
@@ -30,6 +30,10 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : 'Terjadi kesalahan'
+}
+
 // ── Section sub-component ────────────────────────────────────────────────────
 
 interface SectionProps {
@@ -39,9 +43,10 @@ interface SectionProps {
   onAdd: () => void
   onEdit: (c: Category) => void
   onDelete: (c: Category) => void
+  canEdit: boolean
 }
 
-function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, onDelete }: SectionProps) {
+function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, onDelete, canEdit }: SectionProps) {
   const [search, setSearch] = useState('')
   const [jasaOnly, setJasaOnly] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
@@ -81,9 +86,11 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
             </div>
           </div>
         </div>
-        <Button variant="accent" size="sm" onClick={onAdd}>
-          + Tambah {label}
-        </Button>
+        {canEdit && (
+          <Button variant="accent" size="sm" onClick={onAdd}>
+            + Tambah {label}
+          </Button>
+        )}
       </div>
 
       {/* Filter row */}
@@ -153,18 +160,27 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                 <TableHead>NAMA</TableHead>
                 {isIncome && <TableHead style={{ width: 130 }}>TIPE</TableHead>}
                 <TableHead style={{ textAlign: 'center', width: 100 }}>TRANSAKSI</TableHead>
-                <TableHead style={{ width: 88 }} />
+                {canEdit && <TableHead style={{ width: 88 }} />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {displayed.map(cat => {
                 const count = txnCountByCategory[cat.id] ?? 0
-                const canDelete = count === 0
+                const isSystem = SYSTEM_CATEGORY_NAMES.has(cat.name)
+                const canDelete = count === 0 && !isSystem && cat.isActive
                 return (
                   <TableRow key={cat.id}>
                     <TableCell>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span style={{ fontWeight: 600 }}>{cat.name}</span>
+                        {isSystem && (
+                          <span
+                            title="Dipakai sistem (Bubut Luar, laporan Dyno, aturan supplier). Nama tidak bisa diubah."
+                            style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.04em' }}
+                          >
+                            SISTEM
+                          </span>
+                        )}
                         {!cat.isActive && (
                           <Badge variant="default">NONAKTIF</Badge>
                         )}
@@ -182,6 +198,7 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                         {count}
                       </span>
                     </TableCell>
+                    {canEdit && (
                     <TableCell>
                       <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
                         <Button variant="ghost" size="sm" onClick={() => onEdit(cat)} title="Edit">
@@ -192,9 +209,13 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                           size="sm"
                           onClick={() => canDelete && onDelete(cat)}
                           title={
-                            canDelete
-                              ? 'Nonaktifkan kategori'
-                              : `Dipakai di ${count} transaksi — tidak bisa dihapus`
+                            isSystem
+                              ? 'Kategori sistem — tidak bisa dinonaktifkan'
+                              : !cat.isActive
+                                ? 'Sudah nonaktif'
+                                : canDelete
+                                  ? 'Nonaktifkan kategori'
+                                  : `Dipakai di ${count} transaksi — tidak bisa dihapus`
                           }
                           disabled={!canDelete}
                           style={!canDelete ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
@@ -204,6 +225,7 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                         </Button>
                       </div>
                     </TableCell>
+                    )}
                   </TableRow>
                 )
               })}
@@ -218,10 +240,21 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MasterKategoriPage() {
-  const { categories, add, update, softDelete } = useCategoryStore()
-  const { lines } = useTransactionStore()
-  const { log: auditLog } = useAuditStore()
   const { user } = useAuthStore()
+  const isOwner = user?.role === 'owner'
+
+  const { data: categoryRows = [], error: loadError } = useCategories(true)
+  const createMutation = useCreateCategory()
+  const updateMutation = useUpdateCategory()
+
+  const categories = useMemo<Category[]>(
+    () => categoryRows.map(c => ({
+      id: c.id, name: c.name, type: c.type, isJasa: c.is_jasa, isActive: c.is_active, createdAt: c.created_at,
+    })),
+    [categoryRows]
+  )
+  const categoryIds = useMemo(() => categoryRows.map(c => c.id), [categoryRows])
+  const { data: txnCountByCategory = {} } = useCategoryLineCounts(categoryIds)
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [dialogMode, setDialogMode] = useState<'add' | 'edit'>('add')
@@ -232,20 +265,18 @@ export default function MasterKategoriPage() {
   const incomeCategories = useMemo(() => categories.filter(c => c.type === 'income'), [categories])
   const expenseCategories = useMemo(() => categories.filter(c => c.type === 'expense'), [categories])
 
-  const txnCountByCategory = useMemo(() => {
-    const counts: Record<string, number> = {}
-    lines.forEach(line => {
-      counts[line.categoryId] = (counts[line.categoryId] ?? 0) + 1
-    })
-    return counts
-  }, [lines])
-
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, setError, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', type: 'income', isJasa: false },
   })
   const watchedType = watch('type')
   const watchedIsJasa = watch('isJasa')
+
+  if (loadError) {
+    return <EmptyState message={`Gagal memuat data: ${errorMessage(loadError)}`} />
+  }
+
+  const editingIsSystem = dialogMode === 'edit' && !!editing && SYSTEM_CATEGORY_NAMES.has(editing.name)
 
   function openAdd(type: 'income' | 'expense') {
     reset({ name: '', type, isJasa: false })
@@ -266,27 +297,50 @@ export default function MasterKategoriPage() {
     setConfirmOpen(true)
   }
 
-  function onSubmit(data: FormData) {
-    const isJasa = data.type === 'income' ? data.isJasa : false
-    const payload = { name: data.name, type: data.type, isJasa, isActive: true }
-    if (dialogMode === 'add') {
-      add(payload)
-      auditLog({ userId: user?.name ?? '', action: 'create', entityType: 'category', entityId: 'new', afterData: payload })
-      toast('Kategori ditambahkan', { description: `"${data.name}" berhasil ditambahkan.`, variant: 'success' })
-    } else if (editing) {
-      update(editing.id, { name: data.name, type: data.type, isJasa })
-      auditLog({ userId: user?.name ?? '', action: 'update', entityType: 'category', entityId: editing.id, afterData: { name: data.name } })
-      toast('Kategori diperbarui', { description: `"${data.name}" berhasil disimpan.`, variant: 'success' })
+  async function onSubmit(data: FormData) {
+    // Type is fixed after creation: switching income/expense would re-classify historical lines
+    const type = dialogMode === 'edit' && editing ? editing.type : data.type
+    const name = editingIsSystem && editing ? editing.name : data.name.trim()
+    const isJasa = type === 'income' ? data.isJasa : false
+
+    const duplicate = categories.some(c =>
+      c.type === type && c.name.toLowerCase() === name.toLowerCase() && c.id !== editing?.id
+    )
+    if (duplicate) {
+      setError('name', { message: 'Nama kategori sudah dipakai' })
+      return
     }
-    setDialogOpen(false)
+
+    try {
+      if (dialogMode === 'add') {
+        await createMutation.mutateAsync({ name, type, is_jasa: isJasa, is_active: true })
+        toast('Kategori ditambahkan', { description: `"${name}" berhasil ditambahkan.`, variant: 'success' })
+      } else if (editing) {
+        const reactivate = !editing.isActive
+        await updateMutation.mutateAsync({
+          id: editing.id,
+          input: { name, is_jasa: isJasa, ...(reactivate ? { is_active: true } : {}) },
+        })
+        toast(reactivate ? 'Kategori diaktifkan kembali' : 'Kategori diperbarui', {
+          description: `"${name}" berhasil disimpan.`, variant: 'success',
+        })
+      }
+      setDialogOpen(false)
+    } catch (err) {
+      toast('Gagal menyimpan', { description: errorMessage(err), variant: 'destructive' })
+    }
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!pendingDelete) return
-    softDelete(pendingDelete.id)
-    auditLog({ userId: user?.name ?? '', action: 'delete', entityType: 'category', entityId: pendingDelete.id, afterData: { isActive: false } })
-    toast('Kategori dinonaktifkan', { description: `"${pendingDelete.name}" tidak ditampilkan di list aktif.` })
-    setPendingDelete(null)
+    try {
+      await updateMutation.mutateAsync({ id: pendingDelete.id, input: { is_active: false } })
+      toast('Kategori dinonaktifkan', { description: `"${pendingDelete.name}" tidak ditampilkan di list aktif.` })
+    } catch (err) {
+      toast('Gagal menonaktifkan', { description: errorMessage(err), variant: 'destructive' })
+    } finally {
+      setPendingDelete(null)
+    }
   }
 
   function handleTypeChange(newType: 'income' | 'expense') {
@@ -310,6 +364,7 @@ export default function MasterKategoriPage() {
         onAdd={() => openAdd('income')}
         onEdit={openEdit}
         onDelete={openDelete}
+        canEdit={isOwner}
       />
 
       <CategorySection
@@ -319,6 +374,7 @@ export default function MasterKategoriPage() {
         onAdd={() => openAdd('expense')}
         onEdit={openEdit}
         onDelete={openDelete}
+        canEdit={isOwner}
       />
 
       {/* Add / Edit dialog */}
@@ -328,10 +384,16 @@ export default function MasterKategoriPage() {
         title={dialogMode === 'add' ? 'Tambah Kategori' : `Edit: ${editing?.name ?? ''}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit(onSubmit)}
-        submitLabel={dialogMode === 'add' ? 'Tambah' : 'Simpan'}
+        submitLabel={dialogMode === 'add' ? 'Tambah' : editing && !editing.isActive ? 'Simpan & Aktifkan' : 'Simpan'}
+        loading={createMutation.isPending || updateMutation.isPending}
       >
-        <FormField label="Nama Kategori" htmlFor="k-name" required error={errors.name?.message}>
-          <Input id="k-name" placeholder="Contoh: Servis Berat" {...register('name')} />
+        <FormField
+          label="Nama Kategori"
+          htmlFor="k-name"
+          required
+          error={errors.name?.message ?? (editingIsSystem ? 'Kategori sistem — nama tidak bisa diubah.' : undefined)}
+        >
+          <Input id="k-name" placeholder="Contoh: Servis Berat" readOnly={editingIsSystem} {...register('name')} />
         </FormField>
 
         <FormField label="Tipe">
@@ -340,17 +402,21 @@ export default function MasterKategoriPage() {
               const active = watchedType === t
               const color = t === 'income' ? 'var(--success)' : 'var(--accent)'
               const tint = t === 'income' ? 'var(--success-tint)' : 'var(--accent-tint)'
+              const locked = dialogMode === 'edit'
               return (
                 <button
                   key={t}
                   type="button"
-                  onClick={() => handleTypeChange(t)}
+                  onClick={() => !locked && handleTypeChange(t)}
+                  disabled={locked}
+                  title={locked ? 'Tipe tidak bisa diubah setelah kategori dibuat' : undefined}
                   style={{
+                    opacity: locked && !active ? 0.4 : 1,
                     flex: 1, padding: '9px 16px', borderRadius: 8, border: '2px solid',
                     borderColor: active ? color : 'var(--border)',
                     background: active ? tint : 'transparent',
                     color: active ? color : 'var(--text-secondary)',
-                    fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                    fontWeight: 700, fontSize: 13, cursor: locked ? 'not-allowed' : 'pointer',
                     transition: 'all 0.15s',
                   }}
                 >

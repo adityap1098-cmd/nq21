@@ -29,7 +29,8 @@ These are intentional defers, not bugs. Do not fix without scoping a proper mile
 | Issue | Impact | Notes |
 |-------|--------|-------|
 | Responsive mobile layout | Medium | Sidebar + search overlap on narrow viewport, table overflow. Defer ke M008. |
-| T2.3 MasterKategoriPage CRUD | Low | Create/edit/delete masih Zustand (`useCategoryStore`). Reads OK via Supabase. Cosmetic on multi-device. |
+| ~~T2.3 MasterKategoriPage CRUD~~ | Fixed 2026-11-19 | Reads/writes Supabase (`features/categories/hooks.ts`). System categories (`SYSTEM_CATEGORY_NAMES`) cannot be renamed or deactivated; type is fixed after create. |
+| ~~MasterUserPage~~ | Fixed 2026-11-19 | Read-only list of `profiles`. Accounts are added in Supabase Dashboard; trigger `on_auth_user_created` auto-creates an active kasir profile. |
 | ~~T2.4 MasterMekanikPage CRUD~~ | Fixed 2026-11-19 | Mechanics, rate matrix and job counts now read/write Supabase (`features/mechanics/hooks.ts`); owner-only edits. |
 | CommandPalette (Ctrl+K) | Low | Search reads Zustand mock → stale on fresh device. Cosmetic. |
 | MechanicChipRow last-used pre-fill | Low | Reads Zustand, not DB. Pre-fill empty on fresh device. |
