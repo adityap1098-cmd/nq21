@@ -95,7 +95,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
         },
         loading: false,
       })
-    } catch (err) {
+    } catch {
       // CRITICAL: Do NOT purge localStorage on timeout.
       // localStorage is shared across same-origin tabs — removing sb-* tokens here
       // broadcasts SIGNED_OUT to all tabs (root cause of cascade logout bug, 2026-05-12).

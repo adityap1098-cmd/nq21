@@ -542,6 +542,9 @@ export default function Dashboard() {
   const isOwner = useAuthStore(s => s.user?.role) === 'owner'
   const today = todayLocal()
   // KPIs use the calendar week (Senin–Minggu), independent of commission periods.
+  // `today` is a deliberate dependency: getPeriodRange reads the clock, so the week
+  // must be recomputed when a tab left open overnight rolls over to a new day.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const week = useMemo(() => getPeriodRange('minggu-ini'), [today])
   const prevWeek = useMemo(() => getPrevPeriodRange(week), [week])
   const from90 = useMemo(() => addDaysToStr(today, -(CHART_DAYS['90H'] - 1)), [today])

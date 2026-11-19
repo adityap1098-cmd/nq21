@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import { useAuthStore } from '@/store/auth'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
@@ -72,7 +72,9 @@ export function MechanicChipRow({
   categoryId,
   onChange,
 }: MechanicChipRowProps) {
-  const { data: allMechanics = [], isSuccess: mechanicsReady } = useMechanics()
+  // All mechanics (incl. inactive) so old lines still show who did the job;
+  // only active ones can be picked, cycled to, or pre-filled.
+  const { data: allMechanics = [], isSuccess: mechanicsReady } = useMechanics(true)
   const { data: rates = [] } = useCommissionRates()
   const { user } = useAuthStore()
   const lastJasa = useLastJasaMechanicIds(user?.id)
@@ -81,7 +83,7 @@ export function MechanicChipRow({
   const [editingRateIdx, setEditingRateIdx] = useState<number | null>(null)
   const [rateEditValue, setRateEditValue] = useState('')
 
-  const activeMechanics = allMechanics  // hook returns active only by default
+  const activeMechanics = useMemo(() => allMechanics.filter((m) => m.is_active), [allMechanics])
 
   // Pre-fill only once both queries settled; a failed history lookup falls back to all active.
   const prefillReady = mechanicsReady && (lastJasa.isSuccess || lastJasa.isError || !user?.id)
@@ -258,6 +260,11 @@ export function MechanicChipRow({
               {/* Name */}
               <span style={{ paddingRight: 2, color: 'var(--text)' }}>
                 {mech?.name ?? '—'}
+                {mech && !mech.is_active && (
+                  <span style={{ marginLeft: 4, fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>
+                    (nonaktif)
+                  </span>
+                )}
               </span>
 
               {/* Share input — hidden when only 1 mechanic */}

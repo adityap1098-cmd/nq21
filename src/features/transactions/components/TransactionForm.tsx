@@ -87,7 +87,8 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const { user } = useAuthStore()
   // Inactive categories included: old lines in edit mode may use a deactivated one.
   const { data: categories = [] } = useCategories(true)
-  const { data: mechanics = [] } = useMechanics()
+  // Include inactive mechanics so the summary can still name them on old transactions
+  const { data: mechanics = [] } = useMechanics(true)
   const { data: rates = [] } = useCommissionRates()
   const { data: customers = [] } = useCustomers()
   const { data: suppliers = [] } = useSuppliers()
