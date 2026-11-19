@@ -25,6 +25,9 @@ const PAGE_MAP: Record<string, { crumb: string }> = {
 
 function resolveCrumb(pathname: string): string {
   if (PAGE_MAP[pathname]) return PAGE_MAP[pathname].crumb
+  // /transaksi/:id and /transaksi/:id/edit (exact keys above win for /transaksi/baru)
+  if (/^\/transaksi\/[^/]+\/edit$/.test(pathname)) return 'TRANSAKSI / EDIT'
+  if (/^\/transaksi\/[^/]+$/.test(pathname)) return 'TRANSAKSI / DETAIL'
   const match = Object.keys(PAGE_MAP).find((k) => pathname.startsWith(k + '/'))
   return match ? PAGE_MAP[match].crumb : ''
 }
