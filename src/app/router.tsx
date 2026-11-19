@@ -5,6 +5,7 @@ import PlaceholderPage from './pages/PlaceholderPage'
 import Login from './pages/Login'
 import ProtectedRoute, { RequireOwner } from '@/components/layout/ProtectedRoute'
 import { LoadingFallback } from './components/LoadingFallback'
+import { RouteError } from './components/RouteError'
 
 // Heavy pages — lazy loaded (split into own chunks)
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -40,9 +41,11 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+    errorElement: <RouteError />,
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <RouteError />,
     children: [
       // Standalone pages (no sidebar/topbar)
       {
