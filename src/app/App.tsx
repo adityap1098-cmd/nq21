@@ -7,6 +7,7 @@ import { router } from './router'
 import { SplashScreen } from './components/SplashScreen'
 import { OfflineIndicator } from './components/OfflineIndicator'
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt'
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore, type AuthProfile } from '@/store/auth'
 import { toast } from '@/hooks/use-toast'
@@ -47,12 +48,19 @@ export default function App() {
     // Proactive session restore — no dependency on INITIAL_SESSION event timing
     loadSession()
 
-    // Listener for subsequent auth changes only (login, logout, token refresh, multi-tab)
+    // Listener for subsequent auth changes only (login, logout, token refresh, multi-tab).
+    // The callback runs while supabase-js holds its auth lock; awaiting another Supabase call
+    // inside it (profile fetch, signOut) deadlocks every later request — the app hangs on
+    // "Memuat..." after TOKEN_REFRESHED. Defer that work until the callback has returned.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         // Skip INITIAL_SESSION — loadSession() already handles initial state
         if (event === 'INITIAL_SESSION') return
+        setTimeout(() => { void handleAuthChange(event, session) }, 0)
+      }
+    )
 
+    async function handleAuthChange(event: AuthChangeEvent, session: Session | null): Promise<void> {
         try {
           if (!session || event === 'SIGNED_OUT') {
             // Defensive: if SIGNED_OUT arrives but a token still exists in localStorage,
@@ -79,8 +87,7 @@ export default function App() {
         } catch {
           _setUser(null)
         }
-      }
-    )
+    }
 
     return () => subscription.unsubscribe()
   }, [])
