@@ -4,9 +4,11 @@ import {
   useCommissionPeriods,
   useCommissionPayouts,
   useCommissionRates,
+  useMechanics,
   usePeriodTransactions,
   computePayoutsFromRows,
 } from '@/features/komisi/hooks'
+import { buildDisplayPayouts } from '@/features/komisi/display-payouts'
 import { PrintLayout } from '@/app/layout/PrintLayout'
 import { SlipPaper } from '@/features/komisi/components/SlipPaper'
 import { SlipPaperCompact } from '@/features/komisi/components/SlipPaperCompact'
@@ -24,51 +26,49 @@ export default function SlipPage() {
     return () => { delete document.body.dataset.printMode }
   }, [printMode])
 
-  const { data: periods = [] } = useCommissionPeriods()
-  const { data: storedPayouts = [] } = useCommissionPayouts(periodId)
+  const { data: periods = [], isLoading: periodsLoading } = useCommissionPeriods()
+  const { data: storedPayouts = [], isLoading: payoutsLoading } = useCommissionPayouts(periodId)
   const { data: rates = [] } = useCommissionRates()
+  const { data: mechanics = [] } = useMechanics()
 
   const period = useMemo(() => periods.find(p => p.id === periodId), [periods, periodId])
 
-  const { data: periodTxs = [] } = usePeriodTransactions(
+  const { data: periodTxs = [], isLoading: txLoading, isSuccess: txReady } = usePeriodTransactions(
     period?.weekStart,
     period?.weekEnd,
     { enabled: !!period },
   )
 
-  const computedPayouts = useMemo(() =>
-    period
-      ? computePayoutsFromRows(periodTxs, period.weekStart, period.weekEnd, rates)
-      : [],
-    [periodTxs, period, rates]
-  )
-
   const payout = useMemo(() => {
-    const live = computedPayouts.find(p => p.mechanicId === mechanicId)
-    if (live) return live
-
-    if (period?.status === 'closed') {
-      const stored = storedPayouts.find(p => p.periodId === periodId && p.mechanicId === mechanicId)
-      if (stored) {
-        // mechanic name not available here without extra query — show ID as fallback
-        return {
-          mechanicId: stored.mechanicId,
-          mechanicName: stored.mechanicId,
-          isActive: true,
-          totalJobs: stored.totalJobs,
-          totalBasis: stored.totalBasis,
-          totalKomisi: stored.totalKomisi,
-          lines: [],
-        }
-      }
-    }
-    return undefined
-  }, [computedPayouts, mechanicId, period, storedPayouts, periodId])
+    if (!period) return undefined
+    const computed = computePayoutsFromRows(periodTxs, period.weekStart, period.weekEnd, rates)
+    const periodStored = storedPayouts.filter(p => p.periodId === periodId)
+    return buildDisplayPayouts(period, computed, periodStored, mechanics, txReady)
+      .find(p => p.mechanicId === mechanicId)
+  }, [period, periodTxs, rates, storedPayouts, periodId, mechanics, mechanicId, txReady])
 
   const storedPayout = useMemo(() =>
     storedPayouts.find(p => p.periodId === periodId && p.mechanicId === mechanicId),
     [storedPayouts, periodId, mechanicId]
   )
+
+  function handleBack() {
+    if (window.history.length <= 1) navigate('/komisi/periode')
+    else navigate(-1)
+  }
+
+  if (periodsLoading || payoutsLoading || (!!period && txLoading)) {
+    return (
+      <PrintLayout>
+        <div data-print-hide style={{
+          textAlign: 'center', padding: '80px 40px',
+          fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)',
+        }}>
+          Memuat slip...
+        </div>
+      </PrintLayout>
+    )
+  }
 
   if (!period || !payout) {
     return (
@@ -107,7 +107,7 @@ export default function SlipPage() {
         marginBottom: 16, gap: 12,
       }}>
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           style={{
             padding: '8px 14px', borderRadius: 6,
             fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
@@ -159,7 +159,7 @@ export default function SlipPage() {
 
       {/* Slip paper — conditional on mode */}
       {printMode === 'compact' ? (
-        <SlipPaperCompact period={period} payout={payout} />
+        <SlipPaperCompact period={period} payout={payout} liveTotalKomisi={payout.liveTotalKomisi} />
       ) : (
         <SlipPaper
           period={period}
@@ -168,6 +168,7 @@ export default function SlipPage() {
           rates={rates}
           isOwner={false}
           variant="standalone"
+          liveTotalKomisi={payout.liveTotalKomisi}
         />
       )}
 

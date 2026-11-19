@@ -12,6 +12,7 @@ interface NavItem {
   icon: React.ReactNode
   num?: string
   exact?: boolean
+  ownerOnly?: boolean
 }
 
 const SECTIONS: { title: string; items: NavItem[] }[] = [
@@ -40,8 +41,8 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: 'KOMISI',
     items: [
-      { label: 'Periode Mingguan', to: '/komisi/periode', icon: <Calendar size={16} /> },
-      { label: 'Mekanik & Komisi', to: '/komisi/mekanik', icon: <Users size={16} /> },
+      { label: 'Periode Mingguan', to: '/komisi/periode', icon: <Calendar size={16} />, ownerOnly: true },
+      { label: 'Mekanik & Komisi', to: '/komisi/mekanik', icon: <Users size={16} />, ownerOnly: true },
     ],
   },
   {
@@ -49,9 +50,9 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { label: 'Customer',       to: '/master/customer', icon: <User size={16} /> },
       { label: 'Supplier',       to: '/master/supplier', icon: <Truck size={16} /> },
-      { label: 'Kategori',       to: '/master/kategori', icon: <Tag size={16} /> },
-      { label: 'Mekanik & Rate', to: '/master/mekanik',  icon: <UserCog size={16} /> },
-      { label: 'User / Akun',    to: '/master/user',     icon: <Settings size={16} /> },
+      { label: 'Kategori',       to: '/master/kategori', icon: <Tag size={16} />,      ownerOnly: true },
+      { label: 'Mekanik & Rate', to: '/master/mekanik',  icon: <UserCog size={16} />,  ownerOnly: true },
+      { label: 'User / Akun',    to: '/master/user',     icon: <Settings size={16} />, ownerOnly: true },
     ],
   },
 ]
@@ -153,7 +154,13 @@ export default function Sidebar() {
 
       {/* Nav */}
       <div style={{ flex: 1, paddingBottom: 8 }}>
-        {SECTIONS.map((section) => (
+        {SECTIONS
+          .map(section => ({
+            ...section,
+            items: section.items.filter(item => !item.ownerOnly || user?.role === 'owner'),
+          }))
+          .filter(section => section.items.length > 0)
+          .map((section) => (
           <div key={section.title}>
             <div
               style={{

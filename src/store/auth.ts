@@ -1,5 +1,22 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
+import { queryClient } from '@/lib/queryClient'
+
+/**
+ * Drop everything the previous user loaded: react-query cache (customers, transactions,
+ * commission — owner data must not be visible to the next kasir on a shared PC) and the
+ * legacy `nq21-*` localStorage mock stores. Supabase's own `sb-*` keys are left alone.
+ */
+export function clearUserData(): void {
+  queryClient.clear()
+  try {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('nq21-'))
+      .forEach(k => localStorage.removeItem(k))
+  } catch {
+    // storage unavailable (private mode) — nothing to clear
+  }
+}
 
 export interface AuthProfile {
   id: string
@@ -24,7 +41,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
   loading: true,
 
   loadSession: async () => {
-    console.log('[auth] loadSession start')
     try {
       // Race getSession against 8s timeout — gives SDK enough time on cold/multi-tab start.
       // 3s was too aggressive: fresh tab on slow connection reliably hit the timeout.
@@ -36,7 +52,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
       ])
 
       const { data: { session }, error } = result
-      console.log('[auth] getSession result:', { hasSession: !!session, error: error?.message ?? null })
       if (error || !session) {
         if (!error) {
           const hasStoredToken = Object.keys(localStorage).some(
@@ -45,12 +60,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
           // Token present = SDK hydration delay, NOT a real logout.
           // Don't signOut — would cascade to other tabs.
           if (hasStoredToken) {
-            console.log('[auth] no session but token exists — hydration delay, staying logged out')
             set({ user: null, loading: false })
             return
           }
         }
-        console.log('[auth] no session, setting user null')
         set({ user: null, loading: false })
         return
       }
@@ -61,7 +74,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
         .eq('id', session.user.id)
         .maybeSingle()
 
-      console.log('[auth] profile fetch result:', { hasData: !!data, profileError: profileError?.message ?? null, isActive: data?.is_active })
       if (profileError) {
         // Network/transient error — don't signOut (would cascade to other tabs), just clear local state
         set({ user: null, loading: false })
@@ -88,7 +100,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
       // localStorage is shared across same-origin tabs — removing sb-* tokens here
       // broadcasts SIGNED_OUT to all tabs (root cause of cascade logout bug, 2026-05-12).
       // Just fall back to logged-out UI; token stays intact for retry on next mount.
-      console.log('[auth] loadSession CATCH:', (err as Error)?.message)
       set({ user: null, loading: false })
     }
   },
@@ -102,6 +113,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   logout: async () => {
     await supabase.auth.signOut()
+    clearUserData()
     set({ user: null })
   },
 

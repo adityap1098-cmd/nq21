@@ -1,48 +1,47 @@
 import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { PageHeader } from '@/components/nq21/PageHeader'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { TransactionForm } from '@/features/transactions/components/TransactionForm'
 import type { TransactionFormInitialData } from '@/features/transactions/components/TransactionForm'
 import { useTransaction } from '@/features/transactions/hooks'
 import { useCommissionPeriods } from '@/features/komisi/hooks'
-import { supabase } from '@/lib/supabase'
+import { isInClosedPeriod } from '@/features/transactions/utils'
 import type { Line } from '@/features/transactions/types'
+
+function StatusMessage({ text, onBack }: { text: string; onBack?: () => void }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
+      <div style={{ marginBottom: onBack ? 16 : 0 }}>{text}</div>
+      {onBack && (
+        <button
+          onClick={onBack}
+          style={{
+            fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.08em', padding: '9px 18px', borderRadius: 8,
+            border: '1.5px solid var(--border)', background: 'transparent',
+            color: 'var(--text)', cursor: 'pointer',
+          }}
+        >
+          ← Kembali ke Daftar
+        </button>
+      )}
+    </div>
+  )
+}
 
 export default function EditTransaksiPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { data: tx, isLoading } = useTransaction(id)
-  const { data: periods = [] } = useCommissionPeriods()
+  const { data: tx, isLoading, isError: txError, error: txErrorObj } = useTransaction(id)
+  const { data: periods = [], isLoading: periodsLoading, isError: periodsError } = useCommissionPeriods()
 
   const [isDirty, setIsDirty] = useState(false)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
   // All hooks must run unconditionally
-  const txPeriod = useMemo(() => {
-    if (!tx) return null
-    return periods.find((p) => tx.tgl >= p.weekStart && tx.tgl <= p.weekEnd) ?? null
-  }, [tx, periods])
-
-  // Fetch vendor expense supplier for bubut_luar pre-fill
-  const bubutLink = (tx?.bubut_luar_links ?? [])[0] ?? null
-  const vendorExpenseId = bubutLink?.expense_transaction_id ?? null
-  const { data: vendorExpense } = useQuery({
-    queryKey: ['vendor-expense-supplier', vendorExpenseId],
-    enabled: !!vendorExpenseId,
-    staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('supplier_id')
-        .eq('id', vendorExpenseId!)
-        .single()
-      if (error) throw error
-      return data as { supplier_id: string | null }
-    },
-  })
+  const isLocked = useMemo(() => (tx ? isInClosedPeriod(tx.tgl, periods) : false), [tx, periods])
 
   const initialData = useMemo((): TransactionFormInitialData | null => {
     if (!tx) return null
@@ -62,7 +61,7 @@ export default function EditTransaksiPage() {
           rateOverride: m.rate_override ?? undefined,
         })),
         bubutVendor: link
-          ? { supplierId: vendorExpense?.supplier_id ?? null, vendorCost: link.vendor_cost }
+          ? { supplierId: link.expense?.supplier_id ?? null, vendorCost: link.vendor_cost }
           : undefined,
       }
     })
@@ -79,25 +78,43 @@ export default function EditTransaksiPage() {
       },
       lines: initialLines,
     }
-  }, [tx, vendorExpense])
+  }, [tx])
 
   // ── Guards (after all hooks) ────────────────────────────────────────────────
 
-  if (isLoading) {
+  if (isLoading || periodsLoading) {
     return (
       <>
         <PageHeader title="EDIT TRANSAKSI" />
-        <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
-          Memuat...
-        </div>
+        <StatusMessage text="Memuat..." />
       </>
     )
   }
 
-  if (!tx) return <Navigate to="/transaksi" replace />
+  if (txError || periodsError) {
+    const detail = txErrorObj instanceof Error ? txErrorObj.message : ''
+    return (
+      <>
+        <PageHeader title="EDIT TRANSAKSI" />
+        <StatusMessage
+          text={`Gagal memuat transaksi${detail ? `: ${detail}` : ''}. Periksa koneksi lalu muat ulang halaman.`}
+          onBack={() => navigate('/transaksi')}
+        />
+      </>
+    )
+  }
+
+  if (!tx) {
+    return (
+      <>
+        <PageHeader title="EDIT TRANSAKSI" />
+        <StatusMessage text="Transaksi tidak ditemukan." onBack={() => navigate('/transaksi')} />
+      </>
+    )
+  }
   if (tx.deleted_at) return <Navigate to={`/transaksi/${id}`} replace />
-  if (tx.no_referensi.endsWith('-VENDOR')) return <Navigate to="/transaksi" replace />
-  if (txPeriod?.status === 'closed') return <Navigate to={`/transaksi/${id}`} replace />
+  if (tx.no_referensi.endsWith('-VENDOR')) return <Navigate to={`/transaksi/${id}`} replace />
+  if (isLocked) return <Navigate to={`/transaksi/${id}`} replace />
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -128,6 +145,7 @@ export default function EditTransaksiPage() {
       />
 
       <TransactionForm
+        key={tx.id}
         mode="edit"
         transactionId={id}
         initialData={initialData!}

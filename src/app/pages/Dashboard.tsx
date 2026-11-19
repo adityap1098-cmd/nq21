@@ -13,12 +13,14 @@ import {
   useCommissionRates,
   computePayoutsFromRows,
 } from '@/features/komisi/hooks'
-import { useTransactions, type TransactionRow } from '@/features/transactions/hooks'
+import { useTransactions, useTransactionsWithLines, type TransactionRow } from '@/features/transactions/hooks'
 import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
-import { useMechanics } from '@/features/mechanics/hooks'
+import { useAuthStore } from '@/store/auth'
+import { getPeriodRange, getPrevPeriodRange } from '@/store/selectors'
 import type { CommissionPeriod } from '@/store/types'
 import { formatWeekRange, todayLocal } from '@/lib/format'
+import { QueryErrorPanel, LoadingPanel } from './laporan/QueryState'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,14 @@ function addDaysToStr(dateStr: string, n: number): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
+// Week-over-week % change. A zero or negative previous value has no meaningful
+// percentage (division flips sign or explodes), so the delta is hidden.
+function pctChange(cur: number, prev: number): number | undefined {
+  if (prev <= 0) return undefined
+  const pct = ((cur - prev) / prev) * 100
+  return Number.isFinite(pct) ? pct : undefined
+}
+
 function kpiChange(delta: number | undefined): { value: string; up: boolean; context: string } | undefined {
   if (delta === undefined) return undefined
   const sign = delta >= 0 ? '+' : ''
@@ -48,27 +58,23 @@ function kpiChange(delta: number | undefined): { value: string; up: boolean; con
 }
 
 const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
-const MONTH_UPPER = ['JAN','FEB','MAR','APR','MEI','JUN','JUL','AGU','SEP','OKT','NOV','DES']
 
+// "28 Apr – 4 Mei 2026" / "4–10 Mei 2026"
+function fmtRange(start: string, end: string): string {
+  const [sy, sm, sd] = start.split('-').map(Number)
+  const [ey, em, ed] = end.split('-').map(Number)
+  if (sy === ey && sm === em) return `${sd}–${ed} ${MONTH_SHORT[em - 1]} ${ey}`
+  if (sy === ey) return `${sd} ${MONTH_SHORT[sm - 1]} – ${ed} ${MONTH_SHORT[em - 1]} ${ey}`
+  return `${sd} ${MONTH_SHORT[sm - 1]} ${sy} – ${ed} ${MONTH_SHORT[em - 1]} ${ey}`
+}
+
+type ChartRange = '7H' | '30H' | '90H'
+
+const CHART_DAYS: Record<ChartRange, number> = { '7H': 7, '30H': 30, '90H': 91 }
 
 // ── Chart data builders (using TransactionRow snake_case) ──────────────────────
 
 type CashFlowDay = { day: string; date: string; in: number; out: number; today?: boolean }
-
-function buildWeekData(txs: TransactionRow[], weekStart: string, today: string): CashFlowDay[] {
-  return Array.from({ length: 7 }, (_, i) => {
-    const dateStr = addDaysToStr(weekStart, i)
-    const d = new Date(dateStr + 'T00:00:00')
-    const dayTx = txs.filter(t => t.tgl === dateStr)
-    return {
-      day: String(d.getDate()),
-      date: `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`,
-      in:  dayTx.filter(t => t.tipe === 'income' ).reduce((s, t) => s + t.total_nominal, 0),
-      out: dayTx.filter(t => t.tipe === 'expense').reduce((s, t) => s + t.total_nominal, 0),
-      today: dateStr === today || undefined,
-    }
-  })
-}
 
 function buildDaysData(txs: TransactionRow[], nDays: number, today: string): CashFlowDay[] {
   return Array.from({ length: nDays }, (_, i) => {
@@ -207,9 +213,10 @@ function CashFlowChart({ data, filter, onFilterChange, periodLabel }: {
   )
 }
 
-function TopKategoriPanel({ items, subtitle }: {
+function TopKategoriPanel({ items, subtitle, status }: {
   items: { name: string; amount: number; txCount: number; pct: number }[]
   subtitle: string
+  status?: React.ReactNode
 }) {
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
@@ -219,9 +226,9 @@ function TopKategoriPanel({ items, subtitle }: {
           {subtitle}
         </div>
       </div>
-      {items.length === 0 ? (
+      {status ?? (items.length === 0 ? (
         <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>
-          Belum ada transaksi jasa periode ini.
+          Belum ada pemasukan minggu ini.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -247,7 +254,7 @@ function TopKategoriPanel({ items, subtitle }: {
             </div>
           ))}
         </div>
-      )}
+      ))}
     </div>
   )
 }
@@ -328,220 +335,113 @@ function RecentTxPanel({
   )
 }
 
-// ── Main Dashboard ────────────────────────────────────────────────────────────
+// ── Commission (owner only) ───────────────────────────────────────────────────
+// These components are mounted only for owners, so kasir never fetches
+// commission periods, rates or period transactions.
 
-export default function Dashboard() {
-  const today = todayLocal()
-  const from90 = useMemo(() => addDaysToStr(today, -90), [today])
+const NO_PERIODS: CommissionPeriod[] = []
 
-  const { data: periods = [] }    = useCommissionPeriods()
-  const { data: allPayouts = [] } = useCommissionPayouts()
-  const { data: mechanics = [] }  = useMechanics()
-  const { data: customers = [] }  = useCustomers()
-  const { data: suppliers = [] }  = useSuppliers()
-  const { data: rates = [] }      = useCommissionRates()
-  const { data: allTxs = [] }     = useTransactions({ dateFrom: from90 })
-
-  const activePeriod = useMemo((): CommissionPeriod | undefined =>
-    periods.find(p => p.status === 'open') ??
-    [...periods].sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0],
-    [periods]
+function useRunningKomisi() {
+  const periodsQ = useCommissionPeriods()
+  const ratesQ = useCommissionRates()
+  const openPeriod = useMemo(
+    () => periodsQ.data?.find(p => p.status === 'open'),
+    [periodsQ.data],
   )
-
-  const prevPeriod = useMemo((): CommissionPeriod | undefined =>
-    activePeriod
-      ? [...periods]
-          .filter(p => p.status === 'closed' && p.weekStart < activePeriod.weekStart)
-          .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0]
-      : undefined,
-    [periods, activePeriod]
-  )
-
-  const { data: periodTxs = [] } = usePeriodTransactions(
-    activePeriod?.weekStart,
-    activePeriod?.weekEnd,
-    { enabled: !!activePeriod },
-  )
-
-  // ── KPI: pendapatan / pengeluaran / laba (current period) ──────────────────
-
-  const kpiStats = useMemo(() => {
-    if (!activePeriod) return { pendapatan: 0, pengeluaran: 0, labaKotor: 0 }
-    const ptxs = allTxs.filter(t => t.tgl >= activePeriod.weekStart && t.tgl <= activePeriod.weekEnd)
-    const pendapatan  = ptxs.filter(t => t.tipe === 'income' ).reduce((s, t) => s + t.total_nominal, 0)
-    const pengeluaran = ptxs.filter(t => t.tipe === 'expense').reduce((s, t) => s + t.total_nominal, 0)
-    return { pendapatan, pengeluaran, labaKotor: pendapatan - pengeluaran }
-  }, [allTxs, activePeriod])
-
-  const kpiDeltas = useMemo(() => {
-    if (!prevPeriod) return null
-    const ptxs = allTxs.filter(t => t.tgl >= prevPeriod.weekStart && t.tgl <= prevPeriod.weekEnd)
-    const prevIncome  = ptxs.filter(t => t.tipe === 'income' ).reduce((s, t) => s + t.total_nominal, 0)
-    const prevExpense = ptxs.filter(t => t.tipe === 'expense').reduce((s, t) => s + t.total_nominal, 0)
-    const prevLaba    = prevIncome - prevExpense
-    const pct = (cur: number, prev: number) => prev === 0 ? undefined : ((cur - prev) / prev) * 100
-    return {
-      pendapatan:  pct(kpiStats.pendapatan,  prevIncome),
-      pengeluaran: pct(kpiStats.pengeluaran, prevExpense),
-      labaKotor:   pct(kpiStats.labaKotor,   prevLaba),
-    }
-  }, [allTxs, prevPeriod, kpiStats])
-
-  // ── Komisi per mekanik (active period) ────────────────────────────────────
+  const ptxQ = usePeriodTransactions(openPeriod?.weekStart, openPeriod?.weekEnd, { enabled: !!openPeriod })
 
   const mechKomisi = useMemo(() =>
-    activePeriod
-      ? computePayoutsFromRows(periodTxs, activePeriod.weekStart, activePeriod.weekEnd, rates)
+    openPeriod && ptxQ.data && ratesQ.data
+      ? computePayoutsFromRows(ptxQ.data, openPeriod.weekStart, openPeriod.weekEnd, ratesQ.data)
       : [],
-    [periodTxs, activePeriod, rates]
+    [openPeriod, ptxQ.data, ratesQ.data],
   )
-  const totalKomisiPending = mechKomisi.reduce((s, m) => s + m.totalKomisi, 0)
 
-  // ── Top Kategori (income lines in active period) ───────────────────────────
+  return {
+    periods: periodsQ.data ?? NO_PERIODS,
+    openPeriod,
+    mechKomisi,
+    totalKomisi: mechKomisi.reduce((s, m) => s + m.totalKomisi, 0),
+    errors: [periodsQ.error, ratesQ.error, ptxQ.error].filter(e => e != null),
+    isLoading: periodsQ.isLoading || ratesQ.isLoading || ptxQ.isLoading,
+    retry: () => {
+      void periodsQ.refetch()
+      void ratesQ.refetch()
+      if (openPeriod) void ptxQ.refetch()
+    },
+  }
+}
 
-  const topKategori = useMemo(() => {
-    const katMap: Record<string, { name: string; amount: number; txCount: number }> = {}
-    for (const tx of periodTxs) {
-      for (const line of tx.transaction_lines) {
-        const cat = line.categories
-        if (!cat) continue
-        if (!katMap[cat.id]) katMap[cat.id] = { name: cat.name, amount: 0, txCount: 0 }
-        katMap[cat.id].amount  += line.nominal
-        katMap[cat.id].txCount += 1
-      }
+const kpiNoteStyle: React.CSSProperties = {
+  fontFamily: 'var(--mono)', fontSize: 12, whiteSpace: 'normal', lineHeight: 1.4,
+}
+
+function KomisiKpiCard() {
+  const k = useRunningKomisi()
+
+  let value: React.ReactNode
+  let change: { value: string; context?: string } | undefined
+  if (k.errors.length > 0) {
+    value = <span style={{ ...kpiNoteStyle, color: 'var(--accent)' }}>Gagal memuat — cek koneksi lalu muat ulang</span>
+  } else if (k.isLoading) {
+    value = <span style={{ ...kpiNoteStyle, color: 'var(--text-muted)' }}>Memuat...</span>
+  } else if (!k.openPeriod) {
+    value = <span style={{ ...kpiNoteStyle, color: 'var(--text-muted)' }}>Belum ada periode aktif</span>
+  } else {
+    value = <CurrencyDisplay value={k.totalKomisi} size="lg" />
+    change = {
+      value: `${k.mechKomisi.length} mekanik`,
+      context: fmtRange(k.openPeriod.weekStart, k.openPeriod.weekEnd),
     }
-    const sorted = Object.values(katMap).sort((a, b) => b.amount - a.amount)
-    const maxAmt = sorted[0]?.amount ?? 1
-    return sorted.slice(0, 6).map(k => ({ ...k, pct: k.amount / maxAmt }))
-  }, [periodTxs])
-
-  // ── Party maps for recent transactions ────────────────────────────────────
-
-  const customerMap = useMemo(() =>
-    Object.fromEntries(customers.map(c => [c.id, c.motor_type ? `${c.name} (${c.motor_type})` : c.name])),
-    [customers]
-  )
-  const supplierMap = useMemo(() =>
-    Object.fromEntries(suppliers.map(s => [s.id, s.name])),
-    [suppliers]
-  )
-
-  const recentTxs = useMemo(() =>
-    [...allTxs].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5),
-    [allTxs]
-  )
-
-  // ── Chart data ─────────────────────────────────────────────────────────────
-
-  const [chartFilter, setChartFilter] = useState<'7H' | '30H' | '90H'>('7H')
-  const chartData = useMemo(() => {
-    if (chartFilter === '7H' && activePeriod) return buildWeekData(allTxs, activePeriod.weekStart, today)
-    if (chartFilter === '30H') return buildDaysData(allTxs, 30, today)
-    return buildWeeksData(allTxs, 13, today)
-  }, [chartFilter, allTxs, activePeriod, today])
-
-  // ── Period Komisi panel ────────────────────────────────────────────────────
-
-  const recentPeriods = useMemo(() =>
-    [...periods].sort((a, b) => b.weekStart.localeCompare(a.weekStart)).slice(0, 2),
-    [periods]
-  )
-  const activeMechanicCount = mechanics.filter(m => m.is_active).length
-
-  // ── Loading / empty state ──────────────────────────────────────────────────
-
-  if (periods.length === 0) {
-    return (
-      <>
-        <PageHeader title="Dashboard Owner" />
-        <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
-          Memuat...
-        </div>
-      </>
-    )
   }
-
-  if (!activePeriod) {
-    return (
-      <>
-        <PageHeader title="Dashboard Owner" />
-        <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>
-          Belum ada periode aktif.
-        </div>
-      </>
-    )
-  }
-
-  const periodSubtitle = `Snapshot bisnis minggu ini · ${formatWeekRange(activePeriod.weekStart, activePeriod.weekEnd)}`
-  const chartPeriodLabel = formatWeekRange(activePeriod.weekStart, activePeriod.weekEnd)
-  const topKatSubtitle = `Pemasukan · ${MONTH_UPPER[parseInt(activePeriod.weekStart.slice(5,7))-1]} ${activePeriod.weekStart.slice(0,4)}`
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <PageHeader title="Dashboard Owner" subtitle={periodSubtitle} />
+    <KpiCard
+      label="Komisi Berjalan · Periode Aktif"
+      value={value}
+      change={change}
+      icon={<Wrench size={14} />}
+      accent
+    />
+  )
+}
 
-      {/* KPI Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-        <KpiCard
-          label="Pendapatan Minggu Ini"
-          value={<CurrencyDisplay value={kpiStats.pendapatan} size="lg" />}
-          change={kpiChange(kpiDeltas?.pendapatan)}
-          icon={<TrendingUp size={14} />}
-        />
-        <KpiCard
-          label="Pengeluaran Minggu Ini"
-          value={<CurrencyDisplay value={kpiStats.pengeluaran} size="lg" />}
-          change={kpiChange(kpiDeltas?.pengeluaran)}
-          icon={<TrendingDown size={14} />}
-        />
-        <KpiCard
-          label="Laba Kotor"
-          value={<CurrencyDisplay value={kpiStats.labaKotor} size="lg" />}
-          change={kpiChange(kpiDeltas?.labaKotor)}
-          icon={<DollarSign size={14} />}
-        />
-        <KpiCard
-          label="Komisi Pending Payout"
-          value={<CurrencyDisplay value={totalKomisiPending} size="lg" />}
-          change={{ value: `${mechKomisi.length} mekanik`, up: true, context: 'periode aktif' }}
-          icon={<Wrench size={14} />}
-          accent
-        />
-      </div>
+function PeriodKomisiPanel() {
+  const k = useRunningKomisi()
+  const payoutsQ = useCommissionPayouts()
+  const allPayouts = payoutsQ.data ?? []
+  const errors = [...k.errors, payoutsQ.error].filter(e => e != null)
+  const isLoading = k.isLoading || payoutsQ.isLoading
 
-      {/* Chart + Top Kategori */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
-        <CashFlowChart
-          data={chartData}
-          filter={chartFilter}
-          onFilterChange={setChartFilter}
-          periodLabel={chartPeriodLabel}
-        />
-        <TopKategoriPanel items={topKategori} subtitle={topKatSubtitle} />
-      </div>
+  const recentPeriods = useMemo(() =>
+    [...k.periods].sort((a, b) => b.weekStart.localeCompare(a.weekStart)).slice(0, 2),
+    [k.periods],
+  )
 
-      {/* Recent Tx + Period Komisi */}
-      <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
-        <RecentTxPanel
-          transactions={recentTxs}
-          customerMap={customerMap}
-          supplierMap={supplierMap}
-        />
-
-        {/* Period Komisi Panel */}
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
-          <div style={{ marginBottom: 18 }}>
-            <h3 style={{ fontFamily: 'var(--display)', fontSize: 20, textTransform: 'uppercase', margin: 0 }}>Periode Komisi</h3>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
-              SENIN — MINGGU
-            </div>
+  function renderBody() {
+    if (errors.length > 0) {
+      return <QueryErrorPanel compact errors={errors} onRetry={() => { k.retry(); void payoutsQ.refetch() }} />
+    }
+    if (isLoading) {
+      return <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>Memuat...</div>
+    }
+    return (
+      <>
+        {recentPeriods.length === 0 ? (
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+            Belum ada periode aktif.
           </div>
-
+        ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {recentPeriods.map((p) => {
-              const periodKomisi = p.status === 'open'
-                ? totalKomisiPending
-                : allPayouts.filter(po => po.periodId === p.id).reduce((s, po) => s + po.totalKomisi, 0)
+              const isRunning = p.id === k.openPeriod?.id
+              const periodPayouts = allPayouts.filter(po => po.periodId === p.id)
+              const periodKomisi = isRunning
+                ? k.totalKomisi
+                : periodPayouts.reduce((s, po) => s + po.totalKomisi, 0)
+              const mechanicCount = isRunning
+                ? k.mechKomisi.length
+                : new Set(periodPayouts.map(po => po.mechanicId)).size
               return (
                 <div key={p.id} style={{
                   border: `1px solid ${p.status === 'open' ? 'var(--border-strong)' : 'var(--border)'}`,
@@ -558,7 +458,7 @@ export default function Dashboard() {
                         {p.status === 'open' ? 'AKTIF' : 'CLOSED'}
                       </Badge>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        {activeMechanicCount} mekanik
+                        {mechanicCount} mekanik
                       </span>
                     </div>
                   </div>
@@ -574,35 +474,234 @@ export default function Dashboard() {
               )
             })}
           </div>
+        )}
 
-          {/* Mechanic komisi grid */}
-          <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 18 }}>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
-              KOMISI BERJALAN — PER MEKANIK
+        <div style={{ borderTop: '1px solid var(--border)', marginTop: 18, paddingTop: 18 }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 12 }}>
+            KOMISI BERJALAN — PER MEKANIK
+          </div>
+          {!k.openPeriod ? (
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+              Belum ada periode aktif.
             </div>
-            {mechKomisi.length === 0 ? (
-              <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>
-                Belum ada jasa periode ini.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                {mechKomisi.map((m) => (
-                  <div key={m.mechanicId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--surface-alt)', border: '1px solid var(--border)', display: 'grid', placeItems: 'center', fontFamily: 'var(--display)', fontSize: 14, color: 'var(--text)', flexShrink: 0 }}>
-                      {m.mechanicName[0]}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{m.mechanicName.split(' ')[0]}</div>
-                      <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--success)', fontWeight: 600 }}>
-                        Rp {fmtRp(m.totalKomisi)}
-                      </div>
+          ) : k.mechKomisi.length === 0 ? (
+            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+              Belum ada jasa periode ini.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {k.mechKomisi.map((m) => (
+                <div key={m.mechanicId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--surface-alt)', border: '1px solid var(--border)', display: 'grid', placeItems: 'center', fontFamily: 'var(--display)', fontSize: 14, color: 'var(--text)', flexShrink: 0 }}>
+                    {m.mechanicName[0]}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{m.mechanicName.split(' ')[0]}</div>
+                    <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--success)', fontWeight: 600 }}>
+                      Rp {fmtRp(m.totalKomisi)}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      </>
+    )
+  }
+
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
+      <div style={{ marginBottom: 18 }}>
+        <h3 style={{ fontFamily: 'var(--display)', fontSize: 20, textTransform: 'uppercase', margin: 0 }}>Periode Komisi</h3>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
+          SENIN — MINGGU
+        </div>
+      </div>
+      {renderBody()}
+    </div>
+  )
+}
+
+// ── Main Dashboard ────────────────────────────────────────────────────────────
+
+const NO_TXS: TransactionRow[] = []
+
+function sumByTipe(txs: TransactionRow[], start: string, end: string) {
+  let income = 0
+  let expense = 0
+  for (const t of txs) {
+    if (t.tgl < start || t.tgl > end) continue
+    if (t.tipe === 'income') income += t.total_nominal
+    else expense += t.total_nominal
+  }
+  return { income, expense, laba: income - expense }
+}
+
+export default function Dashboard() {
+  const isOwner = useAuthStore(s => s.user?.role) === 'owner'
+  const today = todayLocal()
+  // KPIs use the calendar week (Senin–Minggu), independent of commission periods.
+  const week = useMemo(() => getPeriodRange('minggu-ini'), [today])
+  const prevWeek = useMemo(() => getPrevPeriodRange(week), [week])
+  const from90 = useMemo(() => addDaysToStr(today, -(CHART_DAYS['90H'] - 1)), [today])
+
+  const txQ         = useTransactions({ dateFrom: from90 })
+  const weekIncomeQ = useTransactionsWithLines({ tipe: 'income', dateFrom: week.start, dateTo: week.end })
+  const customersQ  = useCustomers(true)
+  const suppliersQ  = useSuppliers(true)
+  const allTxs = txQ.data ?? NO_TXS
+
+  // ── KPI: pendapatan / pengeluaran / laba (this week vs last week) ─────────
+
+  const kpiStats = useMemo(() => sumByTipe(allTxs, week.start, week.end), [allTxs, week])
+  const kpiDeltas = useMemo(() => {
+    const prev = sumByTipe(allTxs, prevWeek.start, prevWeek.end)
+    return {
+      pendapatan:  pctChange(kpiStats.income,  prev.income),
+      pengeluaran: pctChange(kpiStats.expense, prev.expense),
+      labaKotor:   pctChange(kpiStats.laba,    prev.laba),
+    }
+  }, [allTxs, prevWeek, kpiStats])
+
+  // ── Top Kategori (income lines this week) ─────────────────────────────────
+
+  const topKategori = useMemo(() => {
+    const katMap: Record<string, { name: string; amount: number; txIds: Set<string> }> = {}
+    for (const tx of weekIncomeQ.data ?? []) {
+      for (const line of tx.transaction_lines) {
+        const cat = line.categories
+        if (!cat) continue
+        if (!katMap[cat.id]) katMap[cat.id] = { name: cat.name, amount: 0, txIds: new Set() }
+        katMap[cat.id].amount += line.nominal
+        katMap[cat.id].txIds.add(tx.id)
+      }
+    }
+    const sorted = Object.values(katMap)
+      .map(k => ({ name: k.name, amount: k.amount, txCount: k.txIds.size }))
+      .sort((a, b) => b.amount - a.amount)
+    const maxAmt = sorted[0]?.amount || 1
+    return sorted.slice(0, 6).map(k => ({ ...k, pct: k.amount / maxAmt }))
+  }, [weekIncomeQ.data])
+
+  // ── Party maps for recent transactions ────────────────────────────────────
+
+  const customerMap = useMemo(() =>
+    Object.fromEntries((customersQ.data ?? []).map(c => [c.id, c.motor_type ? `${c.name} (${c.motor_type})` : c.name])),
+    [customersQ.data]
+  )
+  const supplierMap = useMemo(() =>
+    Object.fromEntries((suppliersQ.data ?? []).map(s => [s.id, s.name])),
+    [suppliersQ.data]
+  )
+
+  const recentTxs = useMemo(() =>
+    [...allTxs].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 5),
+    [allTxs]
+  )
+
+  // ── Chart data ─────────────────────────────────────────────────────────────
+
+  const [chartFilter, setChartFilter] = useState<ChartRange>('7H')
+  const chartData = useMemo(() =>
+    chartFilter === '90H'
+      ? buildWeeksData(allTxs, 13, today)
+      : buildDaysData(allTxs, CHART_DAYS[chartFilter], today),
+    [chartFilter, allTxs, today]
+  )
+  const chartStart = addDaysToStr(today, -(CHART_DAYS[chartFilter] - 1))
+  const chartLabel = chartFilter === '90H'
+    ? `90 HARI TERAKHIR · PER MINGGU · ${fmtRange(chartStart, today)}`
+    : `${CHART_DAYS[chartFilter]} HARI TERAKHIR · ${fmtRange(chartStart, today)}`
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  const periodSubtitle = `Snapshot bisnis minggu ini · ${fmtRange(week.start, week.end)}`
+
+  if (txQ.isError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <PageHeader title="Dashboard Owner" subtitle={periodSubtitle} />
+        <QueryErrorPanel errors={[txQ.error]} onRetry={() => void txQ.refetch()} />
+      </div>
+    )
+  }
+
+  if (txQ.isLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <PageHeader title="Dashboard Owner" subtitle={periodSubtitle} />
+        <LoadingPanel />
+      </div>
+    )
+  }
+
+  const partyErrors = [customersQ.error, suppliersQ.error].filter(e => e != null)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <PageHeader title="Dashboard Owner" subtitle={periodSubtitle} />
+
+      {/* KPI Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isOwner ? 4 : 3}, 1fr)`, gap: 16 }}>
+        <KpiCard
+          label="Pendapatan Minggu Ini"
+          value={<CurrencyDisplay value={kpiStats.income} size="lg" />}
+          change={kpiChange(kpiDeltas.pendapatan)}
+          icon={<TrendingUp size={14} />}
+        />
+        <KpiCard
+          label="Pengeluaran Minggu Ini"
+          value={<CurrencyDisplay value={kpiStats.expense} size="lg" />}
+          change={kpiChange(kpiDeltas.pengeluaran)}
+          icon={<TrendingDown size={14} />}
+        />
+        <KpiCard
+          label="Laba Kotor Minggu Ini"
+          value={<CurrencyDisplay value={kpiStats.laba} size="lg" />}
+          change={kpiChange(kpiDeltas.labaKotor)}
+          icon={<DollarSign size={14} />}
+        />
+        {isOwner && <KomisiKpiCard />}
+      </div>
+
+      {/* Chart + Top Kategori */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+        <CashFlowChart
+          data={chartData}
+          filter={chartFilter}
+          onFilterChange={setChartFilter}
+          periodLabel={chartLabel}
+        />
+        <TopKategoriPanel
+          items={topKategori}
+          subtitle={`Pemasukan · ${fmtRange(week.start, week.end)}`}
+          status={
+            weekIncomeQ.isError
+              ? <QueryErrorPanel compact errors={[weekIncomeQ.error]} onRetry={() => void weekIncomeQ.refetch()} />
+              : weekIncomeQ.isLoading
+                ? <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>Memuat...</div>
+                : undefined
+          }
+        />
+      </div>
+
+      {/* Recent Tx + Period Komisi */}
+      <div style={{ display: 'grid', gridTemplateColumns: isOwner ? '3fr 2fr' : '1fr', gap: 16 }}>
+        {partyErrors.length > 0 ? (
+          <QueryErrorPanel
+            errors={partyErrors}
+            onRetry={() => { void customersQ.refetch(); void suppliersQ.refetch() }}
+          />
+        ) : (
+          <RecentTxPanel
+            transactions={recentTxs}
+            customerMap={customerMap}
+            supplierMap={supplierMap}
+          />
+        )}
+
+        {isOwner && <PeriodKomisiPanel />}
       </div>
     </div>
   )

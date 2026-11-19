@@ -7,14 +7,14 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': a new deploy waits until the user clicks "Muat ulang" (PWAUpdatePrompt),
+      // so a cashier mid-way through the transaction form never loses unsaved input.
+      registerType: 'prompt',
       manifest: false,  // use existing public/manifest.json
       includeAssets: ['favicon.svg', 'icons/*.svg'],
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
         cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

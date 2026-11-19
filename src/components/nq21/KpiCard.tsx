@@ -1,6 +1,7 @@
 interface KpiCardChange {
   value: string
-  up: boolean
+  /** true = ▲ green, false = ▼ red, omitted = neutral (no arrow) */
+  up?: boolean
   context?: string
 }
 
@@ -73,11 +74,11 @@ export function KpiCard({ label, value, change, accent, icon }: KpiCardProps) {
             fontFamily: 'var(--mono)',
             fontSize: 11,
             fontWeight: 600,
-            color: change.up ? 'var(--success)' : 'var(--accent)',
+            color: change.up === undefined ? 'var(--text-muted)' : change.up ? 'var(--success)' : 'var(--accent)',
             marginTop: 12,
           }}
         >
-          <span>{change.up ? '▲' : '▼'}</span>
+          {change.up !== undefined && <span>{change.up ? '▲' : '▼'}</span>}
           <span>{change.value}</span>
           {change.context && (
             <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>

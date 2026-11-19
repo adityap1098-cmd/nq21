@@ -113,9 +113,11 @@ function SummaryStrip({ filtered }: { filtered: TransactionRow[] }) {
 
 export default function DaftarTransaksiPage() {
   const navigate = useNavigate()
-  const { data: transactions = [], isLoading } = useTransactions({ includeDeleted: false })
-  const { data: customers = [] } = useCustomers()
-  const { data: suppliers = [] } = useSuppliers()
+  // 'always': kasir and owner work on different devices — show each other's new rows on entry
+  const { data: transactions = [], isLoading, isError, refetch } = useTransactions({ includeDeleted: false }, { refetchOnMount: 'always' })
+  // Inactive parties included so historical rows still show a name
+  const { data: customers = [] } = useCustomers(true)
+  const { data: suppliers = [] } = useSuppliers(true)
 
   const [search, setSearch]   = useState('')
   const [tipe, setTipe]       = useState<TipeFilter>('all')
@@ -217,7 +219,7 @@ export default function DaftarTransaksiPage() {
     <>
       <PageHeader
         title="DAFTAR TRANSAKSI"
-        subtitle={isLoading ? 'Memuat...' : `${transactions.length} total transaksi tersimpan`}
+        subtitle={isLoading ? 'Memuat...' : isError ? 'Gagal memuat' : `${transactions.length} total transaksi tersimpan`}
         action={
           <button
             onClick={() => navigate('/transaksi/baru')}
@@ -262,7 +264,7 @@ export default function DaftarTransaksiPage() {
       </div>
 
       {/* ── Summary strip ── */}
-      <SummaryStrip filtered={filtered} />
+      {!isError && <SummaryStrip filtered={filtered} />}
 
       {/* ── Loading state ── */}
       {isLoading && (
@@ -271,8 +273,32 @@ export default function DaftarTransaksiPage() {
         </div>
       )}
 
+      {/* ── Error state ── */}
+      {!isLoading && isError && (
+        <div style={{
+          textAlign: 'center', padding: '60px 20px',
+          border: '1px solid rgba(200,16,46,0.25)', borderRadius: 10,
+          background: 'rgba(200,16,46,0.06)',
+        }}>
+          <div style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 14 }}>
+            Gagal memuat transaksi. Periksa koneksi internet.
+          </div>
+          <button
+            onClick={() => { void refetch() }}
+            style={{
+              fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.08em', padding: '8px 16px',
+              borderRadius: 8, border: '1.5px solid var(--border)',
+              background: 'transparent', color: 'var(--text)', cursor: 'pointer',
+            }}
+          >
+            COBA LAGI
+          </button>
+        </div>
+      )}
+
       {/* ── Table ── */}
-      {!isLoading && filtered.length === 0 ? (
+      {isError ? null : !isLoading && filtered.length === 0 ? (
         <EmptyState
           message={search || tipe !== 'all' || period !== 'all'
             ? 'Tidak ada transaksi yang cocok dengan filter ini.'

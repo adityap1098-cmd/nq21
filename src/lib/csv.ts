@@ -4,6 +4,16 @@ function escapeCSV(v: string): string {
   return v
 }
 
+const NUMERIC_CELL = /^[+-]?\d+(\.\d+)?$/
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/
+
+// Excel/Sheets evaluate text cells starting with = + - @ (or tab/CR) as formulas.
+// Prefix such text with a quote; plain numbers (incl. signed deltas) stay numeric.
+export function neutralizeFormula(v: string): string {
+  if (NUMERIC_CELL.test(v)) return v
+  return FORMULA_TRIGGER.test(v) ? `'${v}` : v
+}
+
 export interface CSVColumn<T> {
   key: keyof T | string
   label: string
@@ -21,7 +31,7 @@ export function exportCSV<T extends Record<string, unknown>>(
       .map((col) => {
         const raw = row[col.key as string]
         const formatted = col.format ? col.format(raw) : String(raw ?? '')
-        return escapeCSV(formatted)
+        return escapeCSV(neutralizeFormula(formatted))
       })
       .join(',')
   )

@@ -105,16 +105,16 @@ export function LineItemCard({
   canDelete,
   hasBubutLuar,
 }: LineItemCardProps) {
-  const { data: categories = [] } = useCategories()
+  const { data: categories = [] } = useCategories(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [notesOpen, setNotesOpen] = useState(!!line.notes)
 
   const filteredCategories = useMemo(
     () =>
       categories
-        .filter((c) => c.is_active && c.type === tipe)
+        .filter((c) => c.type === tipe && (c.is_active || c.id === line.categoryId))
         .sort((a, b) => a.name.localeCompare(b.name)),
-    [categories, tipe]
+    [categories, tipe, line.categoryId]
   )
 
   const selectedCat = categories.find((c) => c.id === line.categoryId)
@@ -186,7 +186,7 @@ export function LineItemCard({
               cat.name === 'Bubut Luar' && hasBubutLuar && cat.id !== line.categoryId
             return (
               <option key={cat.id} value={cat.id} disabled={isDisabled}>
-                {cat.name}{cat.is_jasa ? ' · komisi' : ''}{isDisabled ? ' (sudah ada)' : ''}
+                {cat.name}{cat.is_jasa ? ' · komisi' : ''}{!cat.is_active ? ' (nonaktif)' : ''}{isDisabled ? ' (sudah ada)' : ''}
               </option>
             )
           })}

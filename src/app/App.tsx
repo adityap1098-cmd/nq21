@@ -9,7 +9,7 @@ import { OfflineIndicator } from './components/OfflineIndicator'
 import { PWAUpdatePrompt } from './components/PWAUpdatePrompt'
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import { useAuthStore, type AuthProfile } from '@/store/auth'
+import { useAuthStore, clearUserData, type AuthProfile } from '@/store/auth'
 import { toast } from '@/hooks/use-toast'
 
 async function fetchProfile(userId: string, email: string): Promise<AuthProfile | null> {
@@ -72,12 +72,16 @@ export default function App() {
               )
               if (hasToken) return
             }
+            clearUserData()
             _setUser(null)
             return
           }
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
             const profile = await fetchProfile(session.user.id, session.user.email ?? '')
             if (profile) {
+              // A different account on this device must not see the previous user's cache
+              const previousId = useAuthStore.getState().user?.id
+              if (previousId && previousId !== profile.id) clearUserData()
               _setUser(profile)
             } else {
               await supabase.auth.signOut().catch(() => {})

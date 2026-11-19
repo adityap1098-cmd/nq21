@@ -3,6 +3,7 @@ import { PageHeader, PeriodSelector, CustomDateRangeInput } from '@/components/n
 import { exportCSV, fmtRupiah, fmtDate } from '@/lib/csv'
 import { usePeriodFilter, type PeriodPreset } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
+import { QueryErrorPanel, LoadingPanel } from './QueryState'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 
@@ -83,7 +84,7 @@ function Panel({
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th style={{ padding: '8px 12px 8px 20px', textAlign: 'left', width: 28 }}>#</th>
                 <th style={{ padding: '8px 12px', textAlign: 'left', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>KATEGORI</th>
-                <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>JML TRX</th>
+                <th title="Jumlah transaksi berbeda yang memuat kategori ini" style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>JML TRX</th>
                 <th style={{ padding: '8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>NOMINAL</th>
                 <th style={{ padding: '8px 20px 8px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>%</th>
               </tr>
@@ -145,25 +146,30 @@ function Panel({
 
 export default function LaporanKategoriPage() {
   const { preset, customRange, range, setPreset, setCustomRange } = usePeriodFilter('week')
-  const { data: txsWithLines = [], isLoading } = useTransactionsWithLines({
+  const { data: txsWithLines = [], isLoading, isError, error, refetch } = useTransactionsWithLines({
     dateFrom: range.start,
     dateTo: range.end,
   })
 
-  const { income, expense, summary } = useMemo(() => {
-    const incomeMap: Record<string, { categoryName: string; isJasa: boolean; totalNominal: number; transactionCount: number }> = {}
-    const expenseMap: Record<string, { categoryName: string; isJasa: boolean; totalNominal: number; transactionCount: number }> = {}
+  const { income, expense, summary, totalTrxIncome, totalTrxExpense } = useMemo(() => {
+    type Acc = { categoryName: string; isJasa: boolean; totalNominal: number; txIds: Set<string> }
+    const incomeMap: Record<string, Acc> = {}
+    const expenseMap: Record<string, Acc> = {}
+    const incomeTxIds = new Set<string>()
+    const expenseTxIds = new Set<string>()
 
     for (const tx of txsWithLines) {
       for (const line of tx.transaction_lines) {
         const cat = line.categories
         if (!cat) continue
-        const map = cat.type === 'income' ? incomeMap : expenseMap
+        const isIncome = cat.type === 'income'
+        const map = isIncome ? incomeMap : expenseMap
         if (!map[cat.id]) {
-          map[cat.id] = { categoryName: cat.name, isJasa: cat.is_jasa, totalNominal: 0, transactionCount: 0 }
+          map[cat.id] = { categoryName: cat.name, isJasa: cat.is_jasa, totalNominal: 0, txIds: new Set() }
         }
         map[cat.id].totalNominal += line.nominal
-        map[cat.id].transactionCount += 1
+        map[cat.id].txIds.add(tx.id)
+        ;(isIncome ? incomeTxIds : expenseTxIds).add(tx.id)
       }
     }
 
@@ -179,7 +185,7 @@ export default function LaporanKategoriPage() {
           categoryId,
           categoryName: v.categoryName,
           isJasa: v.isJasa,
-          transactionCount: v.transactionCount,
+          transactionCount: v.txIds.size,
           totalNominal: v.totalNominal,
           percentage: total > 0 ? (v.totalNominal / total) * 100 : 0,
         }))
@@ -189,18 +195,18 @@ export default function LaporanKategoriPage() {
       income: toSorted(incomeMap, totalIncome),
       expense: toSorted(expenseMap, totalExpense),
       summary: { totalIncome, totalExpense, labaKotor: totalIncome - totalExpense },
+      totalTrxIncome: incomeTxIds.size,
+      totalTrxExpense: expenseTxIds.size,
     }
   }, [txsWithLines])
 
-  const totalTrxIncome = income.reduce((s, r) => s + r.transactionCount, 0)
-  const totalTrxExpense = expense.reduce((s, r) => s + r.transactionCount, 0)
-  const isEmpty = !isLoading && income.length === 0 && expense.length === 0
+  const isEmpty = !isLoading && !isError && income.length === 0 && expense.length === 0
 
   function handleExport() {
     type ExportRow = { tipe: string; kategori: string; jasa: string; trx: string; nominal: string; pct: string }
     const allRows: ExportRow[] = [
-      ...income.map((r) => ({ tipe: 'INCOME', kategori: r.categoryName, jasa: r.isJasa ? 'Ya' : 'Tidak', trx: String(r.transactionCount), nominal: fmtRupiah(r.totalNominal), pct: r.percentage.toFixed(1) })),
-      ...expense.map((r) => ({ tipe: 'EXPENSE', kategori: r.categoryName, jasa: r.isJasa ? 'Ya' : 'Tidak', trx: String(r.transactionCount), nominal: fmtRupiah(r.totalNominal), pct: r.percentage.toFixed(1) })),
+      ...income.map((r) => ({ tipe: 'MASUK', kategori: r.categoryName, jasa: r.isJasa ? 'Ya' : 'Tidak', trx: String(r.transactionCount), nominal: fmtRupiah(r.totalNominal), pct: r.percentage.toFixed(1) })),
+      ...expense.map((r) => ({ tipe: 'KELUAR', kategori: r.categoryName, jasa: r.isJasa ? 'Ya' : 'Tidak', trx: String(r.transactionCount), nominal: fmtRupiah(r.totalNominal), pct: r.percentage.toFixed(1) })),
     ]
     exportCSV(
       allRows,
@@ -226,7 +232,8 @@ export default function LaporanKategoriPage() {
         action={
           <button
             onClick={handleExport}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 6, fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.08em', cursor: 'pointer' }}
+            disabled={isLoading || isError}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 6, fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.08em', cursor: isLoading || isError ? 'not-allowed' : 'pointer', opacity: isLoading || isError ? 0.5 : 1 }}
           >
             ↓ EXPORT CSV
           </button>
@@ -238,8 +245,8 @@ export default function LaporanKategoriPage() {
         <PeriodSelector value={preset} onChange={(v) => setPreset(v as PeriodPreset)} />
         {preset === 'custom' && (
           <CustomDateRangeInput
-            start={customRange?.start ?? ''}
-            end={customRange?.end ?? ''}
+            start={customRange?.start ?? range.start}
+            end={customRange?.end ?? range.end}
             onChange={(start, end) => setCustomRange({ start, end })}
           />
         )}
@@ -248,8 +255,10 @@ export default function LaporanKategoriPage() {
         </span>
       </div>
 
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '80px 32px', color: 'var(--text-muted)', fontSize: 13 }}>Memuat data...</div>
+      {isError ? (
+        <QueryErrorPanel errors={[error]} onRetry={() => void refetch()} />
+      ) : isLoading ? (
+        <LoadingPanel />
       ) : isEmpty ? (
         <div style={{ textAlign: 'center', padding: '80px 32px', color: 'var(--text-muted)', border: '1px dashed var(--border)', borderRadius: 8 }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>📊</div>
@@ -259,8 +268,8 @@ export default function LaporanKategoriPage() {
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
-            <Panel title="PENDAPATAN" tag="INCOME" tagIcon="▲" total={summary.totalIncome} rows={income} totalTrx={totalTrxIncome} tint="var(--text)" totalColor="var(--success, #16a34a)" emptyMsg="Tidak ada pendapatan pada periode ini." />
-            <Panel title="PENGELUARAN" tag="EXPENSE" tagIcon="▼" total={summary.totalExpense} rows={expense} totalTrx={totalTrxExpense} tint="var(--accent)" totalColor="var(--accent)" emptyMsg="Tidak ada pengeluaran pada periode ini." />
+            <Panel title="PENDAPATAN" tag="MASUK" tagIcon="▲" total={summary.totalIncome} rows={income} totalTrx={totalTrxIncome} tint="var(--text)" totalColor="var(--success, #16a34a)" emptyMsg="Tidak ada pendapatan pada periode ini." />
+            <Panel title="PENGELUARAN" tag="KELUAR" tagIcon="▼" total={summary.totalExpense} rows={expense} totalTrx={totalTrxExpense} tint="var(--accent)" totalColor="var(--accent)" emptyMsg="Tidak ada pengeluaran pada periode ini." />
           </div>
 
           <div style={{ background: 'var(--text)', color: 'var(--bg)', borderRadius: 8, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32 }}>

@@ -137,9 +137,10 @@ export default function Login() {
             }}
           >
             {[
-              { v: '142', l: 'Trx Minggu Ini' },
-              { v: '4', l: 'Mekanik Aktif' },
-              { v: '98%', l: 'Akurasi Komisi' },
+              // Static facts about the system — not live data (shown before login)
+              { v: '4', l: 'Laporan' },
+              { v: '7', l: 'Hari / Periode' },
+              { v: '2', l: 'Role Akses' },
             ].map((m, i) => (
               <div
                 key={i}
@@ -312,14 +313,8 @@ export default function Login() {
               marginTop: 24, fontSize: 12, color: 'var(--text-muted)',
             }}
           >
-            <span
-              style={{
-                color: 'var(--text-secondary)', fontSize: 12,
-                borderBottom: '1px solid var(--border-strong)',
-                paddingBottom: 1, cursor: 'pointer',
-              }}
-            >
-              Butuh bantuan?
+            <span style={{ color: 'var(--text-secondary)', fontSize: 12 }}>
+              Lupa password atau akun nonaktif? Hubungi owner.
             </span>
           </div>
 

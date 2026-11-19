@@ -113,18 +113,20 @@ export default function MasterCustomerPage() {
 
   async function onSubmit(data: FormData) {
     const input = {
-      name: data.name,
-      motor_type: data.motor_type || null,
-      phone: data.phone || null,
-      notes: data.notes || null,
+      name: data.name.trim(),
+      motor_type: data.motor_type?.trim() || null,
+      phone: data.phone?.trim() || null,
+      notes: data.notes?.trim() || null,
     }
     try {
       if (dialogMode === 'add') {
         await createMutation.mutateAsync(input)
-        toast('Customer ditambahkan', { description: `${data.name} berhasil ditambahkan.`, variant: 'success' })
+        toast('Customer ditambahkan', { description: `${input.name} berhasil ditambahkan.`, variant: 'success' })
       } else if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, input })
-        toast('Customer diperbarui', { description: `${data.name} berhasil disimpan.`, variant: 'success' })
+        // Saving an inactive customer re-activates it (the only way back from "Nonaktifkan")
+        const reactivate = !editing.is_active
+        await updateMutation.mutateAsync({ id: editing.id, input: reactivate ? { ...input, is_active: true } : input })
+        toast(reactivate ? 'Customer diaktifkan kembali' : 'Customer diperbarui', { description: `${input.name} berhasil disimpan.`, variant: 'success' })
       }
       setDialogOpen(false)
     } catch (err) {
@@ -181,7 +183,7 @@ export default function MasterCustomerPage() {
         title={dialogMode === 'add' ? 'Tambah Customer' : `Edit: ${editing?.name ?? ''}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit(onSubmit)}
-        submitLabel={isMutating ? 'Menyimpan...' : dialogMode === 'add' ? 'Tambah' : 'Simpan'}
+        submitLabel={isMutating ? 'Menyimpan...' : dialogMode === 'add' ? 'Tambah' : editing && !editing.is_active ? 'Simpan & Aktifkan' : 'Simpan'}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
           <div style={{ gridColumn: '1 / -1' }}>
@@ -221,7 +223,7 @@ export default function MasterCustomerPage() {
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Nonaktifkan Customer?"
-        message={`${pendingDelete?.name ?? 'Customer ini'} akan dinonaktifkan. Data historis tetap aman. Bisa diaktifkan kembali kapan saja.`}
+        message={`${pendingDelete?.name ?? 'Customer ini'} akan dinonaktifkan. Data historis tetap aman. Aktifkan lagi lewat "Tampilkan Nonaktif" → Edit → Simpan & Aktifkan.`}
         confirmLabel="Nonaktifkan"
         variant="destructive"
         onConfirm={confirmDelete}

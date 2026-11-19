@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react'
 import { todayLocal } from '@/lib/format'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
-import { useAuditStore } from '@/store/audit'
 import { useCommissionPeriods, useCommissionPayouts, useMechanics, useMarkPaid } from '@/features/komisi/hooks'
 import { toast } from '@/hooks/use-toast'
 import { exportCSV, fmtDate } from '@/lib/csv'
@@ -10,6 +9,7 @@ import { PageHeader } from '@/components/nq21/PageHeader'
 import { KomisiBadge } from '@/features/komisi/components/KomisiBadge'
 import { MarkPaidDialog } from '@/features/komisi/components/MarkPaidDialog'
 import { fmtPeriodShort, fmtClosedAt, fmtRp, getInitial, FMT } from '@/features/komisi/utils'
+import { UNKNOWN_MECHANIC_NAME } from '@/features/komisi/display-payouts'
 import type { CommissionPayout } from '@/store/types'
 import type { PayoutComputed } from '@/store/selectors'
 
@@ -29,7 +29,6 @@ export default function MekanikKomisiPage() {
   const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
   const isOwner = user?.role === 'owner'
-  const logAudit = useAuditStore(s => s.log)
 
   const { data: periods = [] } = useCommissionPeriods()
   const { data: allPayouts = [], isLoading } = useCommissionPayouts()
@@ -118,11 +117,7 @@ export default function MekanikKomisiPage() {
     const { payout, period } = markPaidTarget
     try {
       await markPaidMutation.mutateAsync({ payoutId: payout.id, paidNotes })
-      logAudit({
-        userId: user.name, action: 'update', entityType: 'payout', entityId: payout.id,
-        source: 'mark-paid-overview', beforeData: { status: 'pending' }, afterData: { status: 'paid', paidNotes },
-      })
-      const mechName = mechanicMap.get(payout.mechanicId)?.name ?? payout.mechanicId
+      const mechName = mechanicMap.get(payout.mechanicId)?.name ?? UNKNOWN_MECHANIC_NAME
       toast(`Komisi ${mechName} (${fmtPeriodShort(period.weekStart, period.weekEnd)}) ditandai dibayar`, { variant: 'success' })
       setMarkPaidTarget(null)
     } catch (err) {
@@ -135,7 +130,7 @@ export default function MekanikKomisiPage() {
       const per = periodMap.get(p.periodId)
       const mech = mechanicMap.get(p.mechanicId)
       return {
-        mekanik: mech?.name ?? p.mechanicId,
+        mekanik: mech?.name ?? UNKNOWN_MECHANIC_NAME,
         periode: per ? fmtPeriodShort(per.weekStart, per.weekEnd) : p.periodId,
         jobs: p.totalJobs,
         basis: p.totalBasis,
@@ -441,11 +436,11 @@ export default function MekanikKomisiPage() {
                             display: 'grid', placeItems: 'center',
                             fontFamily: 'var(--display)', fontSize: 15, flexShrink: 0,
                           }}>
-                            {getInitial(mech?.name ?? payout.mechanicId)}
+                            {getInitial(mech?.name ?? UNKNOWN_MECHANIC_NAME)}
                           </div>
                           <div>
                             <div style={{ fontFamily: 'var(--display)', fontSize: 13 }}>
-                              {mech?.name ?? payout.mechanicId}
+                              {mech?.name ?? UNKNOWN_MECHANIC_NAME}
                             </div>
                             {mech && !mech.is_active && (
                               <span style={{
@@ -519,7 +514,7 @@ export default function MekanikKomisiPage() {
                               onClick={() => {
                                 const computed: PayoutComputed = {
                                   mechanicId: payout.mechanicId,
-                                  mechanicName: mech?.name ?? payout.mechanicId,
+                                  mechanicName: mech?.name ?? UNKNOWN_MECHANIC_NAME,
                                   isActive: mech?.is_active ?? false,
                                   totalJobs: payout.totalJobs,
                                   totalBasis: payout.totalBasis,

@@ -6,14 +6,21 @@ import { todayLocal } from '@/lib/format'
 interface Props {
   period: CommissionPeriod
   isSelected: boolean
-  totalJobs: number
-  totalKomisi: number
+  /** undefined = not loaded (open, unselected period) */
+  totalJobs?: number
+  totalKomisi?: number
   onClick: () => void
 }
 
 export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi, onClick }: Props) {
   const isOpen = period.status === 'open'
   const today = todayLocal()
+  const isCurrent = period.weekStart <= today && period.weekEnd >= today
+  const openMeta = isCurrent
+    ? `Berjalan · ${fmtShortDate(today)}`
+    : period.weekEnd < today
+      ? 'Selesai · belum ditutup'
+      : 'Belum dimulai'
 
   return (
     <button
@@ -38,9 +45,9 @@ export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi,
     >
       {/* Badge + jobs */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <KomisiBadge variant={isOpen ? 'open' : 'closed'} label={isOpen ? 'AKTIF' : 'CLOSED'} />
+        <KomisiBadge variant={isOpen ? 'open' : 'closed'} label={isOpen ? 'OPEN' : 'CLOSED'} />
         <span style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
-          ▸ {totalJobs} JOBS
+          ▸ {totalJobs ?? '—'} JOBS
         </span>
       </div>
 
@@ -52,7 +59,7 @@ export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi,
       {/* Meta */}
       <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: 'var(--text-muted)', letterSpacing: '0.06em' }}>
         {isOpen
-          ? `Berjalan · ${fmtShortDate(today)}`
+          ? openMeta
           : `Closed ${period.closedAt ? fmtClosedAt(period.closedAt) : '—'}`}
       </div>
 
@@ -61,7 +68,7 @@ export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi,
         fontFamily: 'var(--mono)', fontWeight: 700, fontSize: 16, marginTop: 6,
         color: isSelected && isOpen ? 'var(--accent)' : 'inherit',
       }}>
-        {fmtRp(totalKomisi)}
+        {totalKomisi === undefined ? 'Rp —' : fmtRp(totalKomisi)}
       </div>
     </button>
   )

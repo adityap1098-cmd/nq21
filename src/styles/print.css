@@ -265,6 +265,23 @@
     page-break-inside: avoid;
   }
 
+  /* === DRAFT / DRIFT NOTICES — must always print === */
+
+  .slip-draft-banner,
+  .slip-drift-banner {
+    display: block !important;
+    page-break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .slip-draft-watermark {
+    display: block !important;
+    color: rgba(200, 16, 46, 0.12) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   /* Hide buttons */
   button:not(.print-include) {
     display: none !important;

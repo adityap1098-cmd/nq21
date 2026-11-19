@@ -8,6 +8,10 @@ import type { TransactionWithLines } from '@/features/transactions/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import type { CommissionRate } from '@/features/mechanics/hooks'
 import { useCategories } from '@/features/categories/hooks'
+import { QueryErrorPanel, LoadingPanel } from './QueryState'
+
+// Dyno is is_jasa but has its own report (Laporan #4); keep it out of this one.
+const EXCLUDED_CATEGORY = 'Dyno'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 const fmtRp = (n: number) => `Rp ${_fmt.format(n)}`
@@ -27,6 +31,7 @@ function csvDateSlug(dateStr: string): string {
 // ── Local types ───────────────────────────────────────────────────────────────
 
 interface MechDetail {
+  key: string
   mechanicId: string
   mechanicName: string
   sharePercent: number
@@ -34,9 +39,12 @@ interface MechDetail {
   rateOverride: number | undefined
   effectiveRate: number
   komisi: number
+  /** false when a mechanic filter is active and this mechanic is not selected */
+  counted: boolean
 }
 
 interface JasaDetailLine {
+  lineId: string
   transactionId: string
   noReferensi: string
   tgl: string
@@ -49,7 +57,10 @@ interface JasaDetailLine {
   biayaMaterial: number
   basis: number
   mechanics: MechDetail[]
+  /** komisi of the counted mechanics only */
   totalKomisi: number
+  /** basis attributable to the counted mechanics (full basis when unfiltered) */
+  countedBasis: number
 }
 
 interface MekanikJasaStats {
@@ -129,11 +140,11 @@ function MechanicKpiCard({ stat, isActive: isActiveFilter, isInactive, onClick }
 }
 
 function MechStack({ line }: { line: JasaDetailLine }) {
-  const multi = line.mechanics.length > 1
+  const multi = line.mechanics.filter(m => m.counted).length > 1
   return (
     <div>
       {line.mechanics.map((m, i) => (
-        <div key={m.mechanicId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: i > 0 ? '3px 0 0' : '0', flexWrap: 'nowrap' }}>
+        <div key={m.key} title={m.counted ? undefined : 'Tidak termasuk filter mekanik'} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: i > 0 ? '3px 0 0' : '0', flexWrap: 'nowrap', opacity: m.counted ? 1 : 0.35 }}>
           <MechAvatar name={m.mechanicName} size={18} />
           <span style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>{m.mechanicName}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>{m.sharePercent}%</span>
@@ -169,43 +180,46 @@ function computeJasaReport(
   rates: CommissionRate[],
   filters?: { mechanicIds?: string[]; categoryIds?: string[] },
 ) {
-  const safeTxs = txsWithLines
-  const safeRates = rates
+  const mechFilter = filters?.mechanicIds?.length ? new Set(filters.mechanicIds) : null
+  const catFilter = filters?.categoryIds?.length ? new Set(filters.categoryIds) : null
 
   const detailLines: JasaDetailLine[] = []
-  const mechStats: Record<string, { totalBasis: number; totalKomisi: number; jobsCount: number; categoryIds: Set<string> }> = {}
+  const mechStats: Record<string, { name: string; totalBasis: number; totalKomisi: number; jobsCount: number; categoryIds: Set<string> }> = {}
 
-  for (const tx of safeTxs) {
+  for (const tx of txsWithLines) {
     for (const line of tx.transaction_lines) {
       const cat = line.categories
       if (!cat?.is_jasa) continue
-      if (cat.name === 'Dyno') continue
-      if (filters?.categoryIds?.length && !filters.categoryIds.includes(cat.id)) continue
+      if (cat.name === EXCLUDED_CATEGORY) continue
+      if (catFilter && !catFilter.has(cat.id)) continue
 
       const lms = line.transaction_line_mechanics
-      if (filters?.mechanicIds?.length) {
-        const hasMatch = lms.some(lm => filters.mechanicIds!.includes(lm.mechanic_id))
-        if (!hasMatch) continue
-      }
+      if (mechFilter && !lms.some(lm => mechFilter.has(lm.mechanic_id))) continue
 
       const basis = line.nominal - line.biaya_material
 
       const mechDetails: MechDetail[] = lms.map(lm => {
-        const masterRate = safeRates.find(r => r.mechanic_id === lm.mechanic_id && r.category_id === cat.id)?.rate_percent ?? 0
+        const masterRate = rates.find(r => r.mechanic_id === lm.mechanic_id && r.category_id === cat.id)?.rate_percent ?? 0
         const rateOverride = lm.rate_override !== null ? lm.rate_override : undefined
         const effectiveRate = rateOverride !== undefined ? rateOverride : masterRate
         const komisi = Math.round(basis * (lm.share_percent / 100) * (effectiveRate / 100))
-        const mechBasis = Math.round(basis * (lm.share_percent / 100))
+        // With a mechanic filter, only the selected mechanics' shares feed the totals.
+        const counted = !mechFilter || mechFilter.has(lm.mechanic_id)
 
-        if (!mechStats[lm.mechanic_id]) {
-          mechStats[lm.mechanic_id] = { totalBasis: 0, totalKomisi: 0, jobsCount: 0, categoryIds: new Set() }
+        if (counted) {
+          const stat = mechStats[lm.mechanic_id] ?? {
+            name: lm.mechanics?.name ?? lm.mechanic_id,
+            totalBasis: 0, totalKomisi: 0, jobsCount: 0, categoryIds: new Set<string>(),
+          }
+          stat.totalBasis += Math.round(basis * (lm.share_percent / 100))
+          stat.totalKomisi += komisi
+          stat.jobsCount += 1
+          stat.categoryIds.add(cat.id)
+          mechStats[lm.mechanic_id] = stat
         }
-        mechStats[lm.mechanic_id].totalBasis += mechBasis
-        mechStats[lm.mechanic_id].totalKomisi += komisi
-        mechStats[lm.mechanic_id].jobsCount += 1
-        mechStats[lm.mechanic_id].categoryIds.add(cat.id)
 
         return {
+          key: lm.id,
           mechanicId: lm.mechanic_id,
           mechanicName: lm.mechanics?.name ?? lm.mechanic_id,
           sharePercent: lm.share_percent,
@@ -213,10 +227,13 @@ function computeJasaReport(
           rateOverride,
           effectiveRate,
           komisi,
+          counted,
         }
       })
 
+      const countedMechs = mechDetails.filter(m => m.counted)
       detailLines.push({
+        lineId: line.id,
         transactionId: tx.id,
         noReferensi: tx.no_referensi,
         tgl: tx.tgl,
@@ -229,7 +246,10 @@ function computeJasaReport(
         biayaMaterial: line.biaya_material,
         basis,
         mechanics: mechDetails,
-        totalKomisi: mechDetails.reduce((s, m) => s + m.komisi, 0),
+        totalKomisi: countedMechs.reduce((s, m) => s + m.komisi, 0),
+        countedBasis: mechFilter
+          ? countedMechs.reduce((s, m) => s + Math.round(basis * (m.sharePercent / 100)), 0)
+          : basis,
       })
     }
   }
@@ -237,26 +257,21 @@ function computeJasaReport(
   detailLines.sort((a, b) => b.tgl.localeCompare(a.tgl))
 
   const perMekanik: MekanikJasaStats[] = Object.entries(mechStats)
-    .map(([mechanicId, s]) => {
-      const name = safeTxs
-        .flatMap(t => t.transaction_lines)
-        .flatMap(l => l.transaction_line_mechanics)
-        .find(lm => lm.mechanic_id === mechanicId)?.mechanics?.name ?? mechanicId
-      return {
-        mechanicId,
-        mechanicName: name,
-        isActive: true,
-        jobsCount: s.jobsCount,
-        totalBasis: s.totalBasis,
-        totalKomisi: s.totalKomisi,
-        uniqueCategories: s.categoryIds.size,
-      }
-    })
+    .map(([mechanicId, s]) => ({
+      mechanicId,
+      mechanicName: s.name,
+      isActive: true,
+      jobsCount: s.jobsCount,
+      totalBasis: s.totalBasis,
+      totalKomisi: s.totalKomisi,
+      uniqueCategories: s.categoryIds.size,
+    }))
     .sort((a, b) => b.totalKomisi - a.totalKomisi)
 
-  const totalBasis = perMekanik.reduce((s, m) => s + m.totalBasis, 0)
-  const totalKomisi = perMekanik.reduce((s, m) => s + m.totalKomisi, 0)
+  // Summary is derived from the table rows, so the totals always match what is listed.
   const totalJobs = detailLines.length
+  const totalBasis = detailLines.reduce((s, l) => s + l.countedBasis, 0)
+  const totalKomisi = detailLines.reduce((s, l) => s + l.totalKomisi, 0)
 
   return {
     perMekanik,
@@ -267,18 +282,35 @@ function computeJasaReport(
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const NO_TXS: TransactionWithLines[] = []
+const NO_RATES: CommissionRate[] = []
+
 export default function LaporanJasaPage() {
   const navigate = useNavigate()
   const { preset, customRange, range, setPreset, setCustomRange } = usePeriodFilter('week')
   const [mechanicFilter, setMechanicFilter] = useState<string[]>([])
   const [categoryFilter, setCategoryFilter] = useState<string[]>([])
 
-  const { data: txsWithLines = [], isLoading } = useTransactionsWithLines({ dateFrom: range.start, dateTo: range.end, tipe: 'income' })
-  const { data: rates = [] } = useCommissionRates()
-  const { data: mechanics = [] } = useMechanics(true)
-  const { data: allCategories = [] } = useCategories()
+  const txQ = useTransactionsWithLines({ dateFrom: range.start, dateTo: range.end, tipe: 'income' })
+  const ratesQ = useCommissionRates()
+  const mechanicsQ = useMechanics(true)
+  const categoriesQ = useCategories()
+  const txsWithLines = txQ.data ?? NO_TXS
+  const rates = ratesQ.data ?? NO_RATES
+  const mechanics = useMemo(() => mechanicsQ.data ?? [], [mechanicsQ.data])
+  const allCategories = useMemo(() => categoriesQ.data ?? [], [categoriesQ.data])
 
-  const jasaCategories = useMemo(() => allCategories.filter(c => c.is_jasa && c.type === 'income'), [allCategories])
+  const queryErrors = [txQ.error, ratesQ.error, mechanicsQ.error, categoriesQ.error].filter(e => e != null)
+  const isError = queryErrors.length > 0
+  const isLoading = txQ.isLoading || ratesQ.isLoading || mechanicsQ.isLoading || categoriesQ.isLoading
+  function retryAll() {
+    for (const q of [txQ, ratesQ, mechanicsQ, categoriesQ]) if (q.isError) void q.refetch()
+  }
+
+  const jasaCategories = useMemo(
+    () => allCategories.filter(c => c.is_jasa && c.type === 'income' && c.name !== EXCLUDED_CATEGORY),
+    [allCategories],
+  )
   const mechanicMap = useMemo(() => Object.fromEntries(mechanics.map(m => [m.id, m])), [mechanics])
 
   const allReport = useMemo(
@@ -329,7 +361,7 @@ export default function LaporanJasaPage() {
   function handleExport() {
     type ExRow = Record<string, unknown>
     const rows: ExRow[] = detailLines.flatMap(line =>
-      line.mechanics.map(m => ({
+      line.mechanics.filter(m => m.counted).map(m => ({
         tgl: line.tgl,
         noReferensi: line.noReferensi,
         customer: line.customerName,
@@ -370,11 +402,12 @@ export default function LaporanJasaPage() {
     <div style={{ padding: '28px 32px', maxWidth: 1280 }}>
       <PageHeader
         title="Jasa & Mekanik"
-        subtitle={`LAPORAN #3 · Rincian jasa dengan basis komisi dan distribusi per mekanik · ${fmtDate(range.start)} – ${fmtDate(range.end)}`}
+        subtitle={`LAPORAN #3 · Rincian jasa dengan basis komisi dan distribusi per mekanik (tidak termasuk Dyno — lihat Laporan Dyno) · ${fmtDate(range.start)} – ${fmtDate(range.end)}`}
         action={
           <button
             onClick={handleExport}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.08em', cursor: 'pointer' }}
+            disabled={isLoading || isError}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.08em', cursor: isLoading || isError ? 'not-allowed' : 'pointer', opacity: isLoading || isError ? 0.5 : 1 }}
           >
             ↓ EXPORT CSV
           </button>
@@ -386,8 +419,8 @@ export default function LaporanJasaPage() {
         <PeriodSelector value={preset} onChange={(v) => setPreset(v as PeriodPreset)} />
         {preset === 'custom' && (
           <CustomDateRangeInput
-            start={customRange?.start ?? ''}
-            end={customRange?.end ?? ''}
+            start={customRange?.start ?? range.start}
+            end={customRange?.end ?? range.end}
             onChange={(start, end) => setCustomRange({ start, end })}
           />
         )}
@@ -396,6 +429,12 @@ export default function LaporanJasaPage() {
         </span>
       </div>
 
+      {isError ? (
+        <QueryErrorPanel errors={queryErrors} onRetry={retryAll} />
+      ) : isLoading ? (
+        <LoadingPanel />
+      ) : (
+      <>
       {/* Mekanik KPI cards */}
       {kpiMechanics.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(kpiMechanics.length, 4)}, 1fr)`, gap: 12, marginBottom: 16 }}>
@@ -458,7 +497,7 @@ export default function LaporanJasaPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
         {[
           { label: 'TOTAL JOBS',     value: summary.totalJobs.toString(), mono: false, accent: false },
-          { label: 'TOTAL BASIS',    value: fmtRp(summary.totalBasis),    mono: true,  accent: false },
+          { label: mechanicFilter.length > 0 ? 'TOTAL BASIS (PORSI MEKANIK)' : 'TOTAL BASIS', value: fmtRp(summary.totalBasis), mono: true, accent: false },
           { label: 'TOTAL KOMISI',   value: fmtRp(summary.totalKomisi),   mono: true,  accent: true  },
           { label: 'AVG KOMISI/JOB', value: fmtRp(summary.avgKomisiPerJob), mono: true, accent: false },
         ].map(({ label, value, mono, accent }) => (
@@ -480,9 +519,7 @@ export default function LaporanJasaPage() {
           </span>
         </div>
 
-        {isLoading ? (
-          <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Memuat data...</div>
-        ) : detailLines.length === 0 ? (
+        {detailLines.length === 0 ? (
           <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>🔧</div>
             <div style={{ fontFamily: 'var(--display)', fontSize: 16, color: 'var(--text)', marginBottom: 6 }}>Belum Ada Data Jasa</div>
@@ -508,7 +545,7 @@ export default function LaporanJasaPage() {
               <tbody>
                 {detailLines.map(line => (
                   <tr
-                    key={`${line.transactionId}-${line.categoryId}`}
+                    key={line.lineId}
                     onClick={() => navigate(`/transaksi/${line.transactionId}`)}
                     style={{ borderBottom: '1px solid var(--border)', borderLeft: '3px solid var(--accent)', cursor: 'pointer', transition: 'background 0.1s' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg)' }}
@@ -548,6 +585,8 @@ export default function LaporanJasaPage() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   )
 }

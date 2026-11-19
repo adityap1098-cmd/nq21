@@ -4,13 +4,18 @@ import { id as idLocale } from 'date-fns/locale'
 import type { CommissionPeriod } from '@/store/types'
 import type { PayoutComputed } from '@/store/selectors'
 import { fmtRp, FMT, getInitial, fmtPeriodFull } from '../utils'
+import { DraftSlipNotice, StoredTotalDriftNotice } from './SlipNotices'
 
 interface Props {
   period: CommissionPeriod
   payout: PayoutComputed
+  /** Live total for a closed period; shown as a warning when it differs from the stored total. */
+  liveTotalKomisi?: number | null
 }
 
-export function SlipPaperCompact({ period, payout }: Props) {
+export function SlipPaperCompact({ period, payout, liveTotalKomisi = null }: Props) {
+  const isOpen = period.status === 'open'
+  const showDrift = !isOpen && liveTotalKomisi !== null && liveTotalKomisi !== payout.totalKomisi
   const initial = getInitial(payout.mechanicName)
   const hasLines = payout.lines.length > 0
   const backdatedCount = payout.lines.filter(l => l.isBackdated).length
@@ -59,7 +64,10 @@ export function SlipPaperCompact({ period, payout }: Props) {
     <div className="slip-paper-compact" style={{
       background: '#fff', padding: '32px 36px',
       maxWidth: 700, margin: '0 auto',
+      position: 'relative', overflow: 'hidden',
     }}>
+      {isOpen && <DraftSlipNotice />}
+
       {/* Header */}
       <div className="slip-header" style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24,
@@ -107,6 +115,10 @@ export function SlipPaperCompact({ period, payout }: Props) {
           </div>
         </div>
       </div>
+
+      {showDrift && liveTotalKomisi !== null && (
+        <StoredTotalDriftNotice storedKomisi={payout.totalKomisi} liveKomisi={liveTotalKomisi} />
+      )}
 
       {/* KPI Summary Row */}
       <div style={{

@@ -1,13 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
-import { useCategories } from '@/features/categories/hooks'
-import { useTransactionStore } from '@/store/transactions'
 import { useAuthStore } from '@/store/auth'
-import { useUserStore } from '@/store/master/users'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { toast } from '@/hooks/use-toast'
+import { useLastJasaMechanicIds } from '../lookups'
+import { evenIntegerShares, proportionalIntegerShares } from '../utils'
 import type { LineMechanic } from '../types'
-import type { Transaction, TransactionLine, TransactionLineMechanic } from '@/store/types'
 import type { Mechanic, CommissionRate } from '@/features/mechanics/hooks'
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -34,75 +32,25 @@ function calcKomisi(basis: number, share: number, rate: number): number {
   return Math.round(basis * (share / 100) * (rate / 100))
 }
 
-function getDefaultMechanicId(
-  userId: string | null,
-  transactions: Transaction[],
-  lines: TransactionLine[],
-  lineMechanics: TransactionLineMechanic[],
-  jasaCategoryIds: Set<string>,
-  activeMechanics: Mechanic[],
-): string | null {
-  if (activeMechanics.length === 0) return null
-
-  if (userId) {
-    const userTxs = [...transactions]
-      .filter((tx) => tx.createdBy === userId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-
-    for (const tx of userTxs) {
-      const jasaLines = lines.filter(
-        (l) => l.transactionId === tx.id && jasaCategoryIds.has(l.categoryId),
-      )
-      for (const line of jasaLines) {
-        const lm = lineMechanics.find((m) => m.transactionLineId === line.id)
-        if (lm && activeMechanics.some((m) => m.id === lm.mechanicId)) {
-          return lm.mechanicId
-        }
-      }
-    }
-  }
-
-  return activeMechanics[0].id
+/** Decision G: mechanics of the user's last jasa line (still active), else all active mechanics. */
+function getDefaultMechanics(lastJasaIds: string[], activeMechanics: Mechanic[]): LineMechanic[] {
+  const activeIds = new Set(activeMechanics.map((m) => m.id))
+  const fromHistory = lastJasaIds.filter((id) => activeIds.has(id))
+  const ids = fromHistory.length > 0 ? fromHistory : activeMechanics.map((m) => m.id)
+  const shares = evenIntegerShares(ids.length)
+  return ids.map((mechanicId, i) => ({ mechanicId, sharePercent: shares[i] }))
 }
 
 function evenShareRedistribute(existing: LineMechanic[], newMechanicId: string): LineMechanic[] {
-  const n = existing.length + 1
-  const base = parseFloat((100 / n).toFixed(2))
-  const newMechs: LineMechanic[] = existing.map((m) => ({ ...m, sharePercent: base }))
-  const lastShare = parseFloat((100 - base * existing.length).toFixed(2))
-  newMechs.push({ mechanicId: newMechanicId, sharePercent: lastShare })
-  return newMechs
+  const all: LineMechanic[] = [...existing, { mechanicId: newMechanicId, sharePercent: 0 }]
+  const shares = evenIntegerShares(all.length)
+  return all.map((m, i) => ({ ...m, sharePercent: shares[i] }))
 }
 
 function proportionalRedistribute(existing: LineMechanic[], deleteIdx: number): LineMechanic[] {
   const remaining = existing.filter((_, i) => i !== deleteIdx)
-  if (remaining.length === 0) return []
-
-  const totalRemaining = remaining.reduce((s, m) => s + m.sharePercent, 0)
-
-  if (remaining.length === 1) {
-    return [{ ...remaining[0], sharePercent: 100 }]
-  }
-
-  if (totalRemaining === 0) {
-    const base = parseFloat((100 / remaining.length).toFixed(2))
-    return remaining.map((m, i) => ({
-      ...m,
-      sharePercent: i === remaining.length - 1
-        ? parseFloat((100 - base * (remaining.length - 1)).toFixed(2))
-        : base,
-    }))
-  }
-
-  let accum = 0
-  return remaining.map((m, i) => {
-    if (i === remaining.length - 1) {
-      return { ...m, sharePercent: parseFloat((100 - accum).toFixed(2)) }
-    }
-    const share = parseFloat((m.sharePercent / totalRemaining * 100).toFixed(2))
-    accum += share
-    return { ...m, sharePercent: share }
-  })
+  const shares = proportionalIntegerShares(remaining.map((m) => m.sharePercent))
+  return remaining.map((m, i) => ({ ...m, sharePercent: shares[i] }))
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -124,12 +72,10 @@ export function MechanicChipRow({
   categoryId,
   onChange,
 }: MechanicChipRowProps) {
-  const { data: allMechanics = [] } = useMechanics()
+  const { data: allMechanics = [], isSuccess: mechanicsReady } = useMechanics()
   const { data: rates = [] } = useCommissionRates()
-  const { data: categories = [] } = useCategories()
-  const { transactions, lines: txLines, lineMechanics } = useTransactionStore()
   const { user } = useAuthStore()
-  const { users } = useUserStore()
+  const lastJasa = useLastJasaMechanicIds(user?.id)
 
   const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
   const [editingRateIdx, setEditingRateIdx] = useState<number | null>(null)
@@ -137,32 +83,15 @@ export function MechanicChipRow({
 
   const activeMechanics = allMechanics  // hook returns active only by default
 
-  const currentUserId = useMemo(
-    () => (user ? users.find((u) => u.name === user.name)?.id ?? null : null),
-    [user, users],
-  )
+  // Pre-fill only once both queries settled; a failed history lookup falls back to all active.
+  const prefillReady = mechanicsReady && (lastJasa.isSuccess || lastJasa.isError || !user?.id)
 
-  const jasaCategoryIds = useMemo(
-    () => new Set(categories.filter((c) => c.is_jasa).map((c) => c.id)),
-    [categories],
-  )
-
-  // Initialize default mechanic when category is set and mechanics is empty
   useEffect(() => {
-    if (mechanics.length > 0 || !categoryId) return
-    const defaultId = getDefaultMechanicId(
-      currentUserId,
-      transactions,
-      txLines,
-      lineMechanics,
-      jasaCategoryIds,
-      activeMechanics,
-    )
-    if (defaultId) {
-      onChange([{ mechanicId: defaultId, sharePercent: 100 }])
-    }
+    if (mechanics.length > 0 || !categoryId || !prefillReady) return
+    const defaults = getDefaultMechanics(lastJasa.data ?? [], activeMechanics)
+    if (defaults.length > 0) onChange(defaults)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId, mechanics.length])
+  }, [categoryId, mechanics.length, prefillReady])
 
   // Derived
   const takenIds = new Set(mechanics.map((m) => m.mechanicId).filter(Boolean) as string[])
@@ -170,9 +99,9 @@ export function MechanicChipRow({
   const canAddMore = availableMechanics.length > 0
   const multiMechanic = mechanics.length > 1
 
-  const totalShare = parseFloat(mechanics.reduce((s, m) => s + m.sharePercent, 0).toFixed(2))
-  const shareOk = Math.abs(totalShare - 100) < 0.02
-  const shareOver = totalShare > 100.01
+  const totalShare = mechanics.reduce((s, m) => s + m.sharePercent, 0)
+  const shareOk = totalShare === 100
+  const shareOver = totalShare > 100
 
   const lineKomisi = mechanics.reduce((s, m) => {
     return s + calcKomisi(basis, m.sharePercent, getEffectiveRate(m, categoryId, rates))
@@ -198,8 +127,8 @@ export function MechanicChipRow({
   }
 
   function handleShareChange(idx: number, raw: string) {
-    const val = parseFloat(raw)
-    const clamped = isNaN(val) ? 0 : Math.min(100, Math.max(0, parseFloat(val.toFixed(2))))
+    const val = parseInt(raw, 10)
+    const clamped = isNaN(val) ? 0 : Math.min(100, Math.max(0, val))
     onChange(mechanics.map((m, i) => (i === idx ? { ...m, sharePercent: clamped } : m)))
   }
 
@@ -229,16 +158,14 @@ export function MechanicChipRow({
   }
 
   function commitRateEdit(idx: number) {
-    const val = parseFloat(rateEditValue)
-    if (isNaN(val) || val < 0) {
+    const val = Number(rateEditValue)
+    if (rateEditValue.trim() === '' || !Number.isInteger(val) || val < 0 || val > 100) {
+      toast('Rate harus bilangan bulat 0–100%.', { variant: 'destructive', duration: 3000 })
       setEditingRateIdx(null)
       return
     }
-    if (val > 100) {
-      toast('Rate override > 100% — pastikan ini disengaja.', { variant: 'destructive', duration: 3000 })
-    }
     const masterRate = getMasterRate(mechanics[idx].mechanicId, categoryId, rates)
-    const override = Math.abs(val - masterRate) < 0.001 ? undefined : val
+    const override = val === masterRate ? undefined : val
     onChange(mechanics.map((m, i) => (i === idx ? { ...m, rateOverride: override } : m)))
     setEditingRateIdx(null)
   }
@@ -344,7 +271,7 @@ export function MechanicChipRow({
                     type="number"
                     min={0}
                     max={100}
-                    step={0.01}
+                    step={1}
                     value={chip.sharePercent}
                     onChange={(e) => handleShareChange(idx, e.target.value)}
                     style={{
@@ -366,7 +293,8 @@ export function MechanicChipRow({
                 <input
                   type="number"
                   min={0}
-                  step={0.1}
+                  max={100}
+                  step={1}
                   value={rateEditValue}
                   autoFocus
                   onChange={(e) => setRateEditValue(e.target.value)}

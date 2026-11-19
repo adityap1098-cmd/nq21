@@ -9,6 +9,7 @@ import { exportCSV, fmtDate } from '@/lib/csv'
 import { usePeriodFilter } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
 import type { TransactionWithLines } from '@/features/transactions/hooks'
+import { QueryErrorPanel, LoadingPanel } from './QueryState'
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
 
@@ -109,7 +110,7 @@ function DynoBarTooltip({ active, payload, label }: { active?: boolean; payload?
 
 // ── Computation ───────────────────────────────────────────────────────────────
 
-function computeDynoReport(txsWithLines: TransactionWithLines[]) {
+function extractSessions(txsWithLines: TransactionWithLines[]): DynoSession[] {
   const sessions: DynoSession[] = []
 
   for (const tx of txsWithLines) {
@@ -131,7 +132,12 @@ function computeDynoReport(txsWithLines: TransactionWithLines[]) {
     }
   }
 
-  sessions.sort((a, b) => b.tgl.localeCompare(a.tgl))
+  return sessions.sort((a, b) => b.tgl.localeCompare(a.tgl))
+}
+
+// The 14-day chart has its own query (recentTxs) and ignores the period filter.
+function computeDynoReport(txsWithLines: TransactionWithLines[], recentTxs: TransactionWithLines[], today: string) {
+  const sessions = extractSessions(txsWithLines)
 
   const opMap: Record<string, { name: string; sessionCount: number; totalRevenue: number }> = {}
   for (const s of sessions) {
@@ -146,21 +152,21 @@ function computeDynoReport(txsWithLines: TransactionWithLines[]) {
     .sort((a, b) => b.sessionCount - a.sessionCount)
 
   // Last 14 days rolling window
-  const today = todayLocal()
   const end14 = today
   const start14 = addDays(end14, -13)
   const MONTH_SHORT = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']
-  const dateBuckets: Record<string, number> = {}
+  const dateBuckets: Record<string, { count: number; revenue: number }> = {}
   let dc = start14
-  while (dc <= end14) { dateBuckets[dc] = 0; dc = addDays(dc, 1) }
-  for (const s of sessions) {
-    if (dateBuckets[s.tgl] !== undefined) dateBuckets[s.tgl] += 1
+  while (dc <= end14) { dateBuckets[dc] = { count: 0, revenue: 0 }; dc = addDays(dc, 1) }
+  for (const s of extractSessions(recentTxs)) {
+    const bucket = dateBuckets[s.tgl]
+    if (bucket) { bucket.count += 1; bucket.revenue += s.nominal }
   }
   const sessionsByDate = Object.entries(dateBuckets)
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, count]) => {
+    .map(([date, b]) => {
       const d = new Date(date + 'T00:00:00')
-      return { date, label: `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`, count }
+      return { date, label: `${d.getDate()} ${MONTH_SHORT[d.getMonth()]}`, count: b.count, revenue: b.revenue }
     })
 
   const totalRevenue = sessions.reduce((s, x) => s + x.nominal, 0)
@@ -186,24 +192,29 @@ export default function LaporanDynoPage() {
   const period = usePeriodFilter('week')
   const [page, setPage] = useState(1)
 
-  const { data: txsWithLines = [], isLoading } = useTransactionsWithLines({
+  const today = todayLocal()
+  const start14 = addDays(today, -13)
+
+  const txQ = useTransactionsWithLines({
     tipe: 'income',
     dateFrom: period.range.start,
     dateTo: period.range.end,
   })
+  const recentQ = useTransactionsWithLines({ tipe: 'income', dateFrom: start14, dateTo: today })
 
-  const report = useMemo(() => computeDynoReport(txsWithLines), [txsWithLines])
+  const queryErrors = [txQ.error, recentQ.error].filter(e => e != null)
+  const isError = queryErrors.length > 0
+  const isLoading = txQ.isLoading || recentQ.isLoading
+  function retryAll() {
+    if (txQ.isError) void txQ.refetch()
+    if (recentQ.isError) void recentQ.refetch()
+  }
 
-  const revenueByDate = useMemo(() => {
-    const map: Record<string, number> = {}
-    for (const s of report.sessions) { map[s.tgl] = (map[s.tgl] ?? 0) + s.nominal }
-    return map
-  }, [report.sessions])
-
-  const chartData = useMemo(
-    () => report.sessionsByDate.map(d => ({ ...d, revenue: revenueByDate[d.date] ?? 0 })),
-    [report.sessionsByDate, revenueByDate],
+  const report = useMemo(
+    () => computeDynoReport(txQ.data ?? [], recentQ.data ?? [], today),
+    [txQ.data, recentQ.data, today],
   )
+  const chartData = report.sessionsByDate
 
   const totalPages = Math.max(1, Math.ceil(report.sessions.length / PAGE_SIZE))
   const pagedSessions = report.sessions.length <= PAGE_SIZE
@@ -233,7 +244,7 @@ export default function LaporanDynoPage() {
     )
   }
 
-  const isEmpty = !isLoading && report.sessions.length === 0
+  const isEmpty = !isLoading && !isError && report.sessions.length === 0
 
   const periodBar = (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -243,8 +254,8 @@ export default function LaporanDynoPage() {
       />
       {period.preset === 'custom' && (
         <CustomDateRangeInput
-          start={period.customRange?.start ?? ''}
-          end={period.customRange?.end ?? ''}
+          start={period.customRange?.start ?? period.range.start}
+          end={period.customRange?.end ?? period.range.end}
           onChange={(start, end) => period.setCustomRange({ start, end })}
         />
       )}
@@ -254,12 +265,14 @@ export default function LaporanDynoPage() {
     </div>
   )
 
-  if (isLoading) {
+  if (isError || isLoading) {
     return (
       <div style={{ padding: '0 32px 48px' }}>
         <PageHeader title="LAPORAN #4 — DYNO" subtitle="Performa sesi dyno test dan operator" />
         {periodBar}
-        <div style={{ padding: '80px 24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Memuat data...</div>
+        {isError
+          ? <QueryErrorPanel errors={queryErrors} onRetry={retryAll} />
+          : <LoadingPanel />}
       </div>
     )
   }
@@ -354,7 +367,9 @@ export default function LaporanDynoPage() {
         <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>14 HARI TERAKHIR</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Jumlah sesi per hari (fixed 14-day window)</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+              Jumlah sesi per hari · {fmtShortDate(start14)} — {fmtShortDate(today)} · tidak mengikuti filter periode
+            </div>
           </div>
           <div style={{ padding: '16px 20px' }}>
             {chartData.every(d => d.count === 0) ? (

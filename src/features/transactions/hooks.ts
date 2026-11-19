@@ -46,11 +46,24 @@ export interface TransactionLineDetail extends TransactionLineRow {
   mechanics: TransactionLineMechanicRow[]
 }
 
+/** The auto-created `<asli>-VENDOR` expense behind a Bubut Luar revenue line. */
+export interface BubutVendorExpense {
+  id: string
+  no_referensi: string
+  supplier_id: string | null
+  supplier_name: string | null
+}
+
+export interface BubutLuarLinkDetail extends BubutLuarLinkRow {
+  expense: BubutVendorExpense | null
+}
+
 export interface TransactionDetail extends TransactionRow {
   lines: TransactionLineDetail[]
-  bubut_luar_links: BubutLuarLinkRow[]
+  bubut_luar_links: BubutLuarLinkDetail[]
   customer: { id: string; name: string; motor_type: string | null } | null
   supplier: { id: string; name: string; phone: string | null } | null
+  creator_name: string | null
 }
 
 export interface TransactionFilters {
@@ -92,10 +105,15 @@ function withDateOnlyTgl<T extends { tgl: string }>(rows: T[]): T[] {
   return rows.map(r => ({ ...r, tgl: r.tgl.slice(0, 10) }))
 }
 
-export function useTransactions(filters: TransactionFilters = {}) {
+export interface TransactionsQueryOptions {
+  refetchOnMount?: boolean | 'always'
+}
+
+export function useTransactions(filters: TransactionFilters = {}, options: TransactionsQueryOptions = {}) {
   return useQuery({
     queryKey: ['transactions', filters],
     staleTime: STALE_5MIN,
+    refetchOnMount: options.refetchOnMount ?? true,
     queryFn: async () => withDateOnlyTgl(await
       fetchAllPages<TransactionRow>((from, to) => {
         let query = supabase
@@ -274,6 +292,9 @@ function invalidateTransactionQueries(queryClient: QueryClient, id?: string) {
   queryClient.invalidateQueries({ queryKey: ['transactions-with-lines'] })
   queryClient.invalidateQueries({ queryKey: ['period-transactions'] })
   queryClient.invalidateQueries({ queryKey: ['next-no-referensi'] })
+  queryClient.invalidateQueries({ queryKey: ['item-name-suggestions'] })
+  queryClient.invalidateQueries({ queryKey: ['last-jasa-mechanics'] })
+  queryClient.invalidateQueries({ queryKey: ['transaction-audit'] })
   if (id) queryClient.invalidateQueries({ queryKey: ['transaction', id] })
 }
 
@@ -344,13 +365,14 @@ export function useTransaction(id: string | undefined) {
     enabled: !!id,
     staleTime: STALE_5MIN,
     queryFn: async () => {
-      const { data: tx, error: txErr } = await supabase
+      const { data: txRaw, error: txErr } = await supabase
         .from('transactions')
-        .select('*')
+        .select('*, creator:profiles!transactions_created_by_fkey(name)')
         .eq('id', id!)
         .maybeSingle()
       if (txErr) throw txErr
-      if (!tx) return null
+      if (!txRaw) return null
+      const { creator, ...tx } = txRaw as TransactionRow & { creator: { name: string } | null }
 
       const { data: linesRaw, error: linesErr } = await supabase
         .from('transaction_lines')
@@ -374,6 +396,29 @@ export function useTransaction(id: string | undefined) {
       ])
 
       if (bubutRes.error) throw bubutRes.error
+      if (customerRes.error) throw customerRes.error
+      if (supplierRes.error) throw supplierRes.error
+
+      const bubutRows = (bubutRes.data ?? []) as BubutLuarLinkRow[]
+      const expenseIds = bubutRows.map((b) => b.expense_transaction_id)
+      const expenseById = new Map<string, BubutVendorExpense>()
+      if (expenseIds.length > 0) {
+        const { data: expRaw, error: expErr } = await supabase
+          .from('transactions')
+          .select('id, no_referensi, supplier_id, supplier:suppliers(name)')
+          .in('id', expenseIds)
+        if (expErr) throw expErr
+        for (const e of (expRaw ?? []) as unknown as Array<{
+          id: string; no_referensi: string; supplier_id: string | null; supplier: { name: string } | null
+        }>) {
+          expenseById.set(e.id, {
+            id: e.id,
+            no_referensi: e.no_referensi,
+            supplier_id: e.supplier_id,
+            supplier_name: e.supplier?.name ?? null,
+          })
+        }
+      }
 
       const lines: TransactionLineDetail[] = (linesRaw ?? []).map((l) => ({
         id: l.id as string,
@@ -386,14 +431,16 @@ export function useTransaction(id: string | undefined) {
         mechanics: (l.transaction_line_mechanics as TransactionLineMechanicRow[]) ?? [],
       }))
 
-      return {
-        ...(tx as TransactionRow),
-        tgl: (tx as TransactionRow).tgl.slice(0, 10),
+      const detail: TransactionDetail = {
+        ...tx,
+        tgl: tx.tgl.slice(0, 10),
         lines,
-        bubut_luar_links: (bubutRes.data ?? []) as BubutLuarLinkRow[],
+        bubut_luar_links: bubutRows.map((b) => ({ ...b, expense: expenseById.get(b.expense_transaction_id) ?? null })),
         customer: customerRes.data as { id: string; name: string; motor_type: string | null } | null,
         supplier: supplierRes.data as { id: string; name: string; phone: string | null } | null,
-      } as TransactionDetail
+        creator_name: creator?.name ?? null,
+      }
+      return detail
     },
   })
 }

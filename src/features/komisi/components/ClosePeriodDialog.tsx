@@ -169,11 +169,11 @@ export function ClosePeriodDialog({ open, period, payouts, onClose, onConfirm }:
           </div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--warning)', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
             <span>⚠</span>
-            <span>Periode baru ({nextRange}) akan otomatis dibuat</span>
+            <span>Periode minggu berikutnya ({nextRange}) otomatis dibuat kalau belum ada</span>
           </div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--warning)', display: 'flex', gap: 6, alignItems: 'flex-start' }}>
             <span>⚠</span>
-            <span>Audit log akan di-track</span>
+            <span>Penutupan dicatat di audit log</span>
           </div>
         </div>
 

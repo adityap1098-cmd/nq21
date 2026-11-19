@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,7 +13,6 @@ import { useCategories } from '@/features/categories/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
-import { useAuditStore } from '@/store/audit'
 import { useCommissionPeriods } from '@/features/komisi/hooks'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
@@ -86,12 +85,12 @@ interface TransactionFormProps {
 export function TransactionForm({ mode = 'add', transactionId, initialData, onSuccess, onDirtyChange }: TransactionFormProps) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { data: categories = [] } = useCategories()
+  // Inactive categories included: old lines in edit mode may use a deactivated one.
+  const { data: categories = [] } = useCategories(true)
   const { data: mechanics = [] } = useMechanics()
   const { data: rates = [] } = useCommissionRates()
   const { data: customers = [] } = useCustomers()
   const { data: suppliers = [] } = useSuppliers()
-  const { log: auditLog } = useAuditStore()
   const { data: periods = [] } = useCommissionPeriods()
   const today = format(new Date(), 'yyyy-MM-dd')
 
@@ -137,17 +136,28 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   // Tipe-change confirm dialog (when lines have data)
   const [pendingTipe, setPendingTipe] = useState<TransactionType | null>(null)
 
-  useEffect(() => {
-    if (mode !== 'add') return
-    if (nextNoRef) setValue('noReferensi', nextNoRef)
-  }, [nextNoRef, mode, setValue])
+  // Last value written by auto-fill; a value the user typed differs from it and is kept.
+  const autoNoRefRef = useRef<string | null>(null)
+
+  function fillNoRef(value: string) {
+    autoNoRefRef.current = value
+    setValue('noReferensi', value, { shouldValidate: true })
+  }
 
   useEffect(() => {
-    if (mode !== 'add') return
-    setValue('customerId', undefined)
-    setValue('supplierId', undefined)
+    if (mode !== 'add' || !nextNoRef) return
+    const current = form.getValues('noReferensi')
+    if (!current || current === autoNoRefRef.current) fillNoRef(nextNoRef)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tipe, tgl, mode])
+  }, [nextNoRef, mode])
+
+  const prevTipeRef = useRef(tipe)
+  useEffect(() => {
+    if (mode !== 'add' || prevTipeRef.current === tipe) return
+    prevTipeRef.current = tipe
+    setValue('customerId', undefined, { shouldDirty: true })
+    setValue('supplierId', undefined, { shouldDirty: true })
+  }, [tipe, mode, setValue])
 
   // Notify parent of dirty state in edit mode
   const { isDirty: rhfDirty } = form.formState
@@ -168,7 +178,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const { color: statusColor, bg: statusBg } = STATUS_STYLES[noRefStatus]
 
   function handleRegenNoRef() {
-    if (nextNoRef) setValue('noReferensi', nextNoRef)
+    if (nextNoRef) fillNoRef(nextNoRef)
   }
 
   // ── Line helpers ────────────────────────────────────────────────────────────
@@ -292,6 +302,10 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
     })
     setLines([createEmptyLine()])
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    // nextNoRef may not change (same cached value) — fetch explicitly for the empty field
+    refetchNextNoRef().then(({ data }) => {
+      if (data && !form.getValues('noReferensi')) fillNoRef(data)
+    }, () => {})
   }
 
   function buildLinesInput() {
@@ -407,12 +421,6 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
           })),
         })
 
-        const createdBy = user?.id ?? 'unknown'
-        auditLog({ userId: createdBy, action: 'create', entityType: 'transaction', entityId: result.txId, source: 'transaction-form', afterData: { noReferensi: formData.noReferensi, tipe: formData.tipe } })
-        if (result.expenseTxId) {
-          auditLog({ userId: createdBy, action: 'create', entityType: 'transaction', entityId: result.expenseTxId, source: 'bubut-luar-auto-link', afterData: { linkedTo: result.txId } })
-        }
-
         const hasJasaLine = lines.some((l) => freshCats.find((c) => c.id === l.categoryId)?.is_jasa)
         if (hasJasaLine) {
           const openPeriod = periods.find((p) => p.status === 'open' && formData.tgl >= p.weekStart && formData.tgl <= p.weekEnd)
@@ -441,7 +449,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
       if (saveError.kind === 'duplicate_no_ref' && mode !== 'edit') {
         const { data: freshNoRef } = await refetchNextNoRef()
         if (freshNoRef) {
-          setValue('noReferensi', freshNoRef)
+          fillNoRef(freshNoRef)
           description = `${saveError.message}. Nomor baru ${freshNoRef} sudah diisi, silakan simpan ulang.`
         }
       }
@@ -614,8 +622,8 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                 ? (watch('customerId') ?? null)
                 : (watch('supplierId') ?? null)}
               onChange={(id) => {
-                if (tipe === 'income') setValue('customerId', id ?? undefined)
-                else setValue('supplierId', id ?? undefined)
+                if (tipe === 'income') setValue('customerId', id ?? undefined, { shouldDirty: true })
+                else setValue('supplierId', id ?? undefined, { shouldDirty: true })
               }}
             />
           </div>
@@ -633,7 +641,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                   <button
                     key={m}
                     type="button"
-                    onClick={() => setValue('paymentMethod', m)}
+                    onClick={() => setValue('paymentMethod', m, { shouldDirty: true })}
                     style={{
                       flex: 1, height: 36, borderRadius: 8, cursor: 'pointer',
                       fontSize: 12, fontWeight: 600,

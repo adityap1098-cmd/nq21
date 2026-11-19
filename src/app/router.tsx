@@ -3,7 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import Layout from './Layout'
 import PlaceholderPage from './pages/PlaceholderPage'
 import Login from './pages/Login'
-import ProtectedRoute from '@/components/layout/ProtectedRoute'
+import ProtectedRoute, { RequireOwner } from '@/components/layout/ProtectedRoute'
 import { LoadingFallback } from './components/LoadingFallback'
 
 // Heavy pages — lazy loaded (split into own chunks)
@@ -45,7 +45,12 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       // Standalone pages (no sidebar/topbar)
-      { path: 'komisi/slip/:periodId/:mechanicId', element: wrap(<SlipPage />) },
+      {
+        element: <RequireOwner />,
+        children: [
+          { path: 'komisi/slip/:periodId/:mechanicId', element: wrap(<SlipPage />) },
+        ],
+      },
       {
         element: <Layout />,
         children: [
@@ -59,14 +64,19 @@ export const router = createBrowserRouter([
           { path: 'laporan/cash-flow',    element: wrap(<LaporanCashFlowPage />) },
           { path: 'laporan/jasa',         element: wrap(<LaporanJasaPage />) },
           { path: 'laporan/dyno',         element: wrap(<LaporanDynoPage />) },
-          { path: 'komisi/periode',       element: wrap(<PeriodeKomisiPage />) },
-          { path: 'komisi/periode/:id',   element: ph('DETAIL PERIODE') },
-          { path: 'komisi/mekanik',       element: wrap(<MekanikKomisiPage />) },
           { path: 'master/customer',      element: wrap(<MasterCustomerPage />) },
           { path: 'master/supplier',      element: wrap(<MasterSupplierPage />) },
-          { path: 'master/kategori',      element: wrap(<MasterKategoriPage />) },
-          { path: 'master/mekanik',       element: wrap(<MasterMekanikPage />) },
-          { path: 'master/user',          element: wrap(<MasterUserPage />) },
+          {
+            // Owner-only (kasir: hidden in sidebar + blocked here; RLS enforces writes)
+            element: <RequireOwner />,
+            children: [
+              { path: 'komisi/periode',   element: wrap(<PeriodeKomisiPage />) },
+              { path: 'komisi/mekanik',   element: wrap(<MekanikKomisiPage />) },
+              { path: 'master/kategori',  element: wrap(<MasterKategoriPage />) },
+              { path: 'master/mekanik',   element: wrap(<MasterMekanikPage />) },
+              { path: 'master/user',      element: wrap(<MasterUserPage />) },
+            ],
+          },
           ...(import.meta.env.DEV
             ? (() => {
                 const TestPage = lazy(() => import('./test'))
@@ -77,6 +87,7 @@ export const router = createBrowserRouter([
                 ]
               })()
             : []),
+          { path: '*', element: ph('HALAMAN TIDAK DITEMUKAN', 'Alamat ini tidak ada. Pilih menu di sidebar.') },
         ],
       },
     ],

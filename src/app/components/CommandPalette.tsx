@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Search, FileText, User, Truck, Wrench, X } from 'lucide-react'
 import { useUiStore } from '@/store/ui'
-import { useTransactionStore } from '@/store/transactions'
-import { useCustomerStore } from '@/store/master/customers'
-import { useSupplierStore } from '@/store/master/suppliers'
-import { useMechanicStore } from '@/store/master/mechanics'
+import { supabase } from '@/lib/supabase'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 
@@ -26,119 +24,133 @@ interface Group {
 }
 
 const MAX_PER_GROUP = 6
+const SEARCH_DEBOUNCE_MS = 250
 
-function matchesQuery(text: string, q: string): boolean {
-  return text.toLowerCase().includes(q)
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(t)
+  }, [value, delay])
+  return debounced
 }
 
-function useCommandPaletteSearch(query: string): Group[] {
-  const { transactions, lines } = useTransactionStore()
-  const { customers } = useCustomerStore()
-  const { suppliers } = useSupplierStore()
-  const { mechanics } = useMechanicStore()
+/** Escape LIKE wildcards so the user's text is matched literally. */
+function toIlikePattern(q: string): string {
+  return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`
+}
 
-  return useMemo(() => {
-    const q = query.toLowerCase().trim()
-    if (!q) return []
+interface TxSearchRow {
+  id: string
+  no_referensi: string
+  tipe: 'income' | 'expense'
+  total_nominal: number
+  customer: { name: string } | null
+  supplier: { name: string } | null
+}
 
-    const customerMap = Object.fromEntries(customers.map((c) => [c.id, c]))
-    const supplierMap = Object.fromEntries(suppliers.map((s) => [s.id, s]))
+interface SearchPage<T> {
+  rows: T[]
+  count: number
+}
 
-    const linesByTx: Record<string, typeof lines> = {}
-    for (const l of lines) {
-      if (!linesByTx[l.transactionId]) linesByTx[l.transactionId] = []
-      linesByTx[l.transactionId].push(l)
-    }
+function toGroup(label: string, items: ResultItem[], total: number): Group | null {
+  if (items.length === 0) return null
+  return { label, items, overflow: Math.max(0, total - items.length) }
+}
 
-    const txCountByCustomer: Record<string, number> = {}
-    const txCountBySupplier: Record<string, number> = {}
-    for (const tx of transactions.filter((t) => !t.deletedAt)) {
-      if (tx.customerId) txCountByCustomer[tx.customerId] = (txCountByCustomer[tx.customerId] ?? 0) + 1
-      if (tx.supplierId) txCountBySupplier[tx.supplierId] = (txCountBySupplier[tx.supplierId] ?? 0) + 1
-    }
+async function searchAll(q: string): Promise<Group[]> {
+  const pattern = toIlikePattern(q)
+  const [txRes, custRes, suppRes, mechRes] = await Promise.all([
+    supabase
+      .from('transactions')
+      .select('id, no_referensi, tipe, total_nominal, customer:customers(name), supplier:suppliers(name)', { count: 'exact' })
+      .ilike('no_referensi', pattern)
+      .is('deleted_at', null)
+      .order('tgl', { ascending: false })
+      .limit(MAX_PER_GROUP),
+    supabase
+      .from('customers')
+      .select('id, name, motor_type', { count: 'exact' })
+      .ilike('name', pattern)
+      .eq('is_active', true)
+      .order('name')
+      .limit(MAX_PER_GROUP),
+    supabase
+      .from('suppliers')
+      .select('id, name, phone, is_vendor_bubut', { count: 'exact' })
+      .ilike('name', pattern)
+      .eq('is_active', true)
+      .order('name')
+      .limit(MAX_PER_GROUP),
+    supabase
+      .from('mechanics')
+      .select('id, name', { count: 'exact' })
+      .ilike('name', pattern)
+      .eq('is_active', true)
+      .order('name')
+      .limit(MAX_PER_GROUP),
+  ])
+  for (const r of [txRes, custRes, suppRes, mechRes]) if (r.error) throw r.error
 
-    // Transactions
-    const txMatches: ResultItem[] = []
-    for (const tx of transactions.filter((t) => !t.deletedAt)) {
-      const party = tx.customerId
-        ? (customerMap[tx.customerId]?.name ?? '')
-        : tx.supplierId
-        ? (supplierMap[tx.supplierId]?.name ?? '')
-        : ''
-      const txLines = linesByTx[tx.id] ?? []
-      const lineText = txLines
-        .map((l) => [l.itemName, l.notes].filter(Boolean).join(' '))
-        .join(' ')
-      const searchable = [tx.noReferensi, party, lineText].join(' ')
-      if (!matchesQuery(searchable, q)) continue
-      txMatches.push({
-        id: tx.id,
-        type: 'transaction',
-        primary: tx.noReferensi,
-        secondary: `${party || '—'} · ${tx.tipe === 'income' ? '▲' : '▼'} Rp ${_fmt.format(tx.totalNominal)}`,
-        href: `/transaksi/${tx.id}`,
-      })
-    }
+  const tx: SearchPage<TxSearchRow> = { rows: (txRes.data ?? []) as unknown as TxSearchRow[], count: txRes.count ?? 0 }
+  const cust = { rows: (custRes.data ?? []) as Array<{ id: string; name: string; motor_type: string | null }>, count: custRes.count ?? 0 }
+  const supp = { rows: (suppRes.data ?? []) as Array<{ id: string; name: string; phone: string | null; is_vendor_bubut: boolean }>, count: suppRes.count ?? 0 }
+  const mech = { rows: (mechRes.data ?? []) as Array<{ id: string; name: string }>, count: mechRes.count ?? 0 }
 
-    // Customers
-    const custMatches: ResultItem[] = []
-    for (const c of customers.filter((c) => c.isActive)) {
-      const searchable = [c.name, c.motorType ?? '', c.phone ?? ''].join(' ')
-      if (!matchesQuery(searchable, q)) continue
-      const count = txCountByCustomer[c.id] ?? 0
-      custMatches.push({
-        id: c.id,
-        type: 'customer',
-        primary: c.name,
-        secondary: `${c.motorType ?? '—'} · ${count} transaksi`,
-        href: `/master/customer`,
-      })
-    }
+  return [
+    toGroup('TRANSAKSI', tx.rows.map((t) => ({
+      id: t.id,
+      type: 'transaction' as const,
+      primary: t.no_referensi,
+      secondary: `${t.customer?.name ?? t.supplier?.name ?? '—'} · ${t.tipe === 'income' ? '▲' : '▼'} Rp ${_fmt.format(t.total_nominal)}`,
+      href: `/transaksi/${t.id}`,
+    })), tx.count),
+    toGroup('CUSTOMER', cust.rows.map((c) => ({
+      id: c.id,
+      type: 'customer' as const,
+      primary: c.name,
+      secondary: c.motor_type ?? '—',
+      href: '/master/customer',
+    })), cust.count),
+    toGroup('SUPPLIER', supp.rows.map((sp) => ({
+      id: sp.id,
+      type: 'supplier' as const,
+      primary: sp.name,
+      secondary: `${sp.phone ?? '—'}${sp.is_vendor_bubut ? ' · Vendor Bubut' : ''}`,
+      href: '/master/supplier',
+    })), supp.count),
+    toGroup('MEKANIK', mech.rows.map((m) => ({
+      id: m.id,
+      type: 'mekanik' as const,
+      primary: m.name,
+      secondary: 'Mekanik aktif',
+      href: '/master/mekanik',
+    })), mech.count),
+  ].filter((g): g is Group => g !== null)
+}
 
-    // Suppliers
-    const suppMatches: ResultItem[] = []
-    for (const s of suppliers.filter((s) => s.isActive)) {
-      const searchable = [s.name, s.phone ?? ''].join(' ')
-      if (!matchesQuery(searchable, q)) continue
-      const count = txCountBySupplier[s.id] ?? 0
-      suppMatches.push({
-        id: s.id,
-        type: 'supplier',
-        primary: s.name,
-        secondary: `${s.phone ?? '—'} · ${count} transaksi${s.isVendorBubut ? ' · Vendor Bubut' : ''}`,
-        href: `/master/supplier`,
-      })
-    }
+interface PaletteSearchState {
+  groups: Group[]
+  isSearching: boolean
+  isError: boolean
+}
 
-    // Mekanik
-    const mechMatches: ResultItem[] = []
-    for (const m of mechanics.filter((m) => m.isActive)) {
-      if (!matchesQuery(m.name, q)) continue
-      mechMatches.push({
-        id: m.id,
-        type: 'mekanik',
-        primary: m.name,
-        secondary: 'Mekanik aktif',
-        href: `/master/mekanik`,
-      })
-    }
-
-    const makeGroup = (label: string, matches: ResultItem[]): Group | null => {
-      if (matches.length === 0) return null
-      return {
-        label,
-        items: matches.slice(0, MAX_PER_GROUP),
-        overflow: Math.max(0, matches.length - MAX_PER_GROUP),
-      }
-    }
-
-    return [
-      makeGroup('TRANSAKSI', txMatches),
-      makeGroup('CUSTOMER', custMatches),
-      makeGroup('SUPPLIER', suppMatches),
-      makeGroup('MEKANIK', mechMatches),
-    ].filter(Boolean) as Group[]
-  }, [query, transactions, lines, customers, suppliers, mechanics])
+function useCommandPaletteSearch(query: string): PaletteSearchState {
+  const debounced = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS)
+  const isPending = debounced !== query.trim()
+  const result = useQuery({
+    queryKey: ['command-palette-search', debounced],
+    enabled: debounced.length > 0,
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+    queryFn: () => searchAll(debounced),
+  })
+  return {
+    groups: debounced ? (result.data ?? []) : [],
+    isSearching: isPending || result.isFetching,
+    isError: result.isError,
+  }
 }
 
 function ResultIcon({ type }: { type: ResultType }) {
@@ -159,7 +171,7 @@ export function CommandPalette() {
   const activeIdxRef = useRef(-1)
   const flatRef = useRef<ResultItem[]>([])
 
-  const groups = useCommandPaletteSearch(query)
+  const { groups, isSearching, isError: searchError } = useCommandPaletteSearch(query)
   const flat = useMemo(() => groups.flatMap((g) => g.items), [groups])
 
   // Sync refs
@@ -306,6 +318,28 @@ export function CommandPalette() {
               }}
             >
               Mulai ketik untuk mencari...
+            </div>
+          ) : searchError ? (
+            <div
+              style={{
+                padding: '40px 24px',
+                textAlign: 'center',
+                fontSize: 13,
+                color: 'var(--accent)',
+              }}
+            >
+              Gagal mencari. Periksa koneksi lalu coba lagi.
+            </div>
+          ) : groups.length === 0 && isSearching ? (
+            <div
+              style={{
+                padding: '40px 24px',
+                textAlign: 'center',
+                fontSize: 13,
+                color: 'var(--text-muted)',
+              }}
+            >
+              Mencari...
             </div>
           ) : groups.length === 0 ? (
             <div

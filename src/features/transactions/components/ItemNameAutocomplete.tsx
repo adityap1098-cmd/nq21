@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useTransactionStore } from '@/store/transactions'
-import { getUniqueItemNames } from '../utils'
+import { useItemNameSuggestions } from '../lookups'
 
 const MAX_SUGGESTIONS = 8
 
@@ -19,17 +18,12 @@ export function ItemNameAutocomplete({
   placeholder = 'Keterangan tambahan (opsional)',
   disabled = false,
 }: ItemNameAutocompleteProps) {
-  const { lines: txLines } = useTransactionStore()
+  const { data: allHistory = [] } = useItemNameSuggestions(categoryId)
 
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  const allHistory = useMemo(
-    () => (categoryId ? getUniqueItemNames(txLines, categoryId) : []),
-    [txLines, categoryId],
-  )
 
   const trimmed = value.trim().toLowerCase()
   const suggestions = useMemo(() => {

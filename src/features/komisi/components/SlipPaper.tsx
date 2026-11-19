@@ -3,6 +3,7 @@ import type { PayoutComputed } from '@/store/selectors'
 import { fmtPeriodFull, fmtRp, fmtClosedAt, getInitial, FMT } from '../utils'
 import { KomisiBadge } from './KomisiBadge'
 import { SlipTable } from './SlipTable'
+import { DraftSlipNotice, StoredTotalDriftNotice } from './SlipNotices'
 
 interface Props {
   period: CommissionPeriod
@@ -12,14 +13,17 @@ interface Props {
   isOwner: boolean
   variant?: 'embedded' | 'standalone'
   onMarkPaid?: () => void
+  /** Live total for a closed period; shown as a warning when it differs from the stored total. */
+  liveTotalKomisi?: number | null
 }
 
-export function SlipPaper({ period, computed, storedPayout, rates, isOwner, variant = 'embedded', onMarkPaid }: Props) {
+export function SlipPaper({ period, computed, storedPayout, rates, isOwner, variant = 'embedded', onMarkPaid, liveTotalKomisi = null }: Props) {
   const isOpen = period.status === 'open'
   const initial = getInitial(computed.mechanicName)
   const backdatedCount = computed.lines.filter(l => l.isBackdated).length
   const canMarkPaid = !isOpen && storedPayout?.status === 'pending' && isOwner
   const isStandalone = variant === 'standalone'
+  const showDrift = !isOpen && liveTotalKomisi !== null && liveTotalKomisi !== computed.totalKomisi
 
   const printedAt = new Date().toLocaleString('id-ID', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -32,8 +36,10 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
       borderRadius: isStandalone ? 0 : 12, padding: '32px 36px',
       position: 'relative', overflow: 'hidden',
     }}>
-      {/* Watermark — embedded only */}
-      {!isStandalone && (
+      {isOpen && <DraftSlipNotice />}
+
+      {/* FINAL watermark — embedded, closed only */}
+      {!isStandalone && !isOpen && (
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%) rotate(-18deg)',
@@ -41,7 +47,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
           color: 'rgba(200,16,46,0.04)', letterSpacing: '0.05em',
           pointerEvents: 'none', userSelect: 'none', zIndex: 0,
         }}>
-          {isOpen ? 'DRAFT' : 'FINAL'}
+          FINAL
         </div>
       )}
 
@@ -93,6 +99,10 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
           </div>
         </div>
       </div>
+
+      {showDrift && liveTotalKomisi !== null && (
+        <StoredTotalDriftNotice storedKomisi={computed.totalKomisi} liveKomisi={liveTotalKomisi} />
+      )}
 
       {/* Table */}
       <div className="slip-table" style={{ position: 'relative', zIndex: 1, overflowX: 'auto' }}>
@@ -226,17 +236,6 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
               }}
             >
               CETAK
-            </button>
-            <button
-              disabled
-              style={{
-                padding: '8px 14px', borderRadius: 6,
-                fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-                background: 'transparent', border: '1px solid var(--border)',
-                color: 'var(--text-muted)', cursor: 'not-allowed', opacity: 0.6,
-              }}
-            >
-              PDF
             </button>
             {canMarkPaid && (
               <button

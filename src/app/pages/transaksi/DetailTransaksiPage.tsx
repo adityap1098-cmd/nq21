@@ -10,13 +10,16 @@ import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { useTransaction, useDeleteTransaction, type TransactionLineMechanicRow } from '@/features/transactions/hooks'
 import { useCategories } from '@/features/categories/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
-import { useUserStore } from '@/store/master/users'
 import { useAuthStore } from '@/store/auth'
-import { useAuditStore } from '@/store/audit'
 import { useCommissionPeriods } from '@/features/komisi/hooks'
+import {
+  useTransactionAuditLogs, getAuditActionLabel, isDeleteAuditAction,
+  type TransactionAuditEntry,
+} from '@/features/transactions/lookups'
+import { isInClosedPeriod } from '@/features/transactions/utils'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/hooks/use-toast'
-import type { CommissionPeriod, AuditLog } from '@/store/types'
+import type { CommissionPeriod } from '@/store/types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -104,15 +107,15 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function DetailTransaksiPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: tx, isLoading } = useTransaction(id)
+  const { data: tx, isLoading, isError: txError } = useTransaction(id)
   const deleteTransaction = useDeleteTransaction()
   const { data: categories = [] } = useCategories(true)
   const { data: mechanics = [] } = useMechanics(true)
   const { data: rates = [] } = useCommissionRates()
-  const { users } = useUserStore()
   const { user } = useAuthStore()
-  const { logs } = useAuditStore()
+  const isOwner = user?.role === 'owner'
   const { data: periods = [] } = useCommissionPeriods()
+  const { data: auditEntries = [], isError: auditError } = useTransactionAuditLogs(tx?.id, isOwner)
 
   const [showDelete, setShowDelete] = useState(false)
   const [auditExpanded, setAuditExpanded] = useState(false)
@@ -135,23 +138,27 @@ export default function DetailTransaksiPage() {
     },
   })
 
-  const counterpartId = bubutLink?.expense_transaction_id
-    ?? (vendorLinkForExpense ? (vendorLinkForExpense as { transaction_lines?: { transaction_id?: string } }).transaction_lines?.transaction_id : null)
+  const parentTxId = vendorLinkForExpense
+    ? (vendorLinkForExpense as { transaction_lines?: { transaction_id?: string } }).transaction_lines?.transaction_id ?? null
+    : null
 
-  const { data: counterpartTx } = useQuery({
-    queryKey: ['transaction-counterpart', counterpartId],
-    enabled: !!counterpartId,
+  const { data: parentTx } = useQuery({
+    queryKey: ['transaction-counterpart', parentTxId],
+    enabled: !!parentTxId,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transactions')
         .select('id, no_referensi, supplier_id')
-        .eq('id', counterpartId!)
+        .eq('id', parentTxId!)
         .maybeSingle()
       if (error) throw error
       return data as { id: string; no_referensi: string; supplier_id: string | null } | null
     },
   })
+
+  // Income side: the -VENDOR expense comes embedded in useTransaction.
+  const counterpartTx = isVendorAuto ? parentTx : (bubutLink?.expense ?? null)
 
   // ── Derived state ────────────────────────────────────────────────────────────
 
@@ -187,18 +194,14 @@ export default function DetailTransaksiPage() {
     let t = 0; komisiByMechanic.forEach((v) => { t += v.amount }); return t
   }, [komisiByMechanic])
 
-  const auditEntries = useMemo(() => {
-    return logs
-      .filter((l) => l.entityId === tx?.id || l.entityId === id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  }, [logs, tx, id])
+  const isLocked = useMemo(() => (tx ? isInClosedPeriod(tx.tgl, periods) : false), [tx, periods])
 
   const canEdit = useMemo(() => {
     if (!tx || tx.deleted_at) return false
     if (tx.no_referensi.endsWith('-VENDOR')) return false
-    if (hasJasaLine && period?.status === 'closed') return false
+    if (isLocked) return false
     return true
-  }, [tx, hasJasaLine, period])
+  }, [tx, isLocked])
 
   const editDisabledReason = useMemo(() => {
     if (!tx) return ''
@@ -206,15 +209,15 @@ export default function DetailTransaksiPage() {
     if (tx.no_referensi.endsWith('-VENDOR')) {
       return `Edit dari transaksi induk: ${counterpartTx?.no_referensi ?? '...'}`
     }
-    if (hasJasaLine && period?.status === 'closed') return 'Transaksi di periode yang sudah ditutup. Hubungi owner untuk override.'
+    if (isLocked) return 'Transaksi di periode komisi yang sudah ditutup — tidak bisa diedit.'
     return ''
-  }, [tx, counterpartTx, hasJasaLine, period])
+  }, [tx, counterpartTx, isLocked])
 
   const deletedByName = useMemo(() => {
     if (!tx?.deleted_at) return null
-    const entry = logs.find((l) => l.entityId === tx.id && l.action === 'delete')
-    return entry ? (users.find((u) => u.id === entry.userId)?.name ?? null) : null
-  }, [tx, logs, users])
+    const entry = [...auditEntries].reverse().find((e) => isDeleteAuditAction(e.action))
+    return entry?.user_name ?? null
+  }, [tx, auditEntries])
 
   const deleteMessage = useMemo(() => {
     if (!tx) return ''
@@ -226,7 +229,7 @@ export default function DetailTransaksiPage() {
   }, [tx, bubutLink, hasJasaLine])
 
   async function handleDelete() {
-    if (!tx) return
+    if (!tx || deleteTransaction.isPending) return
     try {
       await deleteTransaction.mutateAsync(tx.id)
       toast('Transaksi dihapus', { description: tx.no_referensi })
@@ -255,7 +258,9 @@ export default function DetailTransaksiPage() {
         <PageHeader title="DETAIL TRANSAKSI" />
         <div style={{ textAlign: 'center', padding: '80px 20px' }}>
           <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.2 }}>🔍</div>
-          <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 20 }}>Transaksi tidak ditemukan.</div>
+          <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 20 }}>
+            {txError ? 'Gagal memuat transaksi. Periksa koneksi lalu muat ulang halaman.' : 'Transaksi tidak ditemukan.'}
+          </div>
           <button
             onClick={() => navigate('/transaksi')}
             style={{
@@ -278,9 +283,8 @@ export default function DetailTransaksiPage() {
   const isDeleted = !!tx.deleted_at
   const partyName = tx.customer?.name ?? tx.supplier?.name ?? '—'
   const partySub = isIncome ? (tx.customer?.motor_type ?? null) : (tx.supplier?.phone ?? null)
-  const creatorName = users.find((u) => u.id === tx.created_by)?.name ?? tx.created_by
+  const creatorName = tx.creator_name ?? '—'
   const paymentLabel = tx.payment_method === 'cash' ? 'Cash' : tx.payment_method === 'transfer' ? 'Transfer' : 'QRIS'
-  const isOwner = user?.role === 'owner'
   const hasNotes = !!(tx.notes?.trim())
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -306,14 +310,17 @@ export default function DetailTransaksiPage() {
             {isOwner && !isDeleted && (
               <button
                 onClick={() => setShowDelete(true)}
+                disabled={deleteTransaction.isPending}
                 style={{
                   fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
                   letterSpacing: '0.06em', padding: '8px 14px', borderRadius: 8,
                   border: '1.5px solid rgba(200,16,46,0.35)', background: 'transparent',
-                  color: 'var(--accent)', cursor: 'pointer',
+                  color: 'var(--accent)',
+                  cursor: deleteTransaction.isPending ? 'wait' : 'pointer',
+                  opacity: deleteTransaction.isPending ? 0.5 : 1,
                 }}
               >
-                HAPUS
+                {deleteTransaction.isPending ? 'MENGHAPUS...' : 'HAPUS'}
               </button>
             )}
             <button
@@ -579,9 +586,9 @@ export default function DetailTransaksiPage() {
                         </div>
                       )}
                     </div>
-                    {counterpartTx && tx.supplier && (
+                    {lineLink.expense?.supplier_name && (
                       <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-muted)' }}>
-                        Vendor: {tx.supplier.name}
+                        Vendor: {lineLink.expense.supplier_name}
                       </div>
                     )}
                   </div>
@@ -651,7 +658,8 @@ export default function DetailTransaksiPage() {
           )}
         </Card>
 
-        {/* ── Audit timeline ── */}
+        {/* ── Audit timeline (audit_logs is owner-only under RLS) ── */}
+        {isOwner && (
         <Card style={{ padding: 0 }}>
           <button
             onClick={() => setAuditExpanded((v) => !v)}
@@ -671,18 +679,21 @@ export default function DetailTransaksiPage() {
 
           {auditExpanded && (
             <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px' }}>
-              {auditEntries.length === 0 ? (
+              {auditError ? (
+                <div style={{ fontSize: 12, color: 'var(--accent)' }}>Gagal memuat riwayat.</div>
+              ) : auditEntries.length === 0 ? (
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Belum ada riwayat.</div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {auditEntries.map((entry) => (
-                    <AuditEntry key={entry.id} entry={entry} users={users} />
+                    <AuditEntry key={entry.id} entry={entry} />
                   ))}
                 </div>
               )}
             </div>
           )}
         </Card>
+        )}
       </div>
 
       <ConfirmDialog
@@ -700,11 +711,9 @@ export default function DetailTransaksiPage() {
 
 // ── Audit entry component ──────────────────────────────────────────────────────
 
-function AuditEntry({ entry, users }: { entry: AuditLog; users: { id: string; name: string }[] }) {
-  const userName = users.find((u) => u.id === entry.userId)?.name ?? entry.userId
-  const actionLabel = entry.action === 'create' ? 'membuat transaksi'
-    : entry.action === 'delete' ? 'menghapus transaksi'
-    : 'memperbarui transaksi'
+function AuditEntry({ entry }: { entry: TransactionAuditEntry }) {
+  const userName = entry.user_name ?? 'Pengguna tidak dikenal'
+  const actionLabel = getAuditActionLabel(entry.action)
 
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -721,7 +730,7 @@ function AuditEntry({ entry, users }: { entry: AuditLog; users: { id: string; na
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 3, alignItems: 'center' }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>
-            {entry.createdAt ? entry.createdAt.replace('T', ' · ').slice(0, 19) : '—'}
+            {fmtTs(entry.created_at)}
           </span>
           {entry.source && (
             <span style={{

@@ -32,7 +32,7 @@ export function OfflineIndicator() {
         animation: 'pulse 1.5s ease-in-out infinite',
         flexShrink: 0,
       }} />
-      Offline · Data tersimpan lokal
+      Offline · Data BELUM bisa disimpan
     </div>
   )
 }

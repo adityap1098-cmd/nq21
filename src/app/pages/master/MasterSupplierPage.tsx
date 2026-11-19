@@ -142,18 +142,20 @@ export default function MasterSupplierPage() {
 
   async function onSubmit(data: FormData) {
     const input = {
-      name: data.name,
-      phone: data.phone || null,
+      name: data.name.trim(),
+      phone: data.phone?.trim() || null,
       is_vendor_bubut: data.is_vendor_bubut,
-      notes: data.notes || null,
+      notes: data.notes?.trim() || null,
     }
     try {
       if (dialogMode === 'add') {
         await createMutation.mutateAsync(input)
-        toast('Supplier ditambahkan', { description: `${data.name} berhasil ditambahkan.`, variant: 'success' })
+        toast('Supplier ditambahkan', { description: `${input.name} berhasil ditambahkan.`, variant: 'success' })
       } else if (editing) {
-        await updateMutation.mutateAsync({ id: editing.id, input })
-        toast('Supplier diperbarui', { description: `${data.name} berhasil disimpan.`, variant: 'success' })
+        // Saving an inactive supplier re-activates it (the only way back from "Nonaktifkan")
+        const reactivate = !editing.is_active
+        await updateMutation.mutateAsync({ id: editing.id, input: reactivate ? { ...input, is_active: true } : input })
+        toast(reactivate ? 'Supplier diaktifkan kembali' : 'Supplier diperbarui', { description: `${input.name} berhasil disimpan.`, variant: 'success' })
       }
       setDialogOpen(false)
     } catch (err) {
@@ -218,7 +220,7 @@ export default function MasterSupplierPage() {
         title={dialogMode === 'add' ? 'Tambah Supplier' : `Edit: ${editing?.name ?? ''}`}
         onClose={() => setDialogOpen(false)}
         onSubmit={handleSubmit(onSubmit)}
-        submitLabel={isMutating ? 'Menyimpan...' : dialogMode === 'add' ? 'Tambah' : 'Simpan'}
+        submitLabel={isMutating ? 'Menyimpan...' : dialogMode === 'add' ? 'Tambah' : editing && !editing.is_active ? 'Simpan & Aktifkan' : 'Simpan'}
       >
         <FormField label="Nama" htmlFor="s-name" required error={errors.name?.message}>
           <Input id="s-name" placeholder="Contoh: Toko Sparepart Maju" {...register('name')} />
@@ -277,7 +279,7 @@ export default function MasterSupplierPage() {
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Nonaktifkan Supplier?"
-        message={`Hapus supplier ${pendingDelete?.name ?? 'ini'}? Riwayat transaksi tetap aman.`}
+        message={`Nonaktifkan supplier ${pendingDelete?.name ?? 'ini'}? Riwayat transaksi tetap aman. Aktifkan lagi lewat "Tampilkan Nonaktif" → Edit → Simpan & Aktifkan.`}
         confirmLabel="Nonaktifkan"
         variant="destructive"
         onConfirm={confirmDelete}

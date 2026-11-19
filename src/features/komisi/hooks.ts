@@ -1,12 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useAuthStore } from '@/store/auth'
 import type { CommissionPeriod, CommissionPayout, CommissionRate } from '@/store/types'
 import type { PayoutComputed, PayoutLine } from '@/store/selectors'
 
 // ── Date helper ───────────────────────────────────────────────────────────────
 
-function addDaysToStr(dateStr: string, n: number): string {
+export function addDaysToStr(dateStr: string, n: number): string {
   const [y, m, d] = dateStr.split('-').map(Number)
   const date = new Date(y, m - 1, d)
   date.setDate(date.getDate() + n)
@@ -306,24 +305,25 @@ export function getCurrentWeek(): { weekStart: string; weekEnd: string } {
   return { weekStart, weekEnd }
 }
 
+export interface OpenMissingPeriodsResult {
+  created: number
+  first_week_start: string | null
+  last_week_start: string | null
+}
+
+/**
+ * Opens every missing Monday–Sunday week up to the week containing today (Asia/Jakarta)
+ * via the owner-only RPC open_missing_periods (supabase/migrations/20261119_period_catchup.sql).
+ */
 export function useOpenNewPeriod() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () => {
-      const { data: latest } = await supabase
-        .from('commission_periods')
-        .select('week_end')
-        .order('week_end', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      const nextStart = latest?.week_end ? addDaysToStr(latest.week_end, 1) : getCurrentWeek().weekStart
-      const nextEnd = latest?.week_end ? addDaysToStr(latest.week_end, 7) : getCurrentWeek().weekEnd
-      const { error } = await supabase
-        .from('commission_periods')
-        .insert({ week_start: nextStart, week_end: nextEnd, status: 'open' })
+    mutationFn: async (): Promise<OpenMissingPeriodsResult> => {
+      const { data, error } = await supabase.rpc('open_missing_periods')
       if (error) throw error
+      return data as OpenMissingPeriodsResult
     },
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['commission-periods'] })
     },
   })
@@ -333,28 +333,16 @@ export function useOpenNewPeriod() {
 
 export function useMarkPaid() {
   const queryClient = useQueryClient()
-  const user = useAuthStore(s => s.user)
   return useMutation({
     mutationFn: async ({ payoutId, paidNotes }: { payoutId: string; paidNotes?: string }): Promise<void> => {
-      // Only a pending payout may become paid: a second click / second tab must not
-      // overwrite paid_at, paid_by and paid_notes.
-      const { data, error } = await supabase
-        .from('commission_payouts')
-        .update({
-          status: 'paid',
-          paid_at: new Date().toISOString(),
-          paid_by: user?.id ?? null,
-          paid_notes: paidNotes ?? null,
-        })
-        .eq('id', payoutId)
-        .eq('status', 'pending')
-        .select('id')
+      // Server sets paid_at/paid_by, only flips pending rows and writes the audit log.
+      const { error } = await supabase.rpc('mark_payout_paid', {
+        p_payout_id: payoutId,
+        p_notes: paidNotes ?? null,
+      })
       if (error) throw error
-      if (!data || data.length === 0) {
-        throw new Error('Payout sudah ditandai dibayar sebelumnya, atau kamu tidak punya akses.')
-      }
     },
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['commission-payouts'] })
     },
   })

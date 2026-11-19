@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/auth'
-import { useAuditStore } from '@/store/audit'
 import {
   useCommissionPeriods,
   useCommissionPayouts,
@@ -13,7 +12,10 @@ import {
   useMarkPaid,
   useOpenNewPeriod,
   getCurrentWeek,
+  addDaysToStr,
 } from '@/features/komisi/hooks'
+import { buildDisplayPayouts, pickDefaultPeriod, fmtDmy } from '@/features/komisi/display-payouts'
+import { todayLocal } from '@/lib/format'
 import { toast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/nq21/PageHeader'
 import { PeriodSelectorCard } from '@/features/komisi/components/PeriodSelectorCard'
@@ -22,42 +24,61 @@ import { MechanicSlipCard } from '@/features/komisi/components/MechanicSlipCard'
 import { SlipPaper } from '@/features/komisi/components/SlipPaper'
 import { ClosePeriodDialog } from '@/features/komisi/components/ClosePeriodDialog'
 import { MarkPaidDialog } from '@/features/komisi/components/MarkPaidDialog'
-import { fmtPeriodFull } from '@/features/komisi/utils'
+import { fmtPeriodFull, fmtShortDate } from '@/features/komisi/utils'
 
 export default function PeriodeKomisiPage() {
   const navigate = useNavigate()
 
   const user = useAuthStore(s => s.user)
   const isOwner = user?.role === 'owner'
-  const logAudit = useAuditStore(s => s.log)
 
   const { data: periods = [], isLoading: periodsLoading } = useCommissionPeriods()
-  const { data: allPayouts = [] } = useCommissionPayouts()
+  const { data: allPayouts = [], isLoading: payoutsLoading } = useCommissionPayouts()
   const { data: rates = [] } = useCommissionRates()
   const { data: mechanics = [] } = useMechanics()
   const openNewPeriod = useOpenNewPeriod()
 
+  const today = todayLocal()
   const currentWeek = getCurrentWeek()
-  const currentWeekCovered = periods.some(
-    p => p.weekStart <= currentWeek.weekStart && p.weekEnd >= currentWeek.weekEnd
+  const todayCovered = periods.some(p => p.weekStart <= today && p.weekEnd >= today)
+  const showNewPeriodBanner = !periodsLoading && isOwner && !todayCovered
+  const latestWeekEnd = periods.reduce<string | null>(
+    (max, p) => (max === null || p.weekEnd > max ? p.weekEnd : max), null,
   )
-  const showNewPeriodBanner = !periodsLoading && isOwner && !currentWeekCovered
+  const missingSince = latestWeekEnd ? addDaysToStr(latestWeekEnd, 1) : currentWeek.weekStart
 
-  // Top 3 periods, newest first
+  async function handleOpenPeriods() {
+    try {
+      const result = await openNewPeriod.mutateAsync()
+      if (result.created === 0 || !result.first_week_start || !result.last_week_start) {
+        toast('Tidak ada periode baru', { description: 'Semua minggu sampai hari ini sudah punya periode.' })
+        return
+      }
+      const lastWeekEnd = addDaysToStr(result.last_week_start, 6)
+      toast(
+        `${result.created} periode dibuka (${fmtShortDate(result.first_week_start)} – ${fmtShortDate(lastWeekEnd)})`,
+        { variant: 'success' },
+      )
+      setSelectedPeriodId('')
+    } catch (err) {
+      toast('Gagal membuka periode', { description: (err as Error).message, variant: 'destructive' })
+    }
+  }
+
+  // All periods, newest first
   const displayPeriods = useMemo(() =>
     [...periods].sort((a, b) => b.weekStart.localeCompare(a.weekStart)),
     [periods]
   )
 
-  // Selected period — default to open period, fallback to latest closed
+  // Selected period — open period containing today, else oldest open, else latest
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('')
 
   useEffect(() => {
     if (periods.length > 0 && !selectedPeriodId) {
-      const sorted = [...periods].sort((a, b) => b.weekStart.localeCompare(a.weekStart))
-      setSelectedPeriodId((sorted.find(p => p.status === 'open') ?? sorted[0])?.id ?? '')
+      setSelectedPeriodId(pickDefaultPeriod(periods, today)?.id ?? '')
     }
-  }, [periods, selectedPeriodId])
+  }, [periods, selectedPeriodId, today])
 
   const selectedPeriod = useMemo(() =>
     periods.find(p => p.id === selectedPeriodId),
@@ -65,9 +86,14 @@ export default function PeriodeKomisiPage() {
   )
 
   const isOpenSelected = selectedPeriod?.status === 'open'
+  const closeBlockedReason: string | null = !isOwner
+    ? 'Hanya owner yang bisa tutup periode.'
+    : selectedPeriod && selectedPeriod.weekEnd >= today
+      ? `Periode belum selesai: baru bisa ditutup setelah ${fmtDmy(selectedPeriod.weekEnd)}.`
+      : null
 
   // Fetch transactions for selected period (for live computation)
-  const { data: periodTxs = [] } = usePeriodTransactions(
+  const { data: periodTxs = [], isSuccess: periodTxsReady } = usePeriodTransactions(
     selectedPeriod?.weekStart,
     selectedPeriod?.weekEnd,
     { enabled: !!selectedPeriod },
@@ -87,27 +113,12 @@ export default function PeriodeKomisiPage() {
     [allPayouts, selectedPeriodId]
   )
 
-  // For closed periods with no live tx, fall back to stored payout stubs
+  // Closed period: stored payouts are authoritative; open period: live computation
   const displayPayouts = useMemo(() => {
-    if (computedPayouts.length > 0) return computedPayouts
-    if (selectedPeriod?.status === 'closed' && periodStoredPayouts.length > 0) {
-      return [...periodStoredPayouts]
-        .sort((a, b) => b.totalKomisi - a.totalKomisi)
-        .map(sp => {
-          const mech = mechanics.find(m => m.id === sp.mechanicId)
-          return {
-            mechanicId: sp.mechanicId,
-            mechanicName: mech?.name ?? sp.mechanicId,
-            isActive: mech?.is_active ?? false,
-            totalJobs: sp.totalJobs,
-            totalBasis: sp.totalBasis,
-            totalKomisi: sp.totalKomisi,
-            lines: [],
-          }
-        })
-    }
-    return computedPayouts
-  }, [computedPayouts, selectedPeriod, periodStoredPayouts, mechanics])
+    if (!selectedPeriod) return []
+    if (selectedPeriod.status === 'closed' && payoutsLoading) return []
+    return buildDisplayPayouts(selectedPeriod, computedPayouts, periodStoredPayouts, mechanics, periodTxsReady)
+  }, [selectedPeriod, payoutsLoading, computedPayouts, periodStoredPayouts, mechanics, periodTxsReady])
 
   // Period card stats
   const periodCardStats = useMemo(() =>
@@ -120,7 +131,7 @@ export default function PeriodeKomisiPage() {
           totalKomisi: stored.reduce((a, x) => a + x.totalKomisi, 0),
         }
       }
-      // Open period — use computed payouts if this is the selected period
+      // Open period — live totals are only fetched for the selected period
       if (p.id === selectedPeriodId) {
         return {
           periodId: p.id,
@@ -128,6 +139,7 @@ export default function PeriodeKomisiPage() {
           totalKomisi: displayPayouts.reduce((a, x) => a + x.totalKomisi, 0),
         }
       }
+      if (p.status === 'open') return { periodId: p.id, totalJobs: undefined, totalKomisi: undefined }
       return { periodId: p.id, totalJobs: 0, totalKomisi: 0 }
     }),
     [displayPeriods, allPayouts, selectedPeriodId, displayPayouts]
@@ -176,15 +188,10 @@ export default function PeriodeKomisiPage() {
     if (!selectedPeriod || !user) return
     try {
       const result = await closePeriod.mutateAsync({ periodId: selectedPeriod.id })
-      logAudit({
-        userId: user.name, action: 'update', entityType: 'period',
-        entityId: selectedPeriod.id, source: 'close-period', afterData: { status: 'closed' },
-      })
       toast(`Periode ${fmtPeriodFull(selectedPeriod.weekStart, selectedPeriod.weekEnd)} berhasil ditutup`, {
         description: `${result.payouts} payout di-generate.`,
         variant: 'success',
       })
-      toast('Periode baru otomatis dibuat', { variant: 'success' })
       setShowClosePeriodDialog(false)
     } catch (err) {
       toast('Gagal menutup periode', { description: (err as Error).message, variant: 'destructive' })
@@ -201,10 +208,6 @@ export default function PeriodeKomisiPage() {
     if (!stored) return
     try {
       await markPaid.mutateAsync({ payoutId: stored.id, paidNotes })
-      logAudit({
-        userId: user.name, action: 'update', entityType: 'payout', entityId: stored.id,
-        source: 'mark-paid', beforeData: { status: 'pending' }, afterData: { status: 'paid', paidNotes },
-      })
       toast(`Komisi ${selectedPayout.mechanicName} ditandai dibayar`, { variant: 'success' })
       setShowMarkPaidDialog(false)
     } catch (err) {
@@ -235,19 +238,25 @@ export default function PeriodeKomisiPage() {
           Buka periode pertama untuk mulai tracking komisi minggu ini.
         </p>
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => openNewPeriod.mutate()}
-            disabled={openNewPeriod.isPending}
-            style={{
-              padding: '10px 20px', borderRadius: 6, border: 'none',
-              background: 'var(--accent)', color: '#fff',
-              fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
-              letterSpacing: '0.1em', cursor: openNewPeriod.isPending ? 'wait' : 'pointer',
-              opacity: openNewPeriod.isPending ? 0.6 : 1,
-            }}
-          >
-            {openNewPeriod.isPending ? 'MEMBUKA...' : `+ BUKA PERIODE ${currentWeek.weekStart} – ${currentWeek.weekEnd}`}
-          </button>
+          {isOwner ? (
+            <button
+              onClick={handleOpenPeriods}
+              disabled={openNewPeriod.isPending}
+              style={{
+                padding: '10px 20px', borderRadius: 6, border: 'none',
+                background: 'var(--accent)', color: '#fff',
+                fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
+                letterSpacing: '0.1em', cursor: openNewPeriod.isPending ? 'wait' : 'pointer',
+                opacity: openNewPeriod.isPending ? 0.6 : 1,
+              }}
+            >
+              {openNewPeriod.isPending ? 'MEMBUKA...' : `+ BUKA PERIODE ${fmtShortDate(currentWeek.weekStart)} – ${fmtShortDate(currentWeek.weekEnd)}`}
+            </button>
+          ) : (
+            <span style={{ alignSelf: 'center', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)' }}>
+              Minta owner membuka periode.
+            </span>
+          )}
           <button
             onClick={() => navigate('/transaksi/baru')}
             style={{
@@ -273,34 +282,29 @@ export default function PeriodeKomisiPage() {
         subtitle="Senin – Minggu · Tutup periode untuk lock & generate slip bagi hasil"
         action={
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              disabled
-              style={{
-                padding: '8px 14px', borderRadius: 6,
-                fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-                background: 'transparent', border: '1px solid var(--border)',
-                color: 'var(--text-muted)', cursor: 'not-allowed', opacity: 0.55,
-              }}
-            >
-              CETAK SEMUA SLIP
-            </button>
             {isOpenSelected && (
-              <button
-                onClick={() => setShowClosePeriodDialog(true)}
-                disabled={!isOwner}
-                title={!isOwner ? 'Hanya owner yang bisa tutup periode.' : undefined}
-                style={{
-                  padding: '8px 18px', borderRadius: 6,
-                  fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
-                  background: !isOwner ? 'var(--border)' : 'var(--text)',
-                  border: `1px solid ${!isOwner ? 'var(--border)' : 'var(--text)'}`,
-                  color: !isOwner ? 'var(--text-muted)' : '#fff',
-                  cursor: !isOwner ? 'not-allowed' : 'pointer',
-                  opacity: !isOwner ? 0.6 : 1,
-                }}
+              <span
+                title={closeBlockedReason ?? undefined}
+                style={{ display: 'inline-flex', cursor: closeBlockedReason ? 'not-allowed' : undefined }}
               >
-                TUTUP PERIODE ▶
-              </button>
+                <button
+                  onClick={() => setShowClosePeriodDialog(true)}
+                  disabled={closeBlockedReason !== null}
+                  aria-label={closeBlockedReason ? `Tutup periode — ${closeBlockedReason}` : undefined}
+                  style={{
+                    padding: '8px 18px', borderRadius: 6,
+                    fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+                    background: closeBlockedReason ? 'var(--border)' : 'var(--text)',
+                    border: `1px solid ${closeBlockedReason ? 'var(--border)' : 'var(--text)'}`,
+                    color: closeBlockedReason ? 'var(--text-muted)' : '#fff',
+                    cursor: closeBlockedReason ? 'not-allowed' : 'pointer',
+                    opacity: closeBlockedReason ? 0.6 : 1,
+                    pointerEvents: closeBlockedReason ? 'none' : undefined,
+                  }}
+                >
+                  TUTUP PERIODE ▶
+                </button>
+              </span>
             )}
           </div>
         }
@@ -319,12 +323,12 @@ export default function PeriodeKomisiPage() {
               PERIODE BARU DIPERLUKAN
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              Minggu ini ({currentWeek.weekStart} – {currentWeek.weekEnd}) belum ada periode aktif.
-              Transaksi baru tidak akan masuk komisi sampai periode dibuka.
+              Belum ada periode sejak {fmtShortDate(missingSince)} (minggu ini: {fmtShortDate(currentWeek.weekStart)} – {fmtShortDate(currentWeek.weekEnd)}).
+              Semua minggu yang terlewat dibuka sekaligus, masing-masing Senin – Minggu.
             </div>
           </div>
           <button
-            onClick={() => openNewPeriod.mutate()}
+            onClick={handleOpenPeriods}
             disabled={openNewPeriod.isPending}
             style={{
               flexShrink: 0, marginLeft: 20,
@@ -417,6 +421,7 @@ export default function PeriodeKomisiPage() {
               rates={rates}
               isOwner={isOwner}
               onMarkPaid={() => setShowMarkPaidDialog(true)}
+              liveTotalKomisi={selectedPayout.liveTotalKomisi}
             />
           ) : (
             <div style={{
@@ -448,7 +453,7 @@ export default function PeriodeKomisiPage() {
         <ClosePeriodDialog
           open={showClosePeriodDialog}
           period={selectedPeriod}
-          payouts={computedPayouts}
+          payouts={displayPayouts}
           onClose={() => setShowClosePeriodDialog(false)}
           onConfirm={handleConfirmClose}
         />

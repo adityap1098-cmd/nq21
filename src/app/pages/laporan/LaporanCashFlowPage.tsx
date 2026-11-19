@@ -5,6 +5,7 @@ import { FilterPillGroup } from '@/components/nq21/FilterPillGroup'
 import { exportCSV, fmtRupiah, fmtDate } from '@/lib/csv'
 import { usePeriodFilter, type PeriodPreset } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
+import { QueryErrorPanel, LoadingPanel } from './QueryState'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 const fmtRp = (n: number) => `Rp ${_fmt.format(n)}`
@@ -91,13 +92,14 @@ export default function LaporanCashFlowPage() {
 
   const resetPage = () => setPage(1)
 
-  const { data: txsWithLines = [], isLoading } = useTransactionsWithLines({
+  const { data: txsWithLines = [], isLoading, isError, error, refetch } = useTransactionsWithLines({
     dateFrom: range.start,
     dateTo: range.end,
   })
 
   const filteredTx = useMemo(() => {
-    let result = txsWithLines
+    // Copy first: txsWithLines is the react-query cached array and must not be sorted in place.
+    let result = [...txsWithLines]
     if (tipeFilter !== 'all') result = result.filter(t => t.tipe === tipeFilter)
     if (metodeFilter !== 'all') result = result.filter(t => t.payment_method === metodeFilter)
     return result.sort((a, b) => {
@@ -151,7 +153,7 @@ export default function LaporanCashFlowPage() {
   function handleExport() {
     type ExRow = { tgl: string; jam: string; noRef: string; party: string; kategori: string; tipe: string; metode: string; nominal: string; delta: string; saldo: string }
     const rows: ExRow[] = tableData.map(r => ({
-      tgl:      r.tgl,
+      tgl:      r.tgl.slice(0, 10),
       jam:      fmtTime(r.createdAt),
       noRef:    r.noReferensi,
       party:    r.partyName,
@@ -165,7 +167,7 @@ export default function LaporanCashFlowPage() {
     exportCSV(
       rows,
       [
-        { key: 'tgl',      label: 'Tanggal' },
+        { key: 'tgl',      label: 'Tanggal (YYYY-MM-DD)' },
         { key: 'jam',      label: 'Jam' },
         { key: 'noRef',    label: 'No Referensi' },
         { key: 'party',    label: 'Customer / Supplier' },
@@ -190,7 +192,9 @@ export default function LaporanCashFlowPage() {
         action={
           <button
             onClick={handleExport}
+            disabled={isLoading || isError}
             style={{
+              opacity: isLoading || isError ? 0.5 : 1,
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)',
               border: '1px solid var(--border)', borderRadius: 6,
@@ -211,9 +215,9 @@ export default function LaporanCashFlowPage() {
         <PeriodSelector value={preset} onChange={(v) => { setPreset(v as PeriodPreset); resetPage() }} />
         {preset === 'custom' && (
           <CustomDateRangeInput
-            start={customRange?.start ?? ''}
-            end={customRange?.end ?? ''}
-            onChange={(start, end) => setCustomRange({ start, end })}
+            start={customRange?.start ?? range.start}
+            end={customRange?.end ?? range.end}
+            onChange={(start, end) => { setCustomRange({ start, end }); resetPage() }}
           />
         )}
         <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
@@ -244,6 +248,12 @@ export default function LaporanCashFlowPage() {
         )}
       </div>
 
+      {isError ? (
+        <QueryErrorPanel errors={[error]} onRetry={() => void refetch()} />
+      ) : isLoading ? (
+        <LoadingPanel />
+      ) : (
+      <>
       {/* Summary strip */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
         <div style={{ background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 8, padding: '14px 18px' }}>
@@ -276,13 +286,11 @@ export default function LaporanCashFlowPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontFamily: 'var(--display)', fontSize: 14, letterSpacing: '0.04em' }}>RINCIAN KRONOLOGIS</span>
           <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--surface-alt)', fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em' }}>
-            {isLoading ? '...' : `${tableData.length} ENTRI`}
+            {`${tableData.length} ENTRI`}
           </span>
         </div>
 
-        {isLoading ? (
-          <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 12 }}>Memuat...</div>
-        ) : tableData.length === 0 ? (
+        {tableData.length === 0 ? (
           <div style={{ padding: '60px 24px', textAlign: 'center', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 28, marginBottom: 10 }}>💸</div>
             <div style={{ fontFamily: 'var(--display)', fontSize: 16, color: 'var(--text)', marginBottom: 6 }}>
@@ -387,6 +395,8 @@ export default function LaporanCashFlowPage() {
           <span>⚠</span>
           <span>Saldo bersih negatif di periode ini. Total pengeluaran melebihi pemasukan sebesar {fmtRp(Math.abs(summary.saldoBersih))}.</span>
         </div>
+      )}
+      </>
       )}
     </div>
   )

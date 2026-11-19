@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
+import { masterWriteError } from '@/lib/dbErrors'
 
 export interface Supplier {
   id: string
@@ -49,7 +50,7 @@ export function useCreateSupplier() {
         .insert(input)
         .select()
         .single()
-      if (error) throw error
+      if (error) throw masterWriteError(error, 'supplier')
 
       if (user) {
         await supabase.from('audit_logs').insert({
@@ -81,7 +82,7 @@ export function useUpdateSupplier() {
         .eq('id', id)
         .select()
         .single()
-      if (error) throw error
+      if (error) throw masterWriteError(error, 'supplier')
 
       if (user) {
         await supabase.from('audit_logs').insert({
@@ -114,7 +115,7 @@ export function useDeleteSupplier() {
         .eq('id', id)
         .select()
         .single()
-      if (error) throw error
+      if (error) throw masterWriteError(error, 'supplier')
 
       if (user) {
         await supabase.from('audit_logs').insert({

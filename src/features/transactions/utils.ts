@@ -1,5 +1,4 @@
 import type { Line } from './types'
-import type { Transaction, TransactionLine } from '@/store/types'
 
 export function createEmptyLine(): Line {
   return {
@@ -23,6 +22,52 @@ export function formatRupiahInput(value: number): string {
 export function parseRupiahInput(str: string): number {
   const cleaned = str.replace(/[^0-9]/g, '')
   return cleaned === '' ? 0 : parseInt(cleaned, 10)
+}
+
+/**
+ * Split 100% into `n` integer shares (DB column is integer), remainder to the first
+ * ones: 3 → [34, 33, 33].
+ */
+export function evenIntegerShares(n: number): number[] {
+  if (n <= 0) return []
+  const base = Math.floor(100 / n)
+  const remainder = 100 - base * n
+  return Array.from({ length: n }, (_, i) => base + (i < remainder ? 1 : 0))
+}
+
+/**
+ * Scale integer weights to integer shares summing to 100 (largest remainder method).
+ * All-zero weights fall back to an even split.
+ */
+export function proportionalIntegerShares(weights: number[]): number[] {
+  const total = weights.reduce((s, w) => s + w, 0)
+  if (weights.length === 0) return []
+  if (total <= 0) return evenIntegerShares(weights.length)
+  const exact = weights.map((w) => (w / total) * 100)
+  const floors = exact.map(Math.floor)
+  let missing = 100 - floors.reduce((s, f) => s + f, 0)
+  const order = exact
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((a, b) => b.frac - a.frac || a.i - b.i)
+  const result = [...floors]
+  for (const { i } of order) {
+    if (missing <= 0) break
+    result[i] += 1
+    missing -= 1
+  }
+  return result
+}
+
+/**
+ * Same rule as DB trigger guard_closed_period: a transaction is locked when its date
+ * falls inside ANY closed commission period (dates as "YYYY-MM-DD").
+ */
+export function isInClosedPeriod(
+  tgl: string,
+  periods: Array<{ weekStart: string; weekEnd: string; status: string }>,
+): boolean {
+  const day = tgl.slice(0, 10)
+  return periods.some((p) => p.status === 'closed' && day >= p.weekStart.slice(0, 10) && day <= p.weekEnd.slice(0, 10))
 }
 
 export function hasLineData(line: Line): boolean {
@@ -76,7 +121,7 @@ export function validateTransactionFull(
   form: { noReferensi: string; tipe: string; customerId?: string; supplierId?: string },
   lines: Line[],
   ctx: {
-    transactions: Pick<Transaction, 'id' | 'noReferensi'>[]
+    transactions: Array<{ id: string; noReferensi: string }>
     categories: { id: string; name: string; is_jasa: boolean }[]
     mechanics: { id: string; is_active: boolean; name: string }[]
     suppliers: { id: string; is_active: boolean; is_vendor_bubut: boolean; name: string }[]
@@ -128,6 +173,8 @@ export function validateTransactionFull(
         const totalShare = line.mechanics.reduce((s, m) => s + m.sharePercent, 0)
         if (Math.abs(totalShare - 100) > 0.01)
           errs.push({ field: `line-${i}-share`, message: `${lbl}: total share mekanik harus 100%`, lineId: line.id })
+        if (line.mechanics.some((m) => !Number.isInteger(m.sharePercent) || (m.rateOverride !== undefined && !Number.isInteger(m.rateOverride))))
+          errs.push({ field: `line-${i}-int`, message: `${lbl}: share dan rate harus bilangan bulat`, lineId: line.id })
         for (const m of line.mechanics) {
           if (!m.mechanicId) continue
           const mech = ctx.mechanics.find((x) => x.id === m.mechanicId)
@@ -151,20 +198,4 @@ export function validateTransactionFull(
   }
 
   return errs
-}
-
-export function getUniqueItemNames(
-  lines: TransactionLine[],
-  categoryId: string,
-): string[] {
-  const freq = new Map<string, number>()
-  for (const line of lines) {
-    if (line.categoryId !== categoryId || !line.itemName?.trim()) continue
-    const name = line.itemName.trim()
-    freq.set(name, (freq.get(name) ?? 0) + 1)
-  }
-  return [...freq.entries()]
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([name]) => name)
-    .slice(0, 20)
 }
