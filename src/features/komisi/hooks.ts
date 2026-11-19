@@ -197,6 +197,52 @@ export function useCommissionPayouts(periodId?: string) {
   })
 }
 
+// ── usePayoutLineSnapshots ───────────────────────────────────────────────────
+// Per-line snapshot written by close_period (commission_payout_lines): exactly the
+// lines, rates and komisi that were paid. Closed-period slips render from this so a
+// later rate/category change cannot alter a paid slip. Keyed by mechanic_id.
+
+export function usePayoutLineSnapshots(periodId: string | undefined, opts?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['commission-payout-lines', periodId],
+    enabled: opts?.enabled !== false && !!periodId,
+    staleTime: 5 * 60_000,
+    queryFn: async (): Promise<Map<string, PayoutLine[]>> => {
+      const { data, error } = await supabase
+        .from('commission_payout_lines')
+        .select('mechanic_id, transaction_id, no_referensi, tgl, customer_name, customer_motor, category_id, category_name, item_name, nominal, biaya_material, basis, share_percent, rate, rate_override, komisi')
+        .eq('period_id', periodId!)
+        .order('tgl')
+        .order('no_referensi')
+      if (error) throw error
+      const byMechanic = new Map<string, PayoutLine[]>()
+      for (const r of data ?? []) {
+        const line: PayoutLine = {
+          transactionId: (r.transaction_id as string | null) ?? '',
+          noReferensi: r.no_referensi as string,
+          tgl: (r.tgl as string).slice(0, 10),
+          isBackdated: false,
+          customerName: (r.customer_name as string | null) ?? '—',
+          customerMotor: (r.customer_motor as string | null) ?? undefined,
+          categoryId: (r.category_id as string | null) ?? '',
+          categoryName: r.category_name as string,
+          itemName: (r.item_name as string | null) ?? undefined,
+          nominal: r.nominal as number,
+          biayaMaterial: r.biaya_material as number,
+          basis: r.basis as number,
+          sharePercent: r.share_percent as number,
+          rate: r.rate as number,
+          rateOverride: (r.rate_override as number | null) ?? undefined,
+          komisi: r.komisi as number,
+        }
+        const id = r.mechanic_id as string
+        byMechanic.set(id, [...(byMechanic.get(id) ?? []), line])
+      }
+      return byMechanic
+    },
+  })
+}
+
 // ── useCommissionRates ────────────────────────────────────────────────────────
 
 export function useCommissionRates() {
@@ -278,6 +324,7 @@ export function useClosePeriod() {
       queryClient.invalidateQueries({ queryKey: ['commission-periods'] })
       queryClient.invalidateQueries({ queryKey: ['commission-payouts'] })
       queryClient.invalidateQueries({ queryKey: ['period-transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['commission-payout-lines'] })
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
     },
   })

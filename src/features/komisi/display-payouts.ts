@@ -1,5 +1,5 @@
 import type { CommissionPeriod, CommissionPayout } from '@/store/types'
-import type { PayoutComputed } from '@/store/selectors'
+import type { PayoutComputed, PayoutLine } from '@/store/selectors'
 import type { MechanicRow } from './hooks'
 
 export interface DisplayPayout extends PayoutComputed {
@@ -22,8 +22,10 @@ function resolveName(
 
 /**
  * Open period: live computation is the truth.
- * Closed period: commission_payouts totals are authoritative; live lines are kept for
- * detail only, and liveTotalKomisi exposes any drift (rate/category changed after close).
+ * Closed period: commission_payouts totals are authoritative. Lines come from the
+ * close-time snapshot (commission_payout_lines) when it exists — exactly what was
+ * paid, so no drift is possible. Without a snapshot, live lines are shown for detail
+ * and liveTotalKomisi exposes any drift (rate/category changed after close).
  */
 export function buildDisplayPayouts(
   period: CommissionPeriod,
@@ -32,6 +34,8 @@ export function buildDisplayPayouts(
   mechanics: MechanicRow[],
   /** false while live transactions are loading/failed: no drift is reported then. */
   liveReady = true,
+  /** Close-time line snapshot keyed by mechanic id (closed periods only). */
+  snapshotLines?: Map<string, PayoutLine[]>,
 ): DisplayPayout[] {
   const mechById = new Map(mechanics.map(m => [m.id, m]))
 
@@ -48,6 +52,7 @@ export function buildDisplayPayouts(
 
   const fromStored: DisplayPayout[] = stored.map(sp => {
     const live = liveById.get(sp.mechanicId)
+    const snapshot = snapshotLines?.get(sp.mechanicId)
     return {
       mechanicId: sp.mechanicId,
       mechanicName: resolveName(sp.mechanicId, mechById, live),
@@ -55,8 +60,9 @@ export function buildDisplayPayouts(
       totalJobs: sp.totalJobs,
       totalBasis: sp.totalBasis,
       totalKomisi: sp.totalKomisi,
-      lines: live?.lines ?? [],
-      liveTotalKomisi: liveReady ? (live?.totalKomisi ?? 0) : null,
+      lines: snapshot ?? live?.lines ?? [],
+      // A snapshot is what was paid: nothing to compare against
+      liveTotalKomisi: snapshot ? null : liveReady ? (live?.totalKomisi ?? 0) : null,
     }
   })
 

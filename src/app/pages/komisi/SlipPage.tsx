@@ -6,6 +6,7 @@ import {
   useCommissionRates,
   useMechanics,
   usePeriodTransactions,
+  usePayoutLineSnapshots,
   computePayoutsFromRows,
 } from '@/features/komisi/hooks'
 import { buildDisplayPayouts } from '@/features/komisi/display-payouts'
@@ -39,13 +40,19 @@ export default function SlipPage() {
     { enabled: !!period },
   )
 
+  const { data: snapshotLines, isLoading: snapshotLoading } = usePayoutLineSnapshots(
+    periodId,
+    { enabled: period?.status === 'closed' },
+  )
+
   const payout = useMemo(() => {
     if (!period) return undefined
+    if (period.status === 'closed' && snapshotLoading) return undefined
     const computed = computePayoutsFromRows(periodTxs, period.weekStart, period.weekEnd, rates)
     const periodStored = storedPayouts.filter(p => p.periodId === periodId)
-    return buildDisplayPayouts(period, computed, periodStored, mechanics, txReady)
+    return buildDisplayPayouts(period, computed, periodStored, mechanics, txReady, snapshotLines)
       .find(p => p.mechanicId === mechanicId)
-  }, [period, periodTxs, rates, storedPayouts, periodId, mechanics, mechanicId, txReady])
+  }, [period, periodTxs, rates, storedPayouts, periodId, mechanics, mechanicId, txReady, snapshotLines, snapshotLoading])
 
   const storedPayout = useMemo(() =>
     storedPayouts.find(p => p.periodId === periodId && p.mechanicId === mechanicId),

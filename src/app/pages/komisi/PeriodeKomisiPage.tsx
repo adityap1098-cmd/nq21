@@ -7,6 +7,7 @@ import {
   useCommissionRates,
   useMechanics,
   usePeriodTransactions,
+  usePayoutLineSnapshots,
   computePayoutsFromRows,
   useClosePeriod,
   useMarkPaid,
@@ -113,12 +114,19 @@ export default function PeriodeKomisiPage() {
     [allPayouts, selectedPeriodId]
   )
 
-  // Closed period: stored payouts are authoritative; open period: live computation
+  // Close-time line snapshot (closed periods only)
+  const isClosedSelected = selectedPeriod?.status === 'closed'
+  const { data: snapshotLines, isLoading: snapshotLoading } = usePayoutLineSnapshots(
+    selectedPeriod?.id,
+    { enabled: isClosedSelected },
+  )
+
+  // Closed period: stored payouts + snapshot lines are authoritative; open period: live computation
   const displayPayouts = useMemo(() => {
     if (!selectedPeriod) return []
-    if (selectedPeriod.status === 'closed' && payoutsLoading) return []
-    return buildDisplayPayouts(selectedPeriod, computedPayouts, periodStoredPayouts, mechanics, periodTxsReady)
-  }, [selectedPeriod, payoutsLoading, computedPayouts, periodStoredPayouts, mechanics, periodTxsReady])
+    if (selectedPeriod.status === 'closed' && (payoutsLoading || snapshotLoading)) return []
+    return buildDisplayPayouts(selectedPeriod, computedPayouts, periodStoredPayouts, mechanics, periodTxsReady, snapshotLines)
+  }, [selectedPeriod, payoutsLoading, snapshotLoading, computedPayouts, periodStoredPayouts, mechanics, periodTxsReady, snapshotLines])
 
   // Period card stats
   const periodCardStats = useMemo(() =>
