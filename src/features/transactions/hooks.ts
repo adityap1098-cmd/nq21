@@ -1,6 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { useAuthStore } from '@/store/auth'
 
 export interface TransactionRow {
   id: string
@@ -63,26 +62,47 @@ export interface TransactionFilters {
 
 const STALE_5MIN = 5 * 60 * 1000
 
+// PostgREST caps every response at 1000 rows (Supabase default max-rows).
+const PAGE_SIZE = 1000
+
+interface PageResult {
+  data: unknown[] | null
+  error: unknown
+}
+
+async function fetchAllPages<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<PageResult>,
+): Promise<T[]> {
+  let rows: T[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await fetchPage(from, from + PAGE_SIZE - 1)
+    if (error) throw error
+    const page = (data ?? []) as T[]
+    rows = rows.concat(page)
+    if (page.length < PAGE_SIZE) return rows
+  }
+}
+
 export function useTransactions(filters: TransactionFilters = {}) {
   return useQuery({
     queryKey: ['transactions', filters],
     staleTime: STALE_5MIN,
-    queryFn: async () => {
-      let query = supabase
-        .from('transactions')
-        .select('*')
-        .order('tgl', { ascending: false })
-        .order('created_at', { ascending: false })
+    queryFn: () =>
+      fetchAllPages<TransactionRow>((from, to) => {
+        let query = supabase
+          .from('transactions')
+          .select('*')
+          .order('tgl', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
 
-      if (!filters.includeDeleted) query = query.is('deleted_at', null)
-      if (filters.tipe) query = query.eq('tipe', filters.tipe)
-      if (filters.dateFrom) query = query.gte('tgl', filters.dateFrom)
-      if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
+        if (!filters.includeDeleted) query = query.is('deleted_at', null)
+        if (filters.tipe) query = query.eq('tipe', filters.tipe)
+        if (filters.dateFrom) query = query.gte('tgl', filters.dateFrom)
+        if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
 
-      const { data, error } = await query
-      if (error) throw error
-      return (data ?? []) as TransactionRow[]
-    },
+        return query.range(from, to)
+      }),
   })
 }
 
@@ -114,31 +134,31 @@ export function useTransactionsWithLines(filters: TransactionFilters = {}) {
   return useQuery({
     queryKey: ['transactions-with-lines', filters],
     staleTime: STALE_5MIN,
-    queryFn: async () => {
-      let query = supabase
-        .from('transactions')
-        .select(`
-          *,
-          customer:customers(id, name, motor_type),
-          supplier:suppliers(id, name),
-          transaction_lines(
-            id, transaction_id, category_id, nominal, biaya_material, item_name, notes,
-            categories(id, name, type, is_jasa),
-            transaction_line_mechanics(id, line_id, mechanic_id, share_percent, rate_override, mechanics(id, name, is_active))
-          )
-        `)
-        .order('tgl', { ascending: false })
-        .order('created_at', { ascending: false })
+    queryFn: () =>
+      fetchAllPages<TransactionWithLines>((from, to) => {
+        let query = supabase
+          .from('transactions')
+          .select(`
+            *,
+            customer:customers(id, name, motor_type),
+            supplier:suppliers(id, name),
+            transaction_lines(
+              id, transaction_id, category_id, nominal, biaya_material, item_name, notes,
+              categories(id, name, type, is_jasa),
+              transaction_line_mechanics(id, line_id, mechanic_id, share_percent, rate_override, mechanics(id, name, is_active))
+            )
+          `)
+          .order('tgl', { ascending: false })
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
 
-      if (!filters.includeDeleted) query = query.is('deleted_at', null)
-      if (filters.tipe) query = query.eq('tipe', filters.tipe)
-      if (filters.dateFrom) query = query.gte('tgl', filters.dateFrom)
-      if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
+        if (!filters.includeDeleted) query = query.is('deleted_at', null)
+        if (filters.tipe) query = query.eq('tipe', filters.tipe)
+        if (filters.dateFrom) query = query.gte('tgl', filters.dateFrom)
+        if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
 
-      const { data, error } = await query
-      if (error) throw error
-      return (data ?? []) as unknown as TransactionWithLines[]
-    },
+        return query.range(from, to)
+      }),
   })
 }
 
@@ -149,21 +169,128 @@ export function useNextNoReferensi(tipe: 'income' | 'expense', tgl: string) {
     queryFn: async () => {
       const prefix = tipe === 'income' ? 'TRX' : 'EXP'
       const compact = tgl.replace(/-/g, '')
+      // `___` = exactly 3 chars, so `<asli>-VENDOR` rows never match.
+      // Soft-deleted rows are included on purpose: no_referensi is unique globally.
       const { data, error } = await supabase
         .from('transactions')
         .select('no_referensi')
-        .ilike('no_referensi', `${prefix}-${compact}-%`)
-        .not('no_referensi', 'ilike', '%-VENDOR')
+        .like('no_referensi', `${prefix}-${compact}-___`)
+        .order('no_referensi', { ascending: false })
+        .limit(1)
       if (error) throw error
-      const existing = (data ?? [])
-        .map((r: { no_referensi: string }) => parseInt(r.no_referensi.slice(-3), 10))
-        .filter((n: number) => !isNaN(n))
-      const max = existing.length > 0 ? Math.max(...existing) : 0
+      const last = (data ?? [])[0] as { no_referensi: string } | undefined
+      const parsed = last ? parseInt(last.no_referensi.slice(-3), 10) : 0
+      const max = isNaN(parsed) ? 0 : parsed
       return `${prefix}-${compact}-${String(max + 1).padStart(3, '0')}`
     },
   })
 }
 
+// ── Mutation errors ───────────────────────────────────────────────────────────
+
+export type TransactionErrorKind =
+  | 'duplicate_no_ref'
+  | 'period_closed'
+  | 'validation'
+  | 'not_found'
+  | 'forbidden'
+  | 'network'
+  | 'unknown'
+
+export class TransactionMutationError extends Error {
+  readonly kind: TransactionErrorKind
+  readonly original: unknown
+
+  constructor(kind: TransactionErrorKind, message: string, original: unknown) {
+    super(message)
+    this.name = 'TransactionMutationError'
+    this.kind = kind
+    this.original = original
+  }
+}
+
+interface DbErrorLike {
+  code?: string
+  message?: string
+  details?: string
+  hint?: string
+}
+
+const NETWORK_ERROR_RE = /failed to fetch|networkerror|network request failed|load failed|fetcherror|aborterror|timeout/i
+const RLS_GENERIC_RE = /row-level security|permission denied/i
+
+export function toTransactionError(err: unknown): TransactionMutationError {
+  if (err instanceof TransactionMutationError) return err
+
+  const e = (typeof err === 'object' && err !== null ? err : {}) as DbErrorLike
+  const code = e.code ?? ''
+  const message = e.message ?? (err instanceof Error ? err.message : '')
+
+  if (message.startsWith('Periode sudah ditutup')) {
+    return new TransactionMutationError('period_closed', message, err)
+  }
+  if (code === '23505') {
+    return new TransactionMutationError('duplicate_no_ref', 'No referensi sudah dipakai', err)
+  }
+  if (code === 'NQ422') {
+    return new TransactionMutationError('validation', message, err)
+  }
+  if (code === 'NQ404') {
+    return new TransactionMutationError('not_found', message, err)
+  }
+  if (code === '23503') {
+    return new TransactionMutationError(
+      'validation',
+      'Customer, supplier, kategori atau mekanik yang dipilih tidak ditemukan',
+      err,
+    )
+  }
+  if (code === '42501') {
+    const detail = message && !RLS_GENERIC_RE.test(message) ? `: ${message}` : ''
+    return new TransactionMutationError('forbidden', `Akses ditolak${detail}`, err)
+  }
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false
+  if (offline || (!code && NETWORK_ERROR_RE.test(message))) {
+    return new TransactionMutationError('network', 'Koneksi bermasalah, data belum tersimpan', err)
+  }
+  return new TransactionMutationError(
+    'unknown',
+    message ? `Terjadi kesalahan: ${message}` : 'Terjadi kesalahan. Coba lagi.',
+    err,
+  )
+}
+
+function invalidateTransactionQueries(queryClient: QueryClient, id?: string) {
+  queryClient.invalidateQueries({ queryKey: ['transactions'] })
+  queryClient.invalidateQueries({ queryKey: ['transactions-with-lines'] })
+  queryClient.invalidateQueries({ queryKey: ['period-transactions'] })
+  queryClient.invalidateQueries({ queryKey: ['next-no-referensi'] })
+  if (id) queryClient.invalidateQueries({ queryKey: ['transaction', id] })
+}
+
+interface TransactionRpcResult {
+  tx_id: string
+  expense_tx_id: string | null
+}
+
+async function callTransactionRpc(
+  fn: 'create_transaction' | 'update_transaction',
+  args: Record<string, unknown>,
+): Promise<{ txId: string; expenseTxId: string | null }> {
+  try {
+    const { data, error } = await supabase.rpc(fn, args)
+    if (error) throw error
+    const result = data as TransactionRpcResult | null
+    if (!result?.tx_id) throw new Error('Respons server tidak valid')
+    return { txId: result.tx_id, expenseTxId: result.expense_tx_id ?? null }
+  } catch (err) {
+    throw toTransactionError(err)
+  }
+}
+
+// Payload of public.create_transaction / public.update_transaction (see
+// supabase/migrations/20261119_transaction_rpc.sql). created_by is ignored:
+// the server always uses auth.uid().
 export interface TransactionCreateInput {
   no_referensi: string
   tgl: string
@@ -172,7 +299,7 @@ export interface TransactionCreateInput {
   supplier_id?: string | null
   payment_method: 'cash' | 'transfer' | 'qris'
   notes?: string | null
-  created_by: string
+  created_by?: string
   lines: Array<{
     category_id: string
     nominal: number
@@ -187,7 +314,8 @@ export interface TransactionCreateInput {
     bubut_vendor?: {
       supplier_id: string
       vendor_cost: number
-      bayar_vendor_category_id: string
+      // Ignored by the server (looks up "Bayar Vendor Bubut" by name); kept for compatibility
+      bayar_vendor_category_id?: string
     } | null
   }>
 }
@@ -195,152 +323,9 @@ export interface TransactionCreateInput {
 export function useCreateTransaction() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (input: TransactionCreateInput): Promise<{ txId: string; expenseTxId: string | null }> => {
-      const insertedTxIds: string[] = []
-      const insertedLineIds: string[] = []
-      const insertedMechanicIds: string[] = []
-      const insertedBubutLinkIds: string[] = []
-
-      async function rollback() {
-        if (insertedBubutLinkIds.length > 0)
-          await supabase.from('bubut_luar_links').delete().in('id', insertedBubutLinkIds)
-        if (insertedMechanicIds.length > 0)
-          await supabase.from('transaction_line_mechanics').delete().in('id', insertedMechanicIds)
-        if (insertedLineIds.length > 0)
-          await supabase.from('transaction_lines').delete().in('id', insertedLineIds)
-        if (insertedTxIds.length > 0)
-          await supabase.from('transactions').delete().in('id', insertedTxIds)
-      }
-
-      try {
-        const totalNominal = input.lines.reduce((s, l) => s + l.nominal, 0)
-
-        const { data: matchingPeriod } = await supabase
-          .from('commission_periods')
-          .select('id')
-          .lte('week_start', input.tgl)
-          .gte('week_end', input.tgl)
-          .eq('status', 'open')
-          .maybeSingle()
-        const periodId = matchingPeriod?.id ?? null
-
-        const { data: tx, error: txErr } = await supabase
-          .from('transactions')
-          .insert({
-            no_referensi: input.no_referensi,
-            tgl: input.tgl,
-            tipe: input.tipe,
-            customer_id: input.customer_id ?? null,
-            supplier_id: input.supplier_id ?? null,
-            payment_method: input.payment_method,
-            total_nominal: totalNominal,
-            notes: input.notes ?? null,
-            created_by: input.created_by,
-            period_id: periodId,
-          })
-          .select('id')
-          .single()
-        if (txErr) throw txErr
-        insertedTxIds.push(tx.id as string)
-
-        let expenseTxId: string | null = null
-
-        for (let i = 0; i < input.lines.length; i++) {
-          const line = input.lines[i]
-          const { data: lineRow, error: lineErr } = await supabase
-            .from('transaction_lines')
-            .insert({
-              transaction_id: tx.id,
-              category_id: line.category_id,
-              nominal: line.nominal,
-              biaya_material: line.biaya_material,
-              item_name: line.item_name ?? null,
-              notes: line.notes ?? null,
-              line_order: i,
-            })
-            .select('id')
-            .single()
-          if (lineErr) throw lineErr
-          insertedLineIds.push(lineRow.id as string)
-
-          if (line.mechanics.length > 0) {
-            const { data: mechRows, error: mechErr } = await supabase
-              .from('transaction_line_mechanics')
-              .insert(
-                line.mechanics.map((m) => ({
-                  line_id: lineRow.id,
-                  mechanic_id: m.mechanic_id,
-                  share_percent: m.share_percent,
-                  rate_override: m.rate_override ?? null,
-                })),
-              )
-              .select('id')
-            if (mechErr) throw mechErr
-            insertedMechanicIds.push(...(mechRows ?? []).map((r: { id: string }) => r.id))
-          }
-
-          if (line.bubut_vendor) {
-            const { supplier_id: vendorSupplierId, vendor_cost, bayar_vendor_category_id } = line.bubut_vendor
-
-            const { data: expTx, error: expTxErr } = await supabase
-              .from('transactions')
-              .insert({
-                no_referensi: `${input.no_referensi}-VENDOR`,
-                tgl: input.tgl,
-                tipe: 'expense' as const,
-                supplier_id: vendorSupplierId,
-                payment_method: input.payment_method,
-                total_nominal: vendor_cost,
-                notes: `Auto-linked ke ${input.no_referensi}`,
-                created_by: input.created_by,
-                period_id: periodId,
-              })
-              .select('id')
-              .single()
-            if (expTxErr) throw expTxErr
-            insertedTxIds.push(expTx.id as string)
-            expenseTxId = expTx.id as string
-
-            const { data: expLine, error: expLineErr } = await supabase
-              .from('transaction_lines')
-              .insert({
-                transaction_id: expTx.id,
-                category_id: bayar_vendor_category_id,
-                nominal: vendor_cost,
-                biaya_material: 0,
-                item_name: null,
-                notes: null,
-                line_order: 0,
-              })
-              .select('id')
-              .single()
-            if (expLineErr) throw expLineErr
-            insertedLineIds.push(expLine.id as string)
-
-            const { data: bubutLink, error: bubutLinkErr } = await supabase
-              .from('bubut_luar_links')
-              .insert({
-                revenue_line_id: lineRow.id,
-                expense_transaction_id: expTx.id,
-                vendor_cost,
-              })
-              .select('id')
-              .single()
-            if (bubutLinkErr) throw bubutLinkErr
-            insertedBubutLinkIds.push(bubutLink.id as string)
-          }
-        }
-
-        return { txId: tx.id as string, expenseTxId }
-      } catch (err) {
-        await rollback()
-        throw err
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['next-no-referensi'] })
-    },
+    mutationFn: (input: TransactionCreateInput) =>
+      callTransactionRpc('create_transaction', { p: input }),
+    onSuccess: (data) => invalidateTransactionQueries(queryClient, data.txId),
   })
 }
 
@@ -403,169 +388,26 @@ export function useTransaction(id: string | undefined) {
   })
 }
 
-type OldLineShape = { id: string; bubut_luar_links?: { expense_transaction_id: string }[] }
-type ExistingTxShape = { tgl: string; transaction_lines?: OldLineShape[] }
-
-async function fetchExistingForMutation(id: string) {
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('id, tgl, transaction_lines(id, bubut_luar_links(expense_transaction_id))')
-    .eq('id', id)
-    .is('deleted_at', null)
-    .single()
-  if (error || !data) throw new Error('Transaksi tidak ditemukan')
-  return data as ExistingTxShape
-}
-
-async function checkPeriodClosed(tgl: string) {
-  const { data } = await supabase
-    .from('commission_periods')
-    .select('id')
-    .eq('status', 'closed')
-    .lte('week_start', tgl)
-    .gte('week_end', tgl)
-    .maybeSingle()
-  if (data) throw new Error('Tidak bisa edit/delete transaksi di periode yang sudah close')
-}
-
 export function useUpdateTransaction() {
   const queryClient = useQueryClient()
-  const user = useAuthStore((s) => s.user)
-
   return useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: TransactionCreateInput }): Promise<{ txId: string; expenseTxId: string | null }> => {
-      const existing = await fetchExistingForMutation(id)
-      await checkPeriodClosed(existing.tgl)
-
-      const oldLines = (existing.transaction_lines ?? []) as OldLineShape[]
-      const oldLineIds = oldLines.map((l) => l.id)
-      const pairedExpenseIds = oldLines
-        .flatMap((l) => l.bubut_luar_links ?? [])
-        .map((b) => b.expense_transaction_id)
-        .filter(Boolean)
-
-      const insertedIds = { lines: [] as string[], mechanics: [] as string[], bubutLinks: [] as string[], expenseTrx: [] as string[] }
-
-      try {
-        // Hard-delete old child records (bottom-up)
-        if (oldLineIds.length) {
-          await supabase.from('bubut_luar_links').delete().in('revenue_line_id', oldLineIds)
-          await supabase.from('transaction_line_mechanics').delete().in('line_id', oldLineIds)
-        }
-        // Hard-delete old vendor expense lines + transactions (avoids noRef uniqueness conflict on re-insert)
-        if (pairedExpenseIds.length) {
-          await supabase.from('transaction_lines').delete().in('transaction_id', pairedExpenseIds)
-          await supabase.from('transactions').delete().in('id', pairedExpenseIds)
-        }
-        await supabase.from('transaction_lines').delete().eq('transaction_id', id)
-
-        // Re-insert lines + mechanics + bubut (same pattern as create)
-        const totalNominal = input.lines.reduce((s, l) => s + l.nominal, 0)
-        let expenseTxId: string | null = null
-
-        for (let i = 0; i < input.lines.length; i++) {
-          const line = input.lines[i]
-          const { data: lineRow, error: lineErr } = await supabase
-            .from('transaction_lines')
-            .insert({ transaction_id: id, category_id: line.category_id, nominal: line.nominal, biaya_material: line.biaya_material, item_name: line.item_name ?? null, notes: line.notes ?? null, line_order: i })
-            .select('id').single()
-          if (lineErr) throw lineErr
-          insertedIds.lines.push(lineRow.id as string)
-
-          if (line.mechanics.length > 0) {
-            const { data: mechRows, error: mechErr } = await supabase
-              .from('transaction_line_mechanics')
-              .insert(line.mechanics.map((m) => ({ line_id: lineRow.id, mechanic_id: m.mechanic_id, share_percent: m.share_percent, rate_override: m.rate_override ?? null })))
-              .select('id')
-            if (mechErr) throw mechErr
-            insertedIds.mechanics.push(...(mechRows ?? []).map((r: { id: string }) => r.id))
-          }
-
-          if (line.bubut_vendor) {
-            const { supplier_id: vendorSupplierId, vendor_cost, bayar_vendor_category_id } = line.bubut_vendor
-            const { data: expTx, error: expTxErr } = await supabase
-              .from('transactions')
-              .insert({ no_referensi: `${input.no_referensi}-VENDOR`, tgl: input.tgl, tipe: 'expense' as const, supplier_id: vendorSupplierId, payment_method: input.payment_method, total_nominal: vendor_cost, notes: `Auto-linked ke ${input.no_referensi}`, created_by: input.created_by })
-              .select('id').single()
-            if (expTxErr) throw expTxErr
-            insertedIds.expenseTrx.push(expTx.id as string)
-            expenseTxId = expTx.id as string
-
-            const { data: expLine, error: expLineErr } = await supabase
-              .from('transaction_lines')
-              .insert({ transaction_id: expTx.id, category_id: bayar_vendor_category_id, nominal: vendor_cost, biaya_material: 0, item_name: null, notes: null, line_order: 0 })
-              .select('id').single()
-            if (expLineErr) throw expLineErr
-            insertedIds.lines.push(expLine.id as string)
-
-            const { data: bubutLink, error: bubutLinkErr } = await supabase
-              .from('bubut_luar_links')
-              .insert({ revenue_line_id: lineRow.id, expense_transaction_id: expTx.id, vendor_cost })
-              .select('id').single()
-            if (bubutLinkErr) throw bubutLinkErr
-            insertedIds.bubutLinks.push(bubutLink.id as string)
-          }
-        }
-
-        // Update header — re-bind period_id in case tgl changed
-        const { data: updPeriod } = await supabase
-          .from('commission_periods')
-          .select('id')
-          .lte('week_start', input.tgl)
-          .gte('week_end', input.tgl)
-          .eq('status', 'open')
-          .maybeSingle()
-
-        const { error: updErr } = await supabase
-          .from('transactions')
-          .update({ tgl: input.tgl, customer_id: input.customer_id ?? null, supplier_id: input.supplier_id ?? null, payment_method: input.payment_method, total_nominal: totalNominal, notes: input.notes ?? null, period_id: updPeriod?.id ?? null })
-          .eq('id', id)
-        if (updErr) throw updErr
-
-        supabase.from('audit_logs').insert({ user_id: user?.id ?? 'unknown', action: 'update_transaction', entity_type: 'transaction', entity_id: id, source: 'edit-transaksi' }).then(() => {}, () => {})
-
-        return { txId: id, expenseTxId }
-      } catch (err) {
-        if (insertedIds.bubutLinks.length) await supabase.from('bubut_luar_links').delete().in('id', insertedIds.bubutLinks)
-        if (insertedIds.mechanics.length) await supabase.from('transaction_line_mechanics').delete().in('id', insertedIds.mechanics)
-        if (insertedIds.lines.length) await supabase.from('transaction_lines').delete().in('id', insertedIds.lines)
-        if (insertedIds.expenseTrx.length) await supabase.from('transactions').delete().in('id', insertedIds.expenseTrx)
-        throw err
-      }
-    },
-    onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['transaction', id] })
-    },
+    mutationFn: ({ id, input }: { id: string; input: TransactionCreateInput }) =>
+      callTransactionRpc('update_transaction', { p_id: id, p: input }),
+    onSuccess: (_data, { id }) => invalidateTransactionQueries(queryClient, id),
   })
 }
 
 export function useDeleteTransaction() {
   const queryClient = useQueryClient()
-  const user = useAuthStore((s) => s.user)
-
   return useMutation({
     mutationFn: async (id: string): Promise<void> => {
-      const existing = await fetchExistingForMutation(id)
-      await checkPeriodClosed(existing.tgl)
-
-      const oldLines = (existing.transaction_lines ?? []) as OldLineShape[]
-      const pairedExpenseIds = oldLines
-        .flatMap((l) => l.bubut_luar_links ?? [])
-        .map((b) => b.expense_transaction_id)
-        .filter(Boolean)
-
-      const deletedAt = new Date().toISOString()
-      if (pairedExpenseIds.length) {
-        await supabase.from('transactions').update({ deleted_at: deletedAt }).in('id', pairedExpenseIds)
+      try {
+        const { error } = await supabase.rpc('delete_transaction', { p_id: id })
+        if (error) throw error
+      } catch (err) {
+        throw toTransactionError(err)
       }
-      const { error } = await supabase.from('transactions').update({ deleted_at: deletedAt }).eq('id', id)
-      if (error) throw error
-
-      supabase.from('audit_logs').insert({ user_id: user?.id ?? 'unknown', action: 'delete_transaction', entity_type: 'transaction', entity_id: id, source: 'detail-transaksi' }).then(() => {}, () => {})
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] })
-    },
+    onSuccess: (_data, id) => invalidateTransactionQueries(queryClient, id),
   })
 }

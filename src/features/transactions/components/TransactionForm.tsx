@@ -7,7 +7,7 @@ import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 import { RefreshCw } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { useCreateTransaction, useNextNoReferensi, useTransactions, useUpdateTransaction } from '../hooks'
+import { toTransactionError, useCreateTransaction, useNextNoReferensi, useTransactions, useUpdateTransaction } from '../hooks'
 import { useAuthStore } from '@/store/auth'
 import { useCategories } from '@/features/categories/hooks'
 import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
@@ -125,7 +125,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
 
   const createTransaction = useCreateTransaction()
   const updateTransaction = useUpdateTransaction()
-  const { data: nextNoRef } = useNextNoReferensi(tipe, tgl)
+  const { data: nextNoRef, refetch: refetchNextNoRef } = useNextNoReferensi(tipe, tgl)
   const { data: allTxRows = [] } = useTransactions()
 
   // Line items state (hybrid approach — Decision A)
@@ -343,8 +343,6 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         return
       }
 
-      const userId = user?.id ?? 'unknown'
-
       if (mode === 'edit' && transactionId) {
         // ── EDIT PATH (Supabase) ───────────────────────────────────────────
         await updateTransaction.mutateAsync({
@@ -357,7 +355,6 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
             supplier_id: formData.tipe === 'expense' ? (formData.supplierId ?? null) : null,
             payment_method: formData.paymentMethod,
             notes: formData.notes || null,
-            created_by: userId,
             lines: buildLinesInput().map((l) => ({
               category_id: l.categoryId,
               nominal: l.nominal,
@@ -389,7 +386,6 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
           supplier_id: formData.tipe === 'expense' ? (formData.supplierId ?? null) : null,
           payment_method: formData.paymentMethod,
           notes: formData.notes || null,
-          created_by: user?.id ?? 'unknown',
           lines: buildLinesInput().map((l) => ({
             category_id: l.categoryId,
             nominal: l.nominal,
@@ -440,7 +436,16 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         }
       }
     } catch (err) {
-      toast('Gagal menyimpan transaksi', { description: 'Terjadi kesalahan. Coba lagi.', variant: 'destructive' })
+      const saveError = toTransactionError(err)
+      let description = saveError.message
+      if (saveError.kind === 'duplicate_no_ref' && mode !== 'edit') {
+        const { data: freshNoRef } = await refetchNextNoRef()
+        if (freshNoRef) {
+          setValue('noReferensi', freshNoRef)
+          description = `${saveError.message}. Nomor baru ${freshNoRef} sudah diisi, silakan simpan ulang.`
+        }
+      }
+      toast('Gagal menyimpan transaksi', { description, variant: 'destructive', duration: 8000 })
     } finally {
       setIsSubmitting(false)
     }
