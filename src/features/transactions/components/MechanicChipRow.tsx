@@ -75,8 +75,10 @@ export function MechanicChipRow({
   // All mechanics (incl. inactive) so old lines still show who did the job;
   // only active ones can be picked, cycled to, or pre-filled.
   const { data: allMechanics = [], isSuccess: mechanicsReady } = useMechanics(true)
-  const { data: rates = [] } = useCommissionRates()
   const { user } = useAuthStore()
+  // Commission rates and amounts are owner-only (RLS also hides commission_rates from kasir)
+  const canSeeKomisi = user?.role === 'owner'
+  const { data: rates = [] } = useCommissionRates({ enabled: canSeeKomisi })
   const lastJasa = useLastJasaMechanicIds(user?.id)
 
   const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
@@ -292,6 +294,8 @@ export function MechanicChipRow({
                 </div>
               )}
 
+              {/* Rate + komisi: owner only (kasir must not see or override commission) */}
+              {canSeeKomisi && (<>
               {/* Separator */}
               <span style={{ color: 'var(--border)', userSelect: 'none' }}>·</span>
 
@@ -381,6 +385,7 @@ export function MechanicChipRow({
               }}>
                 Rp {komisi.toLocaleString('id-ID')}
               </span>
+              </>)}
 
               {/* Delete */}
               <button
@@ -428,7 +433,7 @@ export function MechanicChipRow({
       </div>
 
       {/* ── Komisi line total ────────────────────────────────────────────────── */}
-      {mechanics.length > 0 && (
+      {canSeeKomisi && mechanics.length > 0 && (
         <div style={{ textAlign: 'right', marginTop: 8 }}>
           <div style={{
             fontFamily: 'var(--mono)', fontSize: 9.5,

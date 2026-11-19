@@ -540,6 +540,7 @@ function sumByTipe(txs: TransactionRow[], start: string, end: string) {
 
 export default function Dashboard() {
   const isOwner = useAuthStore(s => s.user?.role) === 'owner'
+  const dashboardTitle = isOwner ? 'Dashboard Owner' : 'Dashboard Kasir'
   const today = todayLocal()
   // KPIs use the calendar week (Senin–Minggu), independent of commission periods.
   // `today` is a deliberate dependency: getPeriodRange reads the clock, so the week
@@ -624,7 +625,7 @@ export default function Dashboard() {
   if (txQ.isError) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-        <PageHeader title="Dashboard Owner" subtitle={periodSubtitle} />
+        <PageHeader title={dashboardTitle} subtitle={periodSubtitle} />
         <QueryErrorPanel errors={[txQ.error]} onRetry={() => void txQ.refetch()} />
       </div>
     )
@@ -633,7 +634,7 @@ export default function Dashboard() {
   if (txQ.isLoading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-        <PageHeader title="Dashboard Owner" subtitle={periodSubtitle} />
+        <PageHeader title={dashboardTitle} subtitle={periodSubtitle} />
         <LoadingPanel />
       </div>
     )
@@ -643,7 +644,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <PageHeader title="Dashboard Owner" subtitle={periodSubtitle} />
+      <PageHeader title={dashboardTitle} subtitle={periodSubtitle} />
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isOwner ? 4 : 3}, 1fr)`, gap: 16 }}>

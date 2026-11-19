@@ -22,6 +22,8 @@ export interface TransactionSummaryProps {
   showContinueButton?: boolean
   onSubmit: () => void
   onSubmitContinue?: () => void
+  /** Commission preview is owner-only */
+  showKomisi?: boolean
 }
 
 function Divider() {
@@ -45,6 +47,7 @@ export function TransactionSummary({
   showContinueButton = true,
   onSubmit,
   onSubmitContinue,
+  showKomisi = false,
 }: TransactionSummaryProps) {
   const isValid = validationErrors.length === 0
   const isDisabled = !isValid || isSubmitting
@@ -241,7 +244,7 @@ export function TransactionSummary({
       </div>
 
       {/* ── 5. Komisi section ───────────────────────────────────────────── */}
-      {komisi.total > 0 && (
+      {showKomisi && komisi.total > 0 && (
         <div style={{
           background: 'rgba(200,16,46,0.12)',
           border: '1px solid rgba(200,16,46,0.3)',

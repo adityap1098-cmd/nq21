@@ -9,6 +9,7 @@ import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import type { CommissionRate } from '@/features/mechanics/hooks'
 import { useCategories } from '@/features/categories/hooks'
 import { QueryErrorPanel, LoadingPanel } from './QueryState'
+import { useAuthStore } from '@/store/auth'
 
 // Dyno is is_jasa but has its own report (Laporan #4); keep it out of this one.
 const EXCLUDED_CATEGORY = 'Dyno'
@@ -89,11 +90,13 @@ function MechAvatar({ name, size = 32 }: { name: string; size?: number }) {
   )
 }
 
-function MechanicKpiCard({ stat, isActive: isActiveFilter, isInactive, onClick }: {
+function MechanicKpiCard({ stat, isActive: isActiveFilter, isInactive, onClick, showKomisi }: {
   stat: MekanikJasaStats
   isActive: boolean
   isInactive: boolean
   onClick: () => void
+  /** commission amounts are owner-only */
+  showKomisi: boolean
 }) {
   return (
     <div
@@ -121,7 +124,7 @@ function MechanicKpiCard({ stat, isActive: isActiveFilter, isInactive, onClick }
           </span>
         </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: showKomisi ? '1fr 1fr 1fr' : '1fr 1fr', gap: 8 }}>
         <div>
           <div style={{ fontFamily: 'var(--display)', fontSize: 22, lineHeight: 1.1 }}>{stat.jobsCount}</div>
           <div style={{ fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.08em', marginTop: 2 }}>JASA</div>
@@ -130,16 +133,18 @@ function MechanicKpiCard({ stat, isActive: isActiveFilter, isInactive, onClick }
           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600 }}>{fmtRp(stat.totalBasis)}</div>
           <div style={{ fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.08em', marginTop: 2 }}>BASIS</div>
         </div>
+        {showKomisi && (
         <div>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>{fmtRp(stat.totalKomisi)}</div>
           <div style={{ fontSize: 9, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.08em', marginTop: 2 }}>KOMISI</div>
         </div>
+        )}
       </div>
     </div>
   )
 }
 
-function MechStack({ line }: { line: JasaDetailLine }) {
+function MechStack({ line, showKomisi }: { line: JasaDetailLine; showKomisi: boolean }) {
   const multi = line.mechanics.filter(m => m.counted).length > 1
   return (
     <div>
@@ -148,6 +153,7 @@ function MechStack({ line }: { line: JasaDetailLine }) {
           <MechAvatar name={m.mechanicName} size={18} />
           <span style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>{m.mechanicName}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>{m.sharePercent}%</span>
+          {showKomisi && (<>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>
             {m.rateOverride !== undefined ? (
               <>
@@ -162,9 +168,10 @@ function MechStack({ line }: { line: JasaDetailLine }) {
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'var(--accent)', marginLeft: 2 }}>
             {fmtRp(m.komisi)}
           </span>
+          </>)}
         </div>
       ))}
-      {multi && (
+      {showKomisi && multi && (
         <div style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 3 }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: 'var(--accent)' }}>∑ {fmtRp(line.totalKomisi)}</span>
         </div>
@@ -292,7 +299,9 @@ export default function LaporanJasaPage() {
   const [categoryFilter, setCategoryFilter] = useState<string[]>([])
 
   const txQ = useTransactionsWithLines({ dateFrom: range.start, dateTo: range.end, tipe: 'income' })
-  const ratesQ = useCommissionRates()
+  // Commission rates/amounts are owner-only (RLS hides commission_rates from kasir)
+  const showKomisi = useAuthStore(s => s.user?.role) === 'owner'
+  const ratesQ = useCommissionRates({ enabled: showKomisi })
   const mechanicsQ = useMechanics(true)
   const categoriesQ = useCategories()
   const txsWithLines = txQ.data ?? NO_TXS
@@ -390,9 +399,11 @@ export default function LaporanJasaPage() {
         { key: 'basis',         label: 'Basis (Rp)' },
         { key: 'mekanik',       label: 'Mekanik' },
         { key: 'share',         label: 'Share %' },
-        { key: 'rate',          label: 'Rate %' },
-        { key: 'isOverride',    label: 'Override' },
-        { key: 'komisi',        label: 'Komisi (Rp)' },
+        ...(showKomisi ? [
+          { key: 'rate',          label: 'Rate %' },
+          { key: 'isOverride',    label: 'Override' },
+          { key: 'komisi',        label: 'Komisi (Rp)' },
+        ] : []),
       ],
       `nq21-laporan-jasa-${csvDateSlug(range.start)}-${csvDateSlug(range.end)}`,
     )
@@ -445,6 +456,7 @@ export default function LaporanJasaPage() {
               isActive={mechanicFilter.includes(stat.mechanicId)}
               isInactive={!mechanicMap[stat.mechanicId]?.is_active}
               onClick={() => toggleMechanic(stat.mechanicId)}
+              showKomisi={showKomisi}
             />
           ))}
         </div>
@@ -494,12 +506,14 @@ export default function LaporanJasaPage() {
       </div>
 
       {/* Summary KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${showKomisi ? 4 : 2},1fr)`, gap: 12, marginBottom: 16 }}>
         {[
           { label: 'TOTAL JOBS',     value: summary.totalJobs.toString(), mono: false, accent: false },
           { label: mechanicFilter.length > 0 ? 'TOTAL BASIS (PORSI MEKANIK)' : 'TOTAL BASIS', value: fmtRp(summary.totalBasis), mono: true, accent: false },
-          { label: 'TOTAL KOMISI',   value: fmtRp(summary.totalKomisi),   mono: true,  accent: true  },
-          { label: 'AVG KOMISI/JOB', value: fmtRp(summary.avgKomisiPerJob), mono: true, accent: false },
+          ...(showKomisi ? [
+            { label: 'TOTAL KOMISI',   value: fmtRp(summary.totalKomisi),   mono: true,  accent: true  },
+            { label: 'AVG KOMISI/JOB', value: fmtRp(summary.avgKomisiPerJob), mono: true, accent: false },
+          ] : []),
         ].map(({ label, value, mono, accent }) => (
           <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px' }}>
             <div style={{ fontSize: 9, fontFamily: 'var(--mono)', letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 6 }}>{label}</div>
@@ -535,7 +549,7 @@ export default function LaporanJasaPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 1000 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['TGL · REF', 'CUSTOMER', 'KATEGORI', 'NOMINAL', 'MATERIAL', 'BASIS', 'MEKANIK · SHARE · KOMISI'].map(h => (
+                  {['TGL · REF', 'CUSTOMER', 'KATEGORI', 'NOMINAL', 'MATERIAL', 'BASIS', showKomisi ? 'MEKANIK · SHARE · KOMISI' : 'MEKANIK · SHARE'].map(h => (
                     <th key={h} style={{ padding: h === 'TGL · REF' ? '10px 12px 10px 20px' : '10px 12px', textAlign: ['NOMINAL','MATERIAL','BASIS'].includes(h) ? 'right' : 'left', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
                       {h}
                     </th>
@@ -568,7 +582,7 @@ export default function LaporanJasaPage() {
                       {line.biayaMaterial > 0 ? `− ${fmtRp(line.biayaMaterial)}` : <span style={{ opacity: 0.3 }}>—</span>}
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>{fmtRp(line.basis)}</td>
-                    <td style={{ padding: '10px 12px' }}><MechStack line={line} /></td>
+                    <td style={{ padding: '10px 12px' }}><MechStack line={line} showKomisi={showKomisi} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -578,7 +592,9 @@ export default function LaporanJasaPage() {
                   <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700 }}>{fmtRp(detailLines.reduce((s, l) => s + l.nominal, 0))}</td>
                   <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>{fmtRp(detailLines.reduce((s, l) => s + l.biayaMaterial, 0))}</td>
                   <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 700 }}>{fmtRp(summary.totalBasis)}</td>
-                  <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{fmtRp(summary.totalKomisi)} <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 4 }}>KOMISI</span></td>
+                  <td style={{ padding: '10px 12px', fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
+                    {showKomisi && <>{fmtRp(summary.totalKomisi)} <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 4 }}>KOMISI</span></>}
+                  </td>
                 </tr>
               </tfoot>
             </table>

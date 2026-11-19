@@ -50,9 +50,11 @@ export function useMechanics(showInactive = false) {
   })
 }
 
-export function useCommissionRates() {
+/** Owner-only data (RLS). Pass enabled: false for kasir so the query never runs. */
+export function useCommissionRates(opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [RATES_KEY],
+    enabled: opts?.enabled !== false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('commission_rates')

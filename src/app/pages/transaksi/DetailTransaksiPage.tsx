@@ -111,9 +111,10 @@ export default function DetailTransaksiPage() {
   const deleteTransaction = useDeleteTransaction()
   const { data: categories = [] } = useCategories(true)
   const { data: mechanics = [] } = useMechanics(true)
-  const { data: rates = [] } = useCommissionRates()
   const { user } = useAuthStore()
   const isOwner = user?.role === 'owner'
+  // Commission rates/amounts are owner-only (RLS hides commission_rates from kasir)
+  const { data: rates = [] } = useCommissionRates({ enabled: isOwner })
   const { data: periods = [] } = useCommissionPeriods()
   const { data: auditEntries = [], isError: auditError } = useTransactionAuditLogs(tx?.id, isOwner)
 
@@ -533,6 +534,7 @@ export default function DetailTransaksiPage() {
                             <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>
                               {row.share}%
                             </span>
+                            {isOwner && (<>
                             <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: row.hasOverride ? 'var(--accent)' : 'var(--text-muted)' }}>
                               {row.hasOverride && <span style={{ marginRight: 2 }}>⚠</span>}
                               {row.effectiveRate}%
@@ -545,6 +547,7 @@ export default function DetailTransaksiPage() {
                             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600 }}>
                               Rp {row.komisi.toLocaleString('id-ID')}
                             </span>
+                            </>)}
                           </div>
                         </div>
                       )
@@ -600,7 +603,7 @@ export default function DetailTransaksiPage() {
 
         {/* ── Summary footer ── */}
         <Card style={{ borderTop: '3px solid var(--text)', gap: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: komisiByMechanic.size > 0 ? 16 : 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: isOwner && komisiByMechanic.size > 0 ? 16 : 0 }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
               TOTAL
             </span>
@@ -610,7 +613,7 @@ export default function DetailTransaksiPage() {
             </span>
           </div>
 
-          {komisiByMechanic.size > 0 && (
+          {isOwner && komisiByMechanic.size > 0 && (
             <div style={{
               background: 'rgba(200,16,46,0.06)', border: '1px solid rgba(200,16,46,0.2)',
               borderRadius: 8, padding: '12px 14px', marginBottom: period ? 14 : 0,

@@ -89,7 +89,9 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   const { data: categories = [] } = useCategories(true)
   // Include inactive mechanics so the summary can still name them on old transactions
   const { data: mechanics = [] } = useMechanics(true)
-  const { data: rates = [] } = useCommissionRates()
+  // Commission rates/amounts are owner-only (RLS hides commission_rates from kasir)
+  const canSeeKomisi = user?.role === 'owner'
+  const { data: rates = [] } = useCommissionRates({ enabled: canSeeKomisi })
   const { data: customers = [] } = useCustomers()
   const { data: suppliers = [] } = useSuppliers()
   const { data: periods = [] } = useCommissionPeriods()
@@ -758,6 +760,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
         categories={categories}
         mechanics={mechanics}
         rates={rates}
+        showKomisi={canSeeKomisi}
         validationErrors={validationErrors}
         isSubmitting={isSubmitting}
         submitLabel={mode === 'edit' ? 'SIMPAN PERUBAHAN' : 'SIMPAN'}
