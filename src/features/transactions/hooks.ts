@@ -83,11 +83,20 @@ async function fetchAllPages<T>(
   }
 }
 
+/**
+ * transactions.tgl is timestamptz, so PostgREST returns "2026-05-17T00:00:00+00:00".
+ * Callers compare it with "YYYY-MM-DD" strings (week ranges, chart buckets), where the
+ * raw value silently drops the last day of every range. Normalize once at the hook.
+ */
+function withDateOnlyTgl<T extends { tgl: string }>(rows: T[]): T[] {
+  return rows.map(r => ({ ...r, tgl: r.tgl.slice(0, 10) }))
+}
+
 export function useTransactions(filters: TransactionFilters = {}) {
   return useQuery({
     queryKey: ['transactions', filters],
     staleTime: STALE_5MIN,
-    queryFn: () =>
+    queryFn: async () => withDateOnlyTgl(await
       fetchAllPages<TransactionRow>((from, to) => {
         let query = supabase
           .from('transactions')
@@ -102,7 +111,7 @@ export function useTransactions(filters: TransactionFilters = {}) {
         if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
 
         return query.range(from, to)
-      }),
+      })),
   })
 }
 
@@ -134,7 +143,7 @@ export function useTransactionsWithLines(filters: TransactionFilters = {}) {
   return useQuery({
     queryKey: ['transactions-with-lines', filters],
     staleTime: STALE_5MIN,
-    queryFn: () =>
+    queryFn: async () => withDateOnlyTgl(await
       fetchAllPages<TransactionWithLines>((from, to) => {
         let query = supabase
           .from('transactions')
@@ -158,7 +167,7 @@ export function useTransactionsWithLines(filters: TransactionFilters = {}) {
         if (filters.dateTo) query = query.lte('tgl', filters.dateTo)
 
         return query.range(from, to)
-      }),
+      })),
   })
 }
 
@@ -379,6 +388,7 @@ export function useTransaction(id: string | undefined) {
 
       return {
         ...(tx as TransactionRow),
+        tgl: (tx as TransactionRow).tgl.slice(0, 10),
         lines,
         bubut_luar_links: (bubutRes.data ?? []) as BubutLuarLinkRow[],
         customer: customerRes.data as { id: string; name: string; motor_type: string | null } | null,
