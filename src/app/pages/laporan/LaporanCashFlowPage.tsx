@@ -6,6 +6,8 @@ import { exportCSV, fmtRupiah, fmtDate } from '@/lib/csv'
 import { usePeriodFilter, type PeriodPreset } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
 import { QueryErrorPanel, LoadingPanel } from './QueryState'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import { TABLE_SCROLL, MOBILE_PERIOD_BAR, MOBILE_RANGE_LABEL, MOBILE_TWO_COL } from './mobile'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 const fmtRp = (n: number) => `Rp ${_fmt.format(n)}`
@@ -33,6 +35,10 @@ const METODE_LABEL: Record<string, string> = {
 }
 
 const PAGE_SIZE = 50
+
+// Phone: two summary tiles per row; the display-font amount may wrap instead of overflowing.
+const mobileTile: React.CSSProperties = { padding: '12px 14px', minWidth: 0 }
+const mobileTileValue: React.CSSProperties = { fontSize: 19, overflowWrap: 'anywhere' }
 
 function csvDateSlug(dateStr: string): string {
   const MONTHS = ['jan','feb','mar','apr','mei','jun','jul','agu','sep','okt','nov','des']
@@ -85,6 +91,7 @@ function MethodBadge({ method }: { method: string }) {
 
 export default function LaporanCashFlowPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const { preset, customRange, range, setPreset, setCustomRange } = usePeriodFilter('week')
   const [tipeFilter, setTipeFilter] = useState<TipeFilter>('all')
   const [metodeFilter, setMetodeFilter] = useState<MetodeFilter>('all')
@@ -185,7 +192,7 @@ export default function LaporanCashFlowPage() {
   const saldoPositif = summary.saldoBersih >= 0
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1280 }}>
+    <div style={{ padding: isMobile ? 0 : '28px 32px', maxWidth: 1280 }}>
       <PageHeader
         title="Cash Flow"
         subtitle={`LAPORAN #2 · Aliran kas kronologis dengan saldo berjalan · ${fmtDate(range.start)} – ${fmtDate(range.end)}`}
@@ -210,6 +217,7 @@ export default function LaporanCashFlowPage() {
       <div style={{
         display: 'flex', alignItems: 'center', gap: 12,
         marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid var(--border)',
+        ...(isMobile ? MOBILE_PERIOD_BAR : undefined),
       }}>
         <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PERIODE</span>
         <PeriodSelector value={preset} onChange={(v) => { setPreset(v as PeriodPreset); resetPage() }} />
@@ -220,18 +228,18 @@ export default function LaporanCashFlowPage() {
             onChange={(start, end) => { setCustomRange({ start, end }); resetPage() }}
           />
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', ...(isMobile ? MOBILE_RANGE_LABEL : undefined) }}>
           {fmtDate(range.start)} → {fmtDate(range.end)}
         </span>
       </div>
 
       {/* Filter chips */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 16, marginBottom: 20, ...(isMobile ? { gap: 10, marginBottom: 16 } : undefined) }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...(isMobile ? { flexWrap: 'wrap' as const, maxWidth: '100%' } : undefined) }}>
           <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>TIPE</span>
           <FilterPillGroup options={TIPE_OPTIONS} value={tipeFilter} onChange={(v) => { setTipeFilter(v as TipeFilter); resetPage() }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, ...(isMobile ? { flexWrap: 'wrap' as const, maxWidth: '100%' } : undefined) }}>
           <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>METODE</span>
           <FilterPillGroup options={METODE_OPTIONS} value={metodeFilter} onChange={(v) => { setMetodeFilter(v as MetodeFilter); resetPage() }} />
         </div>
@@ -255,24 +263,25 @@ export default function LaporanCashFlowPage() {
       ) : (
       <>
       {/* Summary strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
-        <div style={{ background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 8, padding: '14px 18px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 20, ...(isMobile ? { ...MOBILE_TWO_COL, gap: 10, marginBottom: 16 } : undefined) }}>
+        <div style={{ background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 8, padding: '14px 18px', ...(isMobile ? mobileTile : undefined) }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.12em', color: '#16a34a', marginBottom: 6 }}>TOTAL MASUK</div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: '#16a34a' }}>{fmtRp(summary.totalMasuk)}</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: '#16a34a', ...(isMobile ? mobileTileValue : undefined) }}>{fmtRp(summary.totalMasuk)}</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{summary.countMasuk} transaksi</div>
         </div>
-        <div style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, padding: '14px 18px' }}>
+        <div style={{ background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, padding: '14px 18px', ...(isMobile ? mobileTile : undefined) }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.12em', color: 'var(--accent)', marginBottom: 6 }}>TOTAL KELUAR</div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: 'var(--accent)' }}>{fmtRp(summary.totalKeluar)}</div>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: 'var(--accent)', ...(isMobile ? mobileTileValue : undefined) }}>{fmtRp(summary.totalKeluar)}</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{summary.countKeluar} transaksi</div>
         </div>
         <div style={{
           background: saldoPositif ? 'var(--text)' : 'rgba(220,38,38,0.08)',
           border: saldoPositif ? 'none' : '1px solid rgba(220,38,38,0.3)',
           borderRadius: 8, padding: '14px 18px',
+          ...(isMobile ? { ...mobileTile, gridColumn: '1 / -1' } : undefined),
         }}>
           <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.12em', color: saldoPositif ? 'rgba(255,255,255,0.55)' : 'var(--accent)', marginBottom: 6 }}>SALDO BERSIH</div>
-          <div style={{ fontFamily: 'var(--display)', fontSize: 28, color: saldoPositif ? '#4ade80' : 'var(--accent)' }}>
+          <div style={{ fontFamily: 'var(--display)', fontSize: 28, color: saldoPositif ? '#4ade80' : 'var(--accent)', ...(isMobile ? { overflowWrap: 'anywhere' as const } : undefined) }}>
             {saldoPositif ? '' : '−'}{fmtRp(Math.abs(summary.saldoBersih))}
           </div>
           <div style={{ fontSize: 11, color: saldoPositif ? 'rgba(255,255,255,0.5)' : 'var(--accent)', marginTop: 4 }}>
@@ -283,7 +292,7 @@ export default function LaporanCashFlowPage() {
 
       {/* Detail table */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? '12px 14px' : '12px 20px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontFamily: 'var(--display)', fontSize: 14, letterSpacing: '0.04em' }}>RINCIAN KRONOLOGIS</span>
           <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--surface-alt)', fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em' }}>
             {`${tableData.length} ENTRI`}
@@ -307,8 +316,8 @@ export default function LaporanCashFlowPage() {
           </div>
         ) : (
           <>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 900 }}>
+            <div style={isMobile ? TABLE_SCROLL : { overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: isMobile ? 820 : 900 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     {(['TGL', 'JAM', 'NO REFERENSI', 'PARTY', 'KATEGORI', 'METODE', 'NOMINAL', 'SALDO'] as const).map(h => (
@@ -376,7 +385,7 @@ export default function LaporanCashFlowPage() {
             </div>
 
             {totalPages > 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderTop: '1px solid var(--border)', background: 'var(--bg)', ...(isMobile ? { flexWrap: 'wrap' as const, gap: 8, padding: '12px 14px' } : undefined) }}>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--mono)' }}>
                   {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, tableData.length)} dari {tableData.length} entri
                 </span>

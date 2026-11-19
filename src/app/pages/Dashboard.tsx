@@ -21,6 +21,11 @@ import { getPeriodRange, getPrevPeriodRange } from '@/store/selectors'
 import type { CommissionPeriod } from '@/store/types'
 import { formatWeekRange, todayLocal } from '@/lib/format'
 import { QueryErrorPanel, LoadingPanel } from './laporan/QueryState'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+
+// Phone layout (< 768px): grids collapse to one column and panels use tighter padding.
+const MOBILE_STACK: React.CSSProperties = { gridTemplateColumns: 'minmax(0, 1fr)', gap: 12 }
+const MOBILE_PANEL_PADDING = 16
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -115,6 +120,7 @@ function CashFlowChart({ data, filter, onFilterChange, periodLabel }: {
   onFilterChange: (f: '7H' | '30H' | '90H') => void
   periodLabel: string
 }) {
+  const isMobile = useIsMobile()
   const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
     if (!active || !payload?.length) return null
     return (
@@ -146,9 +152,9 @@ function CashFlowChart({ data, filter, onFilterChange, periodLabel }: {
   }
 
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
-        <div>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: isMobile ? MOBILE_PANEL_PADDING : 24, ...(isMobile ? { minWidth: 0 } : undefined) }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, ...(isMobile ? { gap: 12, marginBottom: 16 } : undefined) }}>
+        <div style={isMobile ? { minWidth: 0 } : undefined}>
           <h3 style={{ fontFamily: 'var(--display)', fontSize: 20, textTransform: 'uppercase', margin: 0 }}>
             Cash Flow
           </h3>
@@ -156,13 +162,13 @@ function CashFlowChart({ data, filter, onFilterChange, periodLabel }: {
             {periodLabel} · IN VS OUT
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 4, ...(isMobile ? { flexShrink: 0 } : undefined) }}>
           {(['7H', '30H', '90H'] as const).map((t) => (
             <button
               key={t}
               onClick={() => onFilterChange(t)}
               style={{
-                padding: '5px 10px', borderRadius: 6,
+                padding: isMobile ? '8px 10px' : '5px 10px', borderRadius: 6,
                 border: '1px solid var(--border)',
                 background: filter === t ? 'var(--text)' : 'transparent',
                 color: filter === t ? '#fff' : 'var(--text-muted)',
@@ -198,7 +204,7 @@ function CashFlowChart({ data, filter, onFilterChange, periodLabel }: {
         </BarChart>
       </ResponsiveContainer>
 
-      <div style={{ display: 'flex', gap: 20, marginTop: 14 }}>
+      <div style={{ display: 'flex', gap: 20, marginTop: 14, ...(isMobile ? { flexWrap: 'wrap' as const, gap: '8px 14px' } : undefined) }}>
         {[{ color: '#0A0908', label: 'PEMASUKAN' }, { color: '#C8102E', label: 'PENGELUARAN' }].map(({ color, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <span style={{ width: 10, height: 10, background: color, borderRadius: 2, flexShrink: 0 }} />
@@ -218,9 +224,10 @@ function TopKategoriPanel({ items, subtitle, status }: {
   subtitle: string
   status?: React.ReactNode
 }) {
+  const isMobile = useIsMobile()
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
-      <div style={{ marginBottom: 20 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: isMobile ? MOBILE_PANEL_PADDING : 24, ...(isMobile ? { minWidth: 0 } : undefined) }}>
+      <div style={{ marginBottom: isMobile ? 16 : 20 }}>
         <h3 style={{ fontFamily: 'var(--display)', fontSize: 20, textTransform: 'uppercase', margin: 0 }}>Top Kategori</h3>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
           {subtitle}
@@ -234,8 +241,8 @@ function TopKategoriPanel({ items, subtitle, status }: {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {items.map((c, i) => (
             <div key={c.name}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, ...(isMobile ? { gap: 10 } : undefined) }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', ...(isMobile ? { minWidth: 0 } : undefined) }}>
                   <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, color: i === 0 ? 'var(--accent)' : 'var(--text-muted)', letterSpacing: '0.06em', minWidth: 22 }}>
                     0{i + 1}
                   </span>
@@ -244,7 +251,7 @@ function TopKategoriPanel({ items, subtitle, status }: {
                     <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{c.txCount} transaksi</div>
                   </div>
                 </div>
-                <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: 'var(--text)', ...(isMobile ? { whiteSpace: 'nowrap' as const } : undefined) }}>
                   Rp {fmtRp(c.amount)}
                 </span>
               </div>
@@ -269,10 +276,14 @@ function RecentTxPanel({
   supplierMap: Record<string, string>
 }) {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const METODE: Record<string, string> = { cash: 'CASH', transfer: 'TRF', qris: 'QRIS' }
+  const partyOf = (t: TransactionRow) => t.tipe === 'income'
+    ? customerMap[t.customer_id ?? ''] ?? '—'
+    : supplierMap[t.supplier_id ?? ''] ?? '—'
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '20px 24px 0' }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', ...(isMobile ? { minWidth: 0 } : undefined) }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: isMobile ? `${MOBILE_PANEL_PADDING}px ${MOBILE_PANEL_PADDING}px 0` : '20px 24px 0', ...(isMobile ? { gap: 12 } : undefined) }}>
         <div>
           <h3 style={{ fontFamily: 'var(--display)', fontSize: 20, textTransform: 'uppercase', margin: 0 }}>Transaksi Terbaru</h3>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -286,6 +297,39 @@ function RecentTxPanel({
           LIHAT SEMUA →
         </button>
       </div>
+      {isMobile ? (
+        <div style={{ marginTop: 12, borderTop: '1px solid var(--border)' }}>
+          {transactions.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 11, padding: '24px 0' }}>
+              Belum ada transaksi.
+            </div>
+          ) : transactions.map((t) => (
+            <div
+              key={t.id}
+              onClick={() => navigate(`/transaksi/${t.id}`)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: 'var(--text)', overflowWrap: 'anywhere' }}>{t.no_referensi}</div>
+                <div style={{ fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{partyOf(t)}</div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                  {t.created_at.slice(11, 16)} · {METODE[t.payment_method] ?? t.payment_method}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', color: t.tipe === 'income' ? 'var(--success)' : 'var(--accent)' }}>
+                  {t.tipe === 'income' ? '+' : '−'} Rp {fmtRp(t.total_nominal)}
+                </div>
+                <div style={{ marginTop: 6 }}>
+                  <Badge variant={t.tipe === 'income' ? 'income' : 'expense'}>
+                    {t.tipe === 'income' ? 'MASUK' : 'KELUAR'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <table className="nq21-table" style={{ width: '100%', borderCollapse: 'collapse', marginTop: 16 }}>
         <thead>
           <tr>
@@ -305,9 +349,7 @@ function RecentTxPanel({
             </tr>
           ) : transactions.map((t) => {
             const time = t.created_at.slice(11, 16)
-            const partyName = t.tipe === 'income'
-              ? customerMap[t.customer_id ?? ''] ?? '—'
-              : supplierMap[t.supplier_id ?? ''] ?? '—'
+            const partyName = partyOf(t)
             return (
               <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/transaksi/${t.id}`)}>
                 <td>
@@ -331,6 +373,7 @@ function RecentTxPanel({
           })}
         </tbody>
       </table>
+      )}
     </div>
   )
 }
@@ -407,6 +450,7 @@ function KomisiKpiCard() {
 }
 
 function PeriodKomisiPanel() {
+  const isMobile = useIsMobile()
   const k = useRunningKomisi()
   const payoutsQ = useCommissionPayouts()
   const allPayouts = payoutsQ.data ?? []
@@ -448,8 +492,9 @@ function PeriodKomisiPanel() {
                   borderRadius: 8, padding: '14px 16px',
                   background: p.status === 'open' ? 'var(--surface-alt)' : 'transparent',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  ...(isMobile ? { gap: 12, padding: '12px 14px' } : undefined),
                 }}>
-                  <div>
+                  <div style={isMobile ? { minWidth: 0 } : undefined}>
                     <div style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700, color: 'var(--text)', letterSpacing: '0.04em' }}>
                       {formatWeekRange(p.weekStart, p.weekEnd)}
                     </div>
@@ -462,8 +507,8 @@ function PeriodKomisiPanel() {
                       </span>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: 'var(--display)', fontSize: 20, color: 'var(--text)' }}>
+                  <div style={{ textAlign: 'right', ...(isMobile ? { flexShrink: 0 } : undefined) }}>
+                    <div style={{ fontFamily: 'var(--display)', fontSize: 20, color: 'var(--text)', ...(isMobile ? { whiteSpace: 'nowrap' as const } : undefined) }}>
                       Rp {fmtRp(periodKomisi)}
                     </div>
                     <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>
@@ -489,9 +534,9 @@ function PeriodKomisiPanel() {
               Belum ada jasa periode ini.
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : '1fr 1fr', gap: 10 }}>
               {k.mechKomisi.map((m) => (
-                <div key={m.mechanicId} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div key={m.mechanicId} style={{ display: 'flex', alignItems: 'center', gap: 10, ...(isMobile ? { minWidth: 0 } : undefined) }}>
                   <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--surface-alt)', border: '1px solid var(--border)', display: 'grid', placeItems: 'center', fontFamily: 'var(--display)', fontSize: 14, color: 'var(--text)', flexShrink: 0 }}>
                     {m.mechanicName[0]}
                   </div>
@@ -511,8 +556,8 @@ function PeriodKomisiPanel() {
   }
 
   return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 24 }}>
-      <div style={{ marginBottom: 18 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: isMobile ? MOBILE_PANEL_PADDING : 24, ...(isMobile ? { minWidth: 0 } : undefined) }}>
+      <div style={{ marginBottom: isMobile ? 14 : 18 }}>
         <h3 style={{ fontFamily: 'var(--display)', fontSize: 20, textTransform: 'uppercase', margin: 0 }}>Periode Komisi</h3>
         <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 4 }}>
           SENIN — MINGGU
@@ -539,6 +584,8 @@ function sumByTipe(txs: TransactionRow[], start: string, end: string) {
 }
 
 export default function Dashboard() {
+  const isMobile = useIsMobile()
+  const pageGap = isMobile ? 16 : 28
   const isOwner = useAuthStore(s => s.user?.role) === 'owner'
   const dashboardTitle = isOwner ? 'Dashboard Owner' : 'Dashboard Kasir'
   const today = todayLocal()
@@ -624,7 +671,7 @@ export default function Dashboard() {
 
   if (txQ.isError) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: pageGap }}>
         <PageHeader title={dashboardTitle} subtitle={periodSubtitle} />
         <QueryErrorPanel errors={[txQ.error]} onRetry={() => void txQ.refetch()} />
       </div>
@@ -633,7 +680,7 @@ export default function Dashboard() {
 
   if (txQ.isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: pageGap }}>
         <PageHeader title={dashboardTitle} subtitle={periodSubtitle} />
         <LoadingPanel />
       </div>
@@ -643,11 +690,11 @@ export default function Dashboard() {
   const partyErrors = [customersQ.error, suppliersQ.error].filter(e => e != null)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: pageGap }}>
       <PageHeader title={dashboardTitle} subtitle={periodSubtitle} />
 
       {/* KPI Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isOwner ? 4 : 3}, 1fr)`, gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${isOwner ? 4 : 3}, 1fr)`, gap: 16, ...(isMobile ? MOBILE_STACK : undefined) }}>
         <KpiCard
           label="Pendapatan Minggu Ini"
           value={<CurrencyDisplay value={kpiStats.income} size="lg" />}
@@ -670,7 +717,7 @@ export default function Dashboard() {
       </div>
 
       {/* Chart + Top Kategori */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16, ...(isMobile ? MOBILE_STACK : undefined) }}>
         <CashFlowChart
           data={chartData}
           filter={chartFilter}
@@ -691,7 +738,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Tx + Period Komisi */}
-      <div style={{ display: 'grid', gridTemplateColumns: isOwner ? '3fr 2fr' : '1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isOwner ? '3fr 2fr' : '1fr', gap: 16, ...(isMobile ? MOBILE_STACK : undefined) }}>
         {partyErrors.length > 0 ? (
           <QueryErrorPanel
             errors={partyErrors}

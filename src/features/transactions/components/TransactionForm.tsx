@@ -20,6 +20,7 @@ import { LineItemCard } from './LineItemCard'
 import { TransactionSummary } from './TransactionSummary'
 import { createEmptyLine, validateTransactionFull } from '../utils'
 import { toast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { Line } from '../types'
 import type { TransactionType, PaymentMethod } from '@/store/types'
 
@@ -85,6 +86,11 @@ interface TransactionFormProps {
 export function TransactionForm({ mode = 'add', transactionId, initialData, onSuccess, onDirtyChange }: TransactionFormProps) {
   const navigate = useNavigate()
   const { user } = useAuthStore()
+  const isMobile = useIsMobile()
+  // Phone: 16px inputs avoid iOS focus zoom; 40px controls are comfortable touch targets
+  const mobileField = isMobile ? { fontSize: 16, height: 40 } : {}
+  const controlHeight = isMobile ? 40 : 36
+  const cardPadding = isMobile ? 14 : '20px 24px'
   // Inactive categories included: old lines in edit mode may use a deactivated one.
   const { data: categories = [] } = useCategories(true)
   // Include inactive mechanics so the summary can still name them on old transactions
@@ -463,7 +469,12 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
   }
 
   return (
-    <div style={{
+    <div style={isMobile ? {
+      display: 'grid',
+      gridTemplateColumns: 'minmax(0, 1fr)',
+      gap: 16,
+      alignItems: 'start',
+    } : {
       display: 'grid',
       gridTemplateColumns: '1fr 360px',
       gap: 24,
@@ -472,35 +483,50 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
     }}>
 
       {/* ── Left: Form steps ──────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, ...(isMobile && { minWidth: 0 }) }}>
 
         {/* ── Step 01 — Identitas ─────────────────────────────────────────── */}
         <div style={{
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 12,
-          padding: '20px 24px',
+          padding: cardPadding,
         }}>
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
-            color: 'var(--text-muted)', marginBottom: 20,
+            color: 'var(--text-muted)', marginBottom: isMobile ? 14 : 20,
           }}>
             LANGKAH 01 — IDENTITAS TRANSAKSI
           </div>
 
           {/* No Referensi */}
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+            <div style={isMobile ? {
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+              fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6,
+            } : { fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
               No. Referensi
+              {/* Phone: status badge moves up to the label row so the input keeps its width */}
+              {isMobile && mode !== 'edit' && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                  padding: '4px 10px', borderRadius: 6,
+                  background: statusBg, color: statusColor,
+                  flexShrink: 0, whiteSpace: 'nowrap',
+                }}>
+                  {noRefStatus}
+                </span>
+              )}
             </div>
             {mode === 'edit' ? (
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <div style={{
-                  flex: 1, height: 36, padding: '0 12px', borderRadius: 8,
+                  flex: 1, height: controlHeight, padding: '0 12px', borderRadius: 8,
                   border: '1px solid var(--border)',
                   background: 'var(--surface-alt)',
                   display: 'flex', alignItems: 'center',
                   fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text)',
+                  ...(isMobile && { minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap' as const }),
                 }}>
                   {noReferensi}
                 </div>
@@ -517,7 +543,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Input
                   {...register('noReferensi')}
-                  style={{ fontFamily: 'var(--mono)', flex: 1 }}
+                  style={{ fontFamily: 'var(--mono)', flex: 1, ...mobileField, ...(isMobile && { minWidth: 0 }) }}
                   placeholder="TRX-YYYYMMDD-NNN"
                 />
                 <button
@@ -526,7 +552,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                   title="Generate ulang"
                   aria-label="Generate ulang no referensi"
                   style={{
-                    width: 36, height: 36, borderRadius: 8,
+                    width: controlHeight, height: controlHeight, borderRadius: 8,
                     border: '1px solid var(--border)',
                     background: 'var(--surface-alt)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -535,20 +561,22 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                 >
                   <RefreshCw size={14} style={{ color: 'var(--text-secondary)' }} />
                 </button>
-                <div style={{
-                  fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
-                  padding: '4px 10px', borderRadius: 6,
-                  background: statusBg, color: statusColor,
-                  flexShrink: 0, whiteSpace: 'nowrap',
-                }}>
-                  {noRefStatus}
-                </div>
+                {!isMobile && (
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+                    padding: '4px 10px', borderRadius: 6,
+                    background: statusBg, color: statusColor,
+                    flexShrink: 0, whiteSpace: 'nowrap',
+                  }}>
+                    {noRefStatus}
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {/* Tgl + Tipe row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '1fr 1fr', gap: 12, marginBottom: 16 }}>
 
             {/* Tanggal */}
             <div>
@@ -556,10 +584,10 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                 Tanggal
               </div>
               {isOwner ? (
-                <Input type="date" {...register('tgl')} />
+                <Input type="date" {...register('tgl')} style={isMobile ? mobileField : undefined} />
               ) : (
                 <div style={{
-                  height: 36, padding: '0 12px', borderRadius: 8,
+                  height: controlHeight, padding: '0 12px', borderRadius: 8,
                   border: '1px solid var(--border)',
                   background: 'var(--surface-alt)',
                   display: 'flex', alignItems: 'center',
@@ -589,7 +617,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                       type="button"
                       onClick={() => tipeLocked ? undefined : handleTipeClick(t)}
                       style={{
-                        flex: 1, height: 36, borderRadius: 8,
+                        flex: 1, height: controlHeight, borderRadius: 8,
                         cursor: tipeLocked ? 'default' : 'pointer',
                         opacity: tipeLocked && !active ? 0.35 : 1,
                         fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
@@ -646,7 +674,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
                     type="button"
                     onClick={() => setValue('paymentMethod', m, { shouldDirty: true })}
                     style={{
-                      flex: 1, height: 36, borderRadius: 8, cursor: 'pointer',
+                      flex: 1, height: controlHeight, borderRadius: 8, cursor: 'pointer',
                       fontSize: 12, fontWeight: 600,
                       border: `1.5px solid ${active ? 'var(--text)' : 'var(--border)'}`,
                       background: active ? 'var(--text)' : 'transparent',
@@ -667,13 +695,14 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 12,
-          padding: '20px 24px',
+          padding: cardPadding,
         }}>
 
           {/* Step header */}
           <div style={{
             display: 'flex', alignItems: 'center',
             justifyContent: 'space-between', marginBottom: 16,
+            ...(isMobile && { flexWrap: 'wrap' as const, gap: 8 }),
           }}>
             <div style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
@@ -685,7 +714,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
               type="button"
               onClick={addLine}
               style={{
-                height: 30, padding: '0 14px', borderRadius: 6,
+                height: isMobile ? 40 : 30, padding: '0 14px', borderRadius: 6,
                 border: '1.5px solid var(--border)',
                 background: 'var(--surface-alt)',
                 fontSize: 11, fontWeight: 700, letterSpacing: '0.06em',
@@ -721,7 +750,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           borderRadius: 12,
-          padding: '20px 24px',
+          padding: cardPadding,
         }}>
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
@@ -738,7 +767,7 @@ export function TransactionForm({ mode = 'add', transactionId, initialData, onSu
               border: '1px solid var(--border)',
               background: 'var(--surface)',
               color: 'var(--text)',
-              fontSize: 13,
+              fontSize: isMobile ? 16 : 13,
               resize: 'vertical',
               outline: 'none',
               fontFamily: 'inherit',

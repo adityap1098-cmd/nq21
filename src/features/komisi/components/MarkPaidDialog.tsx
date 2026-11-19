@@ -5,6 +5,11 @@ import {
 import type { CommissionPeriod } from '@/store/types'
 import type { PayoutComputed } from '@/store/selectors'
 import { fmtPeriodFull, fmtRp, getInitial, FMT } from '../utils'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+
+const MOBILE_DIALOG_STYLE: React.CSSProperties = {
+  width: 'calc(100% - 24px)', maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto', padding: '22px 16px',
+}
 
 interface Props {
   open: boolean
@@ -17,6 +22,7 @@ interface Props {
 export function MarkPaidDialog({ open, payout, period, onClose, onConfirm }: Props) {
   const [paidNotes, setPaidNotes] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const isMobile = useIsMobile()
 
   async function handleConfirm() {
     setIsSaving(true)
@@ -37,9 +43,12 @@ export function MarkPaidDialog({ open, payout, period, onClose, onConfirm }: Pro
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose() }}>
-      <DialogContent style={{ maxWidth: 480, padding: '32px 36px' }}>
+      <DialogContent style={isMobile ? MOBILE_DIALOG_STYLE : { maxWidth: 480, padding: '32px 36px' }}>
         <DialogHeader>
-          <DialogTitle style={{ fontFamily: 'var(--display)', fontSize: 22, letterSpacing: '0.012em' }}>
+          <DialogTitle style={{
+            fontFamily: 'var(--display)', fontSize: isMobile ? 20 : 22, letterSpacing: '0.012em',
+            lineHeight: isMobile ? 1.15 : undefined, paddingRight: isMobile ? 28 : undefined,
+          }}>
             Tandai Pembayaran Komisi
           </DialogTitle>
           <DialogDescription style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.08em', marginTop: 4 }}>
@@ -49,7 +58,7 @@ export function MarkPaidDialog({ open, payout, period, onClose, onConfirm }: Pro
 
         {/* Info card */}
         <div style={{
-          marginTop: 20, padding: '16px 18px', borderRadius: 8,
+          marginTop: isMobile ? 16 : 20, padding: isMobile ? '14px 14px' : '16px 18px', borderRadius: 8,
           background: 'var(--surface-alt)', border: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column', gap: 10,
         }}>
@@ -121,12 +130,12 @@ export function MarkPaidDialog({ open, payout, period, onClose, onConfirm }: Pro
             style={{
               width: '100%', padding: '10px 12px', borderRadius: 6,
               border: '1px solid var(--border)', background: 'var(--surface)',
-              fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text)',
+              fontFamily: 'var(--mono)', fontSize: isMobile ? 16 : 11, color: 'var(--text)',
               resize: 'vertical', outline: 'none', lineHeight: 1.5,
               boxSizing: 'border-box',
             }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: isMobile ? 8 : undefined, marginTop: 4 }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--text-muted)' }}>
               Catatan akan tersimpan di audit log untuk referensi.
             </span>
@@ -137,11 +146,12 @@ export function MarkPaidDialog({ open, payout, period, onClose, onConfirm }: Pro
         </div>
 
         {/* Footer */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20, flexWrap: isMobile ? 'wrap' : undefined }}>
           <button
             onClick={handleClose}
             disabled={isSaving}
             style={{
+              flex: isMobile ? 1 : undefined, minHeight: isMobile ? 40 : undefined,
               padding: '9px 16px', borderRadius: 6,
               fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
               background: 'transparent', border: '1px solid var(--border)',
@@ -155,6 +165,7 @@ export function MarkPaidDialog({ open, payout, period, onClose, onConfirm }: Pro
             onClick={handleConfirm}
             disabled={isSaving}
             style={{
+              flex: isMobile ? 1 : undefined, minHeight: isMobile ? 40 : undefined,
               padding: '9px 20px', borderRadius: 6,
               fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
               background: 'var(--text)', border: '1px solid var(--text)',

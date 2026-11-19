@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Search, Calendar, Plus } from 'lucide-react'
+import { Search, Calendar, Plus, Menu } from 'lucide-react'
 import { useUiStore } from '@/store/ui'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import { useCommissionPeriods } from '@/features/komisi/hooks'
 import { format } from 'date-fns'
 import { id } from 'date-fns/locale'
@@ -50,6 +51,52 @@ export default function Topbar() {
 
   const periodLabel = format(parseLocalDate(activePeriod?.weekStart), 'd MMM yyyy', { locale: id })
   const periodSub = activePeriod ? 'Periode Aktif' : 'Hari Ini'
+
+  const isMobile = useIsMobile()
+  const setSidebarOpen = useUiStore((s) => s.setSidebarOpen)
+
+  if (isMobile) {
+    const iconBtn: React.CSSProperties = {
+      width: 40, height: 40, display: 'grid', placeItems: 'center', flexShrink: 0,
+      borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)',
+      color: 'var(--text)', cursor: 'pointer', padding: 0,
+    }
+    return (
+      <div
+        style={{
+          height: 56, background: 'var(--surface)', borderBottom: '1px solid var(--border)',
+          position: 'sticky', top: 0, zIndex: 5,
+          display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px',
+        }}
+      >
+        <button type="button" aria-label="Buka menu" onClick={() => setSidebarOpen(true)} style={iconBtn}>
+          <Menu size={18} />
+        </button>
+        <div style={{ flex: 1, minWidth: 0, lineHeight: 1.15 }}>
+          <div style={{
+            fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
+            color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          }}>
+            {crumb || 'NQ21'}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {periodLabel} · {periodSub}
+          </div>
+        </div>
+        <button type="button" aria-label="Cari" onClick={openCommandPalette} style={iconBtn}>
+          <Search size={17} />
+        </button>
+        <button
+          type="button"
+          aria-label="Transaksi baru"
+          onClick={() => navigate('/transaksi/baru')}
+          style={{ ...iconBtn, background: 'var(--accent)', border: 'none', color: '#fff' }}
+        >
+          <Plus size={18} />
+        </button>
+      </div>
+    )
+  }
 
   return (
     <div

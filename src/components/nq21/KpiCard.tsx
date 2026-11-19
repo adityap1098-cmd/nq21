@@ -1,3 +1,5 @@
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+
 interface KpiCardChange {
   value: string
   /** true = ▲ green, false = ▼ red, omitted = neutral (no arrow) */
@@ -14,14 +16,14 @@ interface KpiCardProps {
 }
 
 export function KpiCard({ label, value, change, accent, icon }: KpiCardProps) {
+  const isMobile = useIsMobile()
   return (
     <div
       className="kpi-card"
-      style={
-        accent
-          ? { borderTop: '3px solid var(--accent)', paddingTop: 19 }
-          : undefined
-      }
+      style={{
+        ...(accent ? { borderTop: '3px solid var(--accent)', paddingTop: 19 } : undefined),
+        ...(isMobile ? { minWidth: 0 } : undefined),
+      }}
     >
       {icon && (
         <div
@@ -57,11 +59,12 @@ export function KpiCard({ label, value, change, accent, icon }: KpiCardProps) {
           fontSize: 36,
           lineHeight: 1,
           color: 'var(--text)',
-          marginTop: 18,
+          marginTop: isMobile ? 14 : 18,
           display: 'flex',
           alignItems: 'baseline',
           gap: 6,
           whiteSpace: 'nowrap',
+          ...(isMobile ? { flexWrap: 'wrap' as const } : undefined),
         }}
       >
         {value}
@@ -76,6 +79,7 @@ export function KpiCard({ label, value, change, accent, icon }: KpiCardProps) {
             fontWeight: 600,
             color: change.up === undefined ? 'var(--text-muted)' : change.up ? 'var(--success)' : 'var(--accent)',
             marginTop: 12,
+            ...(isMobile ? { flexWrap: 'wrap' as const } : undefined),
           }}
         >
           {change.up !== undefined && <span>{change.up ? '▲' : '▼'}</span>}

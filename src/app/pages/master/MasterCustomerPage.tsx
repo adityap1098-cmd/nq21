@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 const schema = z.object({
   name: z.string().min(2, 'Nama minimal 2 karakter').max(100),
@@ -66,6 +67,7 @@ const columns: ColumnConfig<Customer>[] = [
 export default function MasterCustomerPage() {
   const { user } = useAuthStore()
   const isOwner = user?.role === 'owner'
+  const isMobile = useIsMobile()
 
   const [showInactive, setShowInactive] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -171,6 +173,7 @@ export default function MasterCustomerPage() {
             variant={showInactive ? 'secondary' : 'outline'}
             size="sm"
             onClick={() => setShowInactive(s => !s)}
+            className={isMobile ? 'h-10' : undefined}
           >
             {showInactive ? 'Sembunyikan Nonaktif' : 'Tampilkan Nonaktif'}
           </Button>
@@ -185,7 +188,7 @@ export default function MasterCustomerPage() {
         onSubmit={handleSubmit(onSubmit)}
         submitLabel={isMutating ? 'Menyimpan...' : dialogMode === 'add' ? 'Tambah' : editing && !editing.is_active ? 'Simpan & Aktifkan' : 'Simpan'}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '1fr 1fr', gap: isMobile ? '16px 0' : '0 16px' }}>
           <div style={{ gridColumn: '1 / -1' }}>
             <FormField label="Nama" htmlFor="c-name" required error={errors.name?.message}>
               <Input id="c-name" placeholder="Contoh: Budi Santoso" {...register('name')} />

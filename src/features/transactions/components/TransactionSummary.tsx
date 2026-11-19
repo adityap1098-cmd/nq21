@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { format } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import { formatRupiahInput, computeKomisi } from '../utils'
 import type { Line } from '../types'
 import type { PaymentMethod, TransactionType } from '@/store/types'
@@ -49,6 +50,7 @@ export function TransactionSummary({
   onSubmitContinue,
   showKomisi = false,
 }: TransactionSummaryProps) {
+  const isMobile = useIsMobile()
   const isValid = validationErrors.length === 0
   const isDisabled = !isValid || isSubmitting
 
@@ -77,7 +79,12 @@ export function TransactionSummary({
   const tooltipText = validationErrors.slice(0, 2).join(' · ')
 
   return (
-    <div style={{
+    <div style={isMobile ? {
+      // Phone: panel sits below the form in normal flow, not sticky
+      background: 'var(--text)', color: '#fff',
+      borderRadius: 12, padding: 16, minWidth: 0,
+      display: 'flex', flexDirection: 'column', gap: 14,
+    } : {
       position: 'sticky', top: 88,
       background: 'var(--text)', color: '#fff',
       borderRadius: 12, padding: 22,
@@ -96,6 +103,7 @@ export function TransactionSummary({
         <div style={{
           fontFamily: 'var(--mono)', fontSize: 18, fontWeight: 700,
           letterSpacing: '0.02em', marginBottom: 4,
+          ...(isMobile && { overflowWrap: 'anywhere' as const }),
         }}>
           {noReferensi || '—'}
         </div>
@@ -107,7 +115,7 @@ export function TransactionSummary({
       <Divider />
 
       {/* ── 2. Meta grid 2×2 ────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : '1fr 1fr', gap: '8px 14px' }}>
         {[
           {
             label: 'TIPE',
@@ -162,7 +170,7 @@ export function TransactionSummary({
               }}>
                 <div style={{
                   fontSize: 12, color: 'rgba(255,255,255,0.8)',
-                  flex: 1, marginRight: 10,
+                  flex: 1, marginRight: 10, ...(isMobile && { minWidth: 0 }),
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {label}
@@ -289,14 +297,14 @@ export function TransactionSummary({
       )}
 
       {/* ── 6. Submit buttons ───────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, ...(isMobile && { flexDirection: 'column' as const }) }}>
         <button
           type="button"
           onClick={onSubmit}
           disabled={isDisabled}
           title={!isValid && tooltipText ? tooltipText : undefined}
           style={{
-            flex: 1, height: 46, borderRadius: 10,
+            flex: isMobile ? '0 0 auto' : 1, height: isMobile ? 48 : 46, borderRadius: 10,
             background: isDisabled ? 'rgba(255,255,255,0.1)' : 'var(--accent)',
             border: 'none',
             color: isDisabled ? 'rgba(255,255,255,0.35)' : '#fff',
@@ -314,7 +322,7 @@ export function TransactionSummary({
             disabled={isDisabled}
             title={!isValid && tooltipText ? tooltipText : undefined}
             style={{
-              flex: 1, height: 46, borderRadius: 10,
+              flex: isMobile ? '0 0 auto' : 1, height: isMobile ? 48 : 46, borderRadius: 10,
               background: 'transparent',
               border: `1.5px solid ${isDisabled ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.35)'}`,
               color: isDisabled ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.75)',
@@ -324,7 +332,7 @@ export function TransactionSummary({
               whiteSpace: 'nowrap',
             }}
           >
-            {isSubmitting ? '...' : '& INPUT LAGI'}
+            {isSubmitting ? '...' : isMobile ? 'SIMPAN & INPUT LAGI' : '& INPUT LAGI'}
           </button>
         )}
       </div>

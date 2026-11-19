@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { Mechanic, Category, CommissionRate } from '@/store/types'
 
 // Default rates for a new mechanic, keyed by category name (matches docs/M006-V2-seed.sql)
@@ -44,6 +45,7 @@ type FormData = z.infer<typeof schema>
 export default function MasterMekanikPage() {
   const { user } = useAuthStore()
   const isOwner = user?.role === 'owner'
+  const isMobile = useIsMobile()
 
   const { data: mechanicRows = [], error: mechanicsError } = useMechanics(true)
   const { data: rateRows = [], error: ratesError } = useCommissionRates()
@@ -228,13 +230,14 @@ export default function MasterMekanikPage() {
             variant={showInactive ? 'secondary' : 'outline'}
             size="sm"
             onClick={() => setShowInactive(s => !s)}
+            className={isMobile ? 'h-10' : undefined}
           >
             {showInactive ? 'Sembunyikan Nonaktif' : 'Tampilkan Nonaktif'}
           </Button>
         }
       >
         {/* Rate matrix section below the list */}
-        <div style={{ marginTop: 32 }}>
+        <div style={{ marginTop: isMobile ? 24 : 32 }}>
           <Section
             title="Rate Komisi Matrix"
             subtitle={`${displayMechanics.length} mekanik · ${jasaCategories.length} kategori jasa · klik sel untuk edit`}

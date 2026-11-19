@@ -5,6 +5,7 @@ import { MechanicChipRow } from './MechanicChipRow'
 import { ItemNameAutocomplete } from './ItemNameAutocomplete'
 import { CustomerSupplierAutocomplete } from './CustomerSupplierAutocomplete'
 import { getBasisKomisi, formatRupiahInput, parseRupiahInput, hasLineData } from '../utils'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { Line } from '../types'
 import type { TransactionType } from '@/store/types'
 
@@ -38,6 +39,7 @@ interface CurrencyInputProps {
 
 function CurrencyInput({ id, value, onChange, disabled, placeholder = '0' }: CurrencyInputProps) {
   const [focused, setFocused] = useState(false)
+  const isMobile = useIsMobile()
   const displayValue = focused
     ? (value === 0 ? '' : String(value))
     : formatRupiahInput(value)
@@ -63,12 +65,12 @@ function CurrencyInput({ id, value, onChange, disabled, placeholder = '0' }: Cur
         onBlur={() => setFocused(false)}
         onChange={(e) => onChange(parseRupiahInput(e.target.value))}
         style={{
-          width: '100%', height: 36,
+          width: '100%', height: isMobile ? 40 : 36,
           paddingLeft: 32, paddingRight: 12,
           borderRadius: 8, border: '1px solid var(--border)',
           background: disabled ? 'var(--surface-alt)' : 'var(--surface)',
           color: 'var(--text)',
-          fontFamily: 'var(--mono)', fontSize: 13,
+          fontFamily: 'var(--mono)', fontSize: isMobile ? 16 : 13,
           outline: 'none', boxSizing: 'border-box',
         }}
       />
@@ -108,6 +110,9 @@ export function LineItemCard({
   const { data: categories = [] } = useCategories(true)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [notesOpen, setNotesOpen] = useState(!!line.notes)
+  const isMobile = useIsMobile()
+  // Phone: two-column field rows stack into one column
+  const mobileColumns = isMobile ? 'minmax(0, 1fr)' : undefined
 
   const filteredCategories = useMemo(
     () =>
@@ -159,7 +164,7 @@ export function LineItemCard({
     }}>
 
       {/* ── Header row ──────────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, ...(isMobile && { flexWrap: 'wrap' as const }) }}>
         <div style={{
           fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
           letterSpacing: '0.18em', color: 'var(--accent)',
@@ -169,6 +174,7 @@ export function LineItemCard({
           {lineLabel}
         </div>
 
+        {/* Phone: select drops to its own full-width row below label/badge/delete */}
         <select
           value={line.categoryId ?? ''}
           onChange={(e) => handleCategoryChange(e.target.value)}
@@ -178,6 +184,10 @@ export function LineItemCard({
             borderRadius: 6, padding: '0 10px',
             fontSize: 13, fontWeight: 600,
             fontFamily: 'var(--body)', cursor: 'pointer', color: 'var(--text)', outline: 'none',
+            ...(isMobile && {
+              order: 1, flex: '1 1 100%', maxWidth: 'none', minWidth: 0,
+              height: 40, fontSize: 16, borderRadius: 8,
+            }),
           }}
         >
           <option value="" disabled>Pilih kategori...</option>
@@ -218,7 +228,7 @@ export function LineItemCard({
           title={!canDelete ? 'Minimal 1 line item' : `Hapus ${lineLabel}`}
           style={{
             marginLeft: 'auto', flexShrink: 0,
-            width: 28, height: 28, borderRadius: 6,
+            width: isMobile ? 40 : 28, height: isMobile ? 40 : 28, borderRadius: 6,
             border: '1px solid var(--border)', background: 'var(--surface)',
             color: canDelete ? 'var(--text-muted)' : 'var(--border)',
             fontSize: 18, lineHeight: 1,
@@ -232,7 +242,7 @@ export function LineItemCard({
 
       {/* ── Row 1: itemName (60%) + Nominal (40%) — shown when category selected ── */}
       {(selectedCat || !line.categoryId) && (
-        <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: mobileColumns ?? '3fr 2fr', gap: 10 }}>
           <div>
             <div style={fieldLabelStyle}>
               {itemNameMeta?.label ?? 'Detail'}{' '}
@@ -259,7 +269,7 @@ export function LineItemCard({
 
       {/* ── Row 2: Biaya Material + Basis pill (jasa only) ────────────────────── */}
       {isJasa && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, alignItems: 'end' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: mobileColumns ?? '1fr auto', gap: 10, alignItems: 'end' }}>
           <div>
             <div style={fieldLabelStyle}>Biaya Material (Rp)</div>
             <CurrencyInput
@@ -303,7 +313,10 @@ export function LineItemCard({
           borderLeft: '3px solid var(--accent)',
           borderRadius: 8,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10,
+            ...(isMobile && { flexWrap: 'wrap' as const, gap: 6 }),
+          }}>
             <span style={{
               fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
               padding: '3px 8px', borderRadius: 4,
@@ -316,7 +329,7 @@ export function LineItemCard({
             </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: mobileColumns ?? '1fr 1fr', gap: 10 }}>
             <div>
               <div style={fieldLabelStyle}>Vendor Bubut Luar</div>
               <CustomerSupplierAutocomplete
@@ -374,6 +387,7 @@ export function LineItemCard({
             fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.08em',
             color: 'var(--text-muted)', cursor: 'pointer', textAlign: 'left',
             textDecoration: 'underline', textDecorationStyle: 'dotted',
+            ...(isMobile && { minHeight: 40, alignSelf: 'flex-start' as const }),
           }}
         >
           + Catatan line
@@ -389,7 +403,7 @@ export function LineItemCard({
             style={{
               width: '100%', borderRadius: 8, padding: '8px 12px',
               border: '1px solid var(--border)', background: 'var(--surface)',
-              color: 'var(--text)', fontSize: 12, resize: 'vertical', outline: 'none',
+              color: 'var(--text)', fontSize: isMobile ? 16 : 12, resize: 'vertical', outline: 'none',
               fontFamily: 'inherit', boxSizing: 'border-box',
             }}
           />

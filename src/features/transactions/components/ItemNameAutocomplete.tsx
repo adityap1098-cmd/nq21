@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useItemNameSuggestions } from '../lookups'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 const MAX_SUGGESTIONS = 8
 
@@ -19,6 +20,7 @@ export function ItemNameAutocomplete({
   disabled = false,
 }: ItemNameAutocompleteProps) {
   const { data: allHistory = [] } = useItemNameSuggestions(categoryId)
+  const isMobile = useIsMobile()
 
   const [isOpen, setIsOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -98,12 +100,12 @@ export function ItemNameAutocomplete({
         maxLength={100}
         autoComplete="off"
         style={{
-          width: '100%', height: 36,
+          width: '100%', height: isMobile ? 40 : 36,
           padding: '0 12px',
           borderRadius: 8, border: '1px solid var(--border)',
           background: disabled ? 'var(--surface-alt)' : 'var(--surface)',
           color: disabled ? 'var(--text-muted)' : 'var(--text)',
-          fontSize: 13, outline: 'none', boxSizing: 'border-box',
+          fontSize: isMobile ? 16 : 13, outline: 'none', boxSizing: 'border-box',
           transition: 'border-color 0.15s',
           cursor: disabled ? 'not-allowed' : 'text',
         }}
@@ -122,7 +124,7 @@ export function ItemNameAutocomplete({
               onMouseEnter={() => setActiveIndex(idx)}
               style={{
                 width: '100%', display: 'block', textAlign: 'left',
-                padding: '9px 12px', border: 'none',
+                padding: isMobile ? '12px' : '9px 12px', border: 'none',
                 borderBottom: idx < suggestions.length - 1 ? '1px solid var(--border)' : 'none',
                 background: activeIndex === idx ? 'var(--surface-deep)' : 'transparent',
                 fontSize: 13, color: 'var(--text)', cursor: 'pointer',

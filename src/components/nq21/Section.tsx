@@ -1,3 +1,5 @@
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+
 interface SectionProps {
   title: string
   subtitle?: string
@@ -6,6 +8,7 @@ interface SectionProps {
 }
 
 export function Section({ title, subtitle, action, children }: SectionProps) {
+  const isMobile = useIsMobile()
   return (
     <div>
       <div
@@ -13,10 +16,12 @@ export function Section({ title, subtitle, action, children }: SectionProps) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 18,
+          marginBottom: isMobile ? 14 : 18,
+          flexWrap: isMobile ? 'wrap' : undefined,
+          gap: isMobile ? 10 : undefined,
         }}
       >
-        <div>
+        <div style={isMobile ? { minWidth: 0 } : undefined}>
           <h3
             style={{
               fontFamily: 'var(--display)',

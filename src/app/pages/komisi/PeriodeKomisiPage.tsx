@@ -26,6 +26,9 @@ import { SlipPaper } from '@/features/komisi/components/SlipPaper'
 import { ClosePeriodDialog } from '@/features/komisi/components/ClosePeriodDialog'
 import { MarkPaidDialog } from '@/features/komisi/components/MarkPaidDialog'
 import { fmtPeriodFull, fmtShortDate } from '@/features/komisi/utils'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+
+const MOBILE_RECENT_PERIODS = 2
 
 export default function PeriodeKomisiPage() {
   const navigate = useNavigate()
@@ -74,6 +77,17 @@ export default function PeriodeKomisiPage() {
 
   // Selected period — open period containing today, else oldest open, else latest
   const [selectedPeriodId, setSelectedPeriodId] = useState<string>('')
+
+  // Phone: the period list collapses to open periods + the newest few + the selected one
+  const isMobile = useIsMobile()
+  const [showAllPeriods, setShowAllPeriods] = useState(false)
+  const visiblePeriods = useMemo(() => {
+    if (!isMobile || showAllPeriods) return displayPeriods
+    return displayPeriods.filter((p, i) =>
+      p.status === 'open' || p.id === selectedPeriodId || i < MOBILE_RECENT_PERIODS,
+    )
+  }, [isMobile, showAllPeriods, displayPeriods, selectedPeriodId])
+  const hiddenPeriodCount = displayPeriods.length - visiblePeriods.length
 
   useEffect(() => {
     if (periods.length > 0 && !selectedPeriodId) {
@@ -238,7 +252,7 @@ export default function PeriodeKomisiPage() {
 
   if (periods.length === 0) {
     return (
-      <div style={{ textAlign: 'center', padding: '80px 40px' }}>
+      <div style={{ textAlign: 'center', padding: isMobile ? '48px 4px' : '80px 40px' }}>
         <div style={{ fontFamily: 'var(--display)', fontSize: 28, color: 'var(--text-muted)', marginBottom: 12 }}>
           Belum Ada Periode
         </div>
@@ -321,8 +335,9 @@ export default function PeriodeKomisiPage() {
       {/* New period banner */}
       {showNewPeriodBanner && (
         <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 20px', marginBottom: 16,
+          display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between',
+          flexDirection: isMobile ? 'column' : undefined, gap: isMobile ? 12 : undefined,
+          padding: isMobile ? '12px 14px' : '12px 20px', marginBottom: 16,
           background: 'rgba(220,38,38,0.06)', border: '1px solid var(--accent)',
           borderRadius: 8,
         }}>
@@ -339,7 +354,7 @@ export default function PeriodeKomisiPage() {
             onClick={handleOpenPeriods}
             disabled={openNewPeriod.isPending}
             style={{
-              flexShrink: 0, marginLeft: 20,
+              flexShrink: 0, marginLeft: isMobile ? 0 : 20, minHeight: isMobile ? 40 : undefined,
               padding: '8px 18px', borderRadius: 6, border: 'none',
               background: 'var(--accent)', color: '#fff',
               fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
@@ -352,8 +367,11 @@ export default function PeriodeKomisiPage() {
       )}
 
       {/* Period selector */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
-        {displayPeriods.map(period => {
+      <div style={{
+        display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : 'repeat(3, 1fr)', gap: isMobile ? 10 : 12,
+        marginBottom: isMobile && (hiddenPeriodCount > 0 || showAllPeriods) ? 10 : 16,
+      }}>
+        {visiblePeriods.map(period => {
           const stats = periodCardStats.find(s => s.periodId === period.id)
           return (
             <PeriodSelectorCard
@@ -373,6 +391,21 @@ export default function PeriodeKomisiPage() {
         })}
       </div>
 
+      {isMobile && (hiddenPeriodCount > 0 || showAllPeriods) && (
+        <button
+          type="button"
+          onClick={() => setShowAllPeriods(v => !v)}
+          aria-expanded={showAllPeriods}
+          style={{
+            width: '100%', minHeight: 40, marginBottom: 16, borderRadius: 8,
+            border: '1px dashed var(--border)', background: 'transparent', color: 'var(--text)',
+            fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', cursor: 'pointer',
+          }}
+        >
+          {showAllPeriods ? 'SEMBUNYIKAN PERIODE LAMA ▲' : `TAMPILKAN ${hiddenPeriodCount} PERIODE LAIN ▼`}
+        </button>
+      )}
+
       {/* Summary dark panel */}
       {selectedPeriod && (
         <PeriodSummaryPanel
@@ -387,7 +420,7 @@ export default function PeriodeKomisiPage() {
       )}
 
       {/* Slip layout: 320px sidebar + 1fr paper */}
-      <div style={{ display: 'grid', gridTemplateColumns: '320px minmax(0, 1fr)', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '320px minmax(0, 1fr)', gap: 16 }}>
         {/* Left: mechanic sidebar */}
         <div style={{
           background: 'var(--surface)', border: '1px solid var(--border)',
@@ -439,11 +472,13 @@ export default function PeriodeKomisiPage() {
           ) : (
             <div style={{
               background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '48px 36px',
+              borderRadius: 12, padding: isMobile ? '32px 16px' : '48px 36px',
               textAlign: 'center', color: 'var(--text-muted)',
             }}>
               <div style={{ fontFamily: 'var(--mono)', fontSize: 12 }}>
-                Pilih mekanik di panel kiri untuk melihat slip komisi.
+                {isMobile
+                  ? 'Pilih mekanik di atas untuk melihat slip komisi.'
+                  : 'Pilih mekanik di panel kiri untuk melihat slip komisi.'}
               </div>
             </div>
           )}

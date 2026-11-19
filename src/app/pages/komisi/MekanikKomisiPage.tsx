@@ -10,6 +10,7 @@ import { KomisiBadge } from '@/features/komisi/components/KomisiBadge'
 import { MarkPaidDialog } from '@/features/komisi/components/MarkPaidDialog'
 import { fmtPeriodShort, fmtClosedAt, fmtRp, getInitial, FMT } from '@/features/komisi/utils'
 import { UNKNOWN_MECHANIC_NAME } from '@/features/komisi/display-payouts'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { CommissionPayout } from '@/store/types'
 import type { PayoutComputed } from '@/store/selectors'
 
@@ -29,6 +30,8 @@ export default function MekanikKomisiPage() {
   const navigate = useNavigate()
   const user = useAuthStore(s => s.user)
   const isOwner = user?.role === 'owner'
+  const isMobile = useIsMobile()
+  const chipPadding = isMobile ? '8px 12px' : '4px 10px'
 
   const { data: periods = [] } = useCommissionPeriods()
   const { data: allPayouts = [], isLoading } = useCommissionPayouts()
@@ -48,6 +51,20 @@ export default function MekanikKomisiPage() {
     computed: PayoutComputed
     period: (typeof periods)[0]
   } | null>(null)
+
+  function openMarkPaid(payout: CommissionPayout, period: (typeof periods)[0]) {
+    const mech = mechanicMap.get(payout.mechanicId)
+    const computed: PayoutComputed = {
+      mechanicId: payout.mechanicId,
+      mechanicName: mech?.name ?? UNKNOWN_MECHANIC_NAME,
+      isActive: mech?.is_active ?? false,
+      totalJobs: payout.totalJobs,
+      totalBasis: payout.totalBasis,
+      totalKomisi: payout.totalKomisi,
+      lines: [],
+    }
+    setMarkPaidTarget({ payout, computed, period })
+  }
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -177,6 +194,138 @@ export default function MekanikKomisiPage() {
     verticalAlign: 'middle',
   }
 
+  // ── Phone: payouts as cards (the 8-column table is too wide) ──────────────
+  function renderMobileCards() {
+    const actionBtn: React.CSSProperties = {
+      flex: 1, minHeight: 40, padding: '8px 12px', borderRadius: 6,
+      fontFamily: 'var(--mono)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em',
+      cursor: 'pointer', whiteSpace: 'nowrap',
+    }
+    return (
+      <div>
+        <div style={{
+          display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6,
+          padding: '8px 12px', borderBottom: '1px solid var(--border)', background: 'var(--surface-alt)',
+        }}>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--text-muted)' }}>URUTKAN</span>
+          {([['period', 'PERIODE'], ['komisi', 'KOMISI'], ['status', 'STATUS']] as [SortKey, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => handleSort(key)}
+              style={{
+                minHeight: 32, padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
+                fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
+                border: `1px solid ${sortKey === key ? 'var(--text)' : 'var(--border)'}`,
+                background: sortKey === key ? 'var(--text)' : 'var(--surface)',
+                color: sortKey === key ? '#fff' : 'var(--text-muted)',
+              }}
+            >
+              {label}{sortKey === key ? sortIndicator(key) : ''}
+            </button>
+          ))}
+        </div>
+
+        {filtered.map((payout, idx) => {
+          const mech = mechanicMap.get(payout.mechanicId)
+          const per = periodMap.get(payout.periodId)
+          const mechName = mech?.name ?? UNKNOWN_MECHANIC_NAME
+          return (
+            <div key={payout.id} style={{
+              padding: '14px 14px',
+              borderBottom: idx === filtered.length - 1 ? 'none' : '1px dashed var(--border)',
+            }}>
+              {/* Mechanic + status */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  background: 'var(--accent)', color: '#fff',
+                  display: 'grid', placeItems: 'center',
+                  fontFamily: 'var(--display)', fontSize: 15, flexShrink: 0,
+                }}>
+                  {getInitial(mechName)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 15, overflowWrap: 'anywhere' }}>
+                    {mechName}
+                    {mech && !mech.is_active && (
+                      <span style={{
+                        display: 'inline-block', marginLeft: 6, padding: '1px 5px', borderRadius: 3,
+                        fontFamily: 'var(--mono)', fontSize: 8, fontWeight: 700, verticalAlign: 'middle',
+                        background: 'var(--surface-alt)', color: 'var(--text-muted)', letterSpacing: '0.06em',
+                      }}>
+                        NONAKTIF
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    {per ? fmtPeriodShort(per.weekStart, per.weekEnd) : payout.periodId}
+                    {per?.status === 'closed' && per.closedAt && ` · Ditutup ${fmtClosedAt(per.closedAt)}`}
+                  </div>
+                </div>
+                <KomisiBadge
+                  variant={payout.status === 'paid' ? 'paid' : 'pending'}
+                  label={payout.status === 'paid' ? 'DIBAYAR' : 'PENDING'}
+                  small
+                />
+              </div>
+
+              {/* Numbers */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', gap: 12,
+                alignItems: 'end', marginTop: 12,
+              }}>
+                <div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>JOBS</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 13, marginTop: 2 }}>{payout.totalJobs}</div>
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>BASIS</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 13, marginTop: 2, color: 'var(--text-muted)' }}>{fmtRp(payout.totalBasis)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>KOMISI</div>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: 15, fontWeight: 700, marginTop: 2, color: 'var(--accent)' }}>
+                    {fmtRp(payout.totalKomisi)}
+                  </div>
+                </div>
+              </div>
+
+              {payout.paidAt && (
+                <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>
+                  Dibayar {fmtClosedAt(payout.paidAt)}
+                  {payout.paidNotes && (
+                    <div style={{ fontSize: 10, fontStyle: 'italic', marginTop: 2, overflowWrap: 'anywhere' }}>
+                      {payout.paidNotes}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                {payout.status === 'pending' && isOwner && per && (
+                  <button
+                    onClick={() => openMarkPaid(payout, per)}
+                    style={{ ...actionBtn, background: 'var(--text)', border: '1px solid var(--text)', color: '#fff' }}
+                  >
+                    TANDAI DIBAYAR
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate(`/komisi/slip/${payout.periodId}/${payout.mechanicId}`)}
+                  style={{ ...actionBtn, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)' }}
+                >
+                  LIHAT SLIP
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   // ── Loading / empty state ──────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -194,7 +343,7 @@ export default function MekanikKomisiPage() {
       <div>
         <PageHeader title="MEKANIK & KOMISI" subtitle="Overview komisi per mekanik lintas periode + status pembayaran" />
         <div style={{
-          textAlign: 'center', padding: '80px 40px',
+          textAlign: 'center', padding: isMobile ? '48px 16px' : '80px 40px',
           background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
         }}>
           <div style={{ fontFamily: 'var(--display)', fontSize: 24, color: 'var(--text-muted)', marginBottom: 8 }}>
@@ -245,19 +394,19 @@ export default function MekanikKomisiPage() {
       {/* Filter bar */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16,
-        padding: '14px 16px', background: 'var(--surface)',
+        padding: isMobile ? '12px' : '14px 16px', background: 'var(--surface)',
         border: '1px solid var(--border)', borderRadius: 10,
         alignItems: 'center',
       }}>
         {/* Period filter */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: isMobile ? 'wrap' : undefined }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--text-muted)' }}>PERIODE</span>
           {(['all', 'bulan-ini'] as PeriodFilter[]).map(p => (
             <button
               key={p}
               onClick={() => setPeriodFilter(p)}
               style={{
-                padding: '4px 10px', borderRadius: 20,
+                padding: chipPadding, borderRadius: 20,
                 fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
                 border: '1px solid',
                 borderColor: periodFilter === p ? 'var(--text)' : 'var(--border)',
@@ -271,7 +420,7 @@ export default function MekanikKomisiPage() {
           ))}
         </div>
 
-        <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+        {!isMobile && <div style={{ width: 1, height: 20, background: 'var(--border)' }} />}
 
         {/* Mechanic filter chips */}
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -284,7 +433,7 @@ export default function MekanikKomisiPage() {
                 onClick={() => toggleMechanic(m.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '4px 8px', borderRadius: 20,
+                  padding: isMobile ? '6px 10px 6px 6px' : '4px 8px', borderRadius: 20,
                   fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600,
                   border: '1px solid',
                   borderColor: active ? 'var(--accent)' : 'var(--border)',
@@ -311,6 +460,7 @@ export default function MekanikKomisiPage() {
               style={{
                 fontFamily: 'var(--mono)', fontSize: 9.5, color: 'var(--text-muted)',
                 background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline',
+                padding: isMobile ? '8px 6px' : undefined,
               }}
             >
               reset
@@ -318,17 +468,17 @@ export default function MekanikKomisiPage() {
           )}
         </div>
 
-        <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
+        {!isMobile && <div style={{ width: 1, height: 20, background: 'var(--border)' }} />}
 
         {/* Status filter */}
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: isMobile ? 'wrap' : undefined }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.12em', color: 'var(--text-muted)' }}>STATUS</span>
           {(['all', 'pending', 'paid'] as StatusFilter[]).map(s => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
               style={{
-                padding: '4px 10px', borderRadius: 20,
+                padding: chipPadding, borderRadius: 20,
                 fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.08em',
                 border: '1px solid',
                 borderColor: statusFilter === s
@@ -350,20 +500,28 @@ export default function MekanikKomisiPage() {
       </div>
 
       {/* KPI strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 16 }}>
+      <div style={{
+        display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, 1fr)',
+        gap: isMobile ? 10 : 12, marginBottom: 16,
+      }}>
         {[
           { label: 'TOTAL KOMISI', value: summary.totalKomisi, color: 'var(--text)' },
           { label: 'PENDING PAYOUT', value: summary.pending, color: 'var(--warning)' },
           { label: 'SUDAH DIBAYAR', value: summary.paid, color: 'var(--success)' },
-        ].map(({ label, value, color }) => (
+        ].map(({ label, value, color }, i) => (
           <div key={label} style={{
             background: 'var(--surface)', border: '1px solid var(--border)',
-            borderRadius: 10, padding: '16px 20px',
+            borderRadius: 10, padding: isMobile ? '12px 14px' : '16px 20px',
+            gridColumn: isMobile && i === 0 ? '1 / -1' : undefined,
+            minWidth: isMobile ? 0 : undefined,
           }}>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 9.5, letterSpacing: '0.16em', color: 'var(--text-muted)', marginBottom: 6 }}>
               {label}
             </div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 26, letterSpacing: '0.012em', color }}>
+            <div style={{
+              fontFamily: 'var(--display)', fontSize: isMobile ? (i === 0 ? 26 : 20) : 26, letterSpacing: '0.012em', color,
+              overflowWrap: isMobile ? 'anywhere' : undefined,
+            }}>
               <span style={{ fontFamily: 'var(--mono)', fontSize: 12, marginRight: 4, color: 'var(--text-muted)' }}>Rp</span>
               {FMT.format(value)}
             </div>
@@ -383,6 +541,8 @@ export default function MekanikKomisiPage() {
           }}>
             Tidak ada payout yang cocok dengan filter aktif.
           </div>
+        ) : isMobile ? (
+          renderMobileCards()
         ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -511,18 +671,7 @@ export default function MekanikKomisiPage() {
                         <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
                           {payout.status === 'pending' && isOwner && per && (
                             <button
-                              onClick={() => {
-                                const computed: PayoutComputed = {
-                                  mechanicId: payout.mechanicId,
-                                  mechanicName: mech?.name ?? UNKNOWN_MECHANIC_NAME,
-                                  isActive: mech?.is_active ?? false,
-                                  totalJobs: payout.totalJobs,
-                                  totalBasis: payout.totalBasis,
-                                  totalKomisi: payout.totalKomisi,
-                                  lines: [],
-                                }
-                                setMarkPaidTarget({ payout, computed, period: per })
-                              }}
+                              onClick={() => openMarkPaid(payout, per)}
                               style={{
                                 padding: '5px 10px', borderRadius: 4,
                                 fontFamily: 'var(--mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.06em',

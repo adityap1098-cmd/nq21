@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface Props {
   start: string
@@ -24,6 +25,7 @@ const labelStyle: React.CSSProperties = {
 }
 
 export function CustomDateRangeInput({ start, end, onChange }: Props) {
+  const isMobile = useIsMobile()
   const [draftStart, setDraftStart] = useState(start)
   const [draftEnd, setDraftEnd] = useState(end)
 
@@ -40,10 +42,14 @@ export function CustomDateRangeInput({ start, end, onChange }: Props) {
   }
 
   const invalidBorder = inverted ? { borderColor: 'var(--accent)' } : undefined
+  // Phone: full-width stacked inputs; 16px text stops iOS Safari from zooming on focus.
+  const mobileInput: React.CSSProperties | undefined = isMobile
+    ? { width: '100%', fontSize: 16, padding: '8px 10px', boxSizing: 'border-box' }
+    : undefined
 
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+    <div style={isMobile ? { display: 'flex', flexDirection: 'column', gap: 4, width: '100%' } : { display: 'inline-flex', flexDirection: 'column', gap: 4 }}>
+      <div style={isMobile ? { display: 'flex', flexDirection: 'column', gap: 8 } : { display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <label style={labelStyle}>DARI</label>
           <input
@@ -52,10 +58,12 @@ export function CustomDateRangeInput({ start, end, onChange }: Props) {
             max={draftEnd || undefined}
             onChange={e => update(e.target.value, draftEnd)}
             aria-invalid={inverted || !draftStart}
-            style={{ ...inputStyle, ...invalidBorder }}
+            style={{ ...inputStyle, ...mobileInput, ...invalidBorder }}
           />
         </div>
-        <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 10, marginTop: 14 }}>→</span>
+        {!isMobile && (
+          <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--mono)', fontSize: 10, marginTop: 14 }}>→</span>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <label style={labelStyle}>SAMPAI</label>
           <input
@@ -64,7 +72,7 @@ export function CustomDateRangeInput({ start, end, onChange }: Props) {
             min={draftStart || undefined}
             onChange={e => update(draftStart, e.target.value)}
             aria-invalid={inverted || !draftEnd}
-            style={{ ...inputStyle, ...invalidBorder }}
+            style={{ ...inputStyle, ...mobileInput, ...invalidBorder }}
           />
         </div>
       </div>

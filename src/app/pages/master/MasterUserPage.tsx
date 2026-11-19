@@ -5,6 +5,7 @@ import { AccessDenied } from '@/components/nq21/AccessDenied'
 import { EmptyState } from '@/components/nq21/EmptyState'
 import { DateDisplay } from '@/components/nq21/DateDisplay'
 import { Badge } from '@/components/ui/badge'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from '@/components/ui/table'
@@ -38,6 +39,7 @@ export default function MasterUserPage() {
 
 function UserList({ currentUserId }: { currentUserId: string }) {
   const { data: profiles = [], isLoading, error } = useProfiles()
+  const isMobile = useIsMobile()
 
   if (error) {
     return <EmptyState message={`Gagal memuat akun: ${error instanceof Error ? error.message : 'Terjadi kesalahan'}`} />
@@ -60,6 +62,38 @@ function UserList({ currentUserId }: { currentUserId: string }) {
           <div style={{ padding: 24, fontSize: 13, color: 'var(--text-muted)' }}>Memuat akun...</div>
         ) : profiles.length === 0 ? (
           <EmptyState message="Belum ada akun." />
+        ) : isMobile ? (
+          <div>
+            {profiles.map((p, idx) => (
+              <div
+                key={p.id}
+                style={{
+                  padding: '12px 14px',
+                  borderBottom: idx === profiles.length - 1 ? 'none' : '1px solid var(--border)',
+                }}
+              >
+                <div style={{ overflowWrap: 'anywhere' }}>
+                  <span style={{ fontWeight: 700 }}>{p.name}</span>
+                  {p.id === currentUserId && (
+                    <span style={{ marginLeft: 6, fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--mono)' }}>
+                      (kamu)
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 6, fontSize: 12 }}>
+                  {p.role === 'owner'
+                    ? <Badge variant="expense">OWNER</Badge>
+                    : <Badge variant="closed">KASIR</Badge>}
+                  <Badge variant={p.is_active ? 'paid' : 'default'}>
+                    {p.is_active ? 'AKTIF' : 'NONAKTIF'}
+                  </Badge>
+                  <span style={{ color: 'var(--text-muted)' }}>
+                    Dibuat <DateDisplay value={p.created_at} />
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <Table>
             <TableHeader>
@@ -101,7 +135,7 @@ function UserList({ currentUserId }: { currentUserId: string }) {
 
       <div style={{
         background: 'var(--surface-alt)', border: '1px solid var(--border)',
-        borderRadius: 'var(--radius-card)', padding: '16px 20px',
+        borderRadius: 'var(--radius-card)', padding: isMobile ? '14px 14px' : '16px 20px',
       }}>
         <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
           Cara tambah / ubah akun
@@ -109,7 +143,11 @@ function UserList({ currentUserId }: { currentUserId: string }) {
         <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)' }}>
           {STEPS.map(step => <li key={step}>{step}</li>)}
         </ol>
-        <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 13, fontWeight: 700 }}>
+        <div style={{
+          display: 'flex', gap: isMobile ? 4 : 16, marginTop: 12, fontSize: 13, fontWeight: 700,
+          flexDirection: isMobile ? 'column' : undefined,
+          lineHeight: isMobile ? 2.4 : undefined,
+        }}>
           <a href={DASHBOARD_USERS_URL} target="_blank" rel="noopener noreferrer">Buka Authentication → Users ↗</a>
           <a href={DASHBOARD_PROFILES_URL} target="_blank" rel="noopener noreferrer">Buka Table Editor ↗</a>
         </div>

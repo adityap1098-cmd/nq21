@@ -5,6 +5,11 @@ import {
 import type { CommissionPeriod } from '@/store/types'
 import type { PayoutComputed } from '@/store/selectors'
 import { fmtPeriodFull, fmtRp, getInitial, FMT } from '../utils'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+
+const MOBILE_DIALOG_STYLE: React.CSSProperties = {
+  width: 'calc(100% - 24px)', maxHeight: 'calc(100dvh - 24px)', overflowY: 'auto', padding: '22px 16px',
+}
 
 interface Props {
   open: boolean
@@ -27,6 +32,7 @@ function nextWeekRange(weekEnd: string): string {
 
 export function ClosePeriodDialog({ open, period, payouts, onClose, onConfirm }: Props) {
   const [isClosing, setIsClosing] = useState(false)
+  const isMobile = useIsMobile()
 
   const totalJobs = payouts.reduce((a, p) => a + p.totalJobs, 0)
   const totalBasis = payouts.reduce((a, p) => a + p.totalBasis, 0)
@@ -45,9 +51,12 @@ export function ClosePeriodDialog({ open, period, payouts, onClose, onConfirm }:
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v && !isClosing) onClose() }}>
-      <DialogContent style={{ maxWidth: 560, padding: '32px 36px' }}>
+      <DialogContent style={isMobile ? MOBILE_DIALOG_STYLE : { maxWidth: 560, padding: '32px 36px' }}>
         <DialogHeader>
-          <DialogTitle style={{ fontFamily: 'var(--display)', fontSize: 22, letterSpacing: '0.012em' }}>
+          <DialogTitle style={{
+            fontFamily: 'var(--display)', fontSize: isMobile ? 20 : 22, letterSpacing: '0.012em',
+            lineHeight: isMobile ? 1.15 : undefined, paddingRight: isMobile ? 28 : undefined,
+          }}>
             Tutup Periode {fmtPeriodFull(period.weekStart, period.weekEnd)}?
           </DialogTitle>
           <DialogDescription style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.08em', marginTop: 4 }}>
@@ -78,7 +87,8 @@ export function ClosePeriodDialog({ open, period, payouts, onClose, onConfirm }:
             </div>
           ) : (
             <div style={{
-              border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden',
+              border: '1px solid var(--border)', borderRadius: 8,
+              overflow: isMobile ? undefined : 'hidden', overflowX: isMobile ? 'auto' : undefined,
             }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
@@ -178,11 +188,12 @@ export function ClosePeriodDialog({ open, period, payouts, onClose, onConfirm }:
         </div>
 
         {/* Footer buttons */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 24 }}>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: isMobile ? 20 : 24, flexWrap: isMobile ? 'wrap' : undefined }}>
           <button
             onClick={onClose}
             disabled={isClosing}
             style={{
+              flex: isMobile ? 1 : undefined, minHeight: isMobile ? 40 : undefined,
               padding: '9px 16px', borderRadius: 6,
               fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
               background: 'transparent', border: '1px solid var(--border)',
@@ -196,6 +207,7 @@ export function ClosePeriodDialog({ open, period, payouts, onClose, onConfirm }:
             onClick={handleConfirm}
             disabled={isClosing}
             style={{
+              flex: isMobile ? 1 : undefined, minHeight: isMobile ? 40 : undefined,
               padding: '9px 20px', borderRadius: 6,
               fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
               background: 'var(--accent)', border: '1px solid var(--accent)',

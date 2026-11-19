@@ -13,13 +13,19 @@ import { buildDisplayPayouts } from '@/features/komisi/display-payouts'
 import { PrintLayout } from '@/app/layout/PrintLayout'
 import { SlipPaper } from '@/features/komisi/components/SlipPaper'
 import { SlipPaperCompact } from '@/features/komisi/components/SlipPaperCompact'
+import { useIsMobile, MOBILE_MAX_WIDTH } from '@/lib/hooks/useIsMobile'
 import '@/styles/print.css'
 
 type PrintMode = 'compact' | 'detail'
 
+/** Phone preview keeps the slip at near-paper width instead of squashing it. */
+const MOBILE_SLIP_MIN_WIDTH = 700
+const MOBILE_SLIP_DETAIL_MIN_WIDTH = 794
+
 export default function SlipPage() {
   const { periodId, mechanicId } = useParams<{ periodId: string; mechanicId: string }>()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const [printMode, setPrintMode] = useState<PrintMode>('compact')
 
   useEffect(() => {
@@ -108,14 +114,23 @@ export default function SlipPage() {
 
   return (
     <PrintLayout>
+      {/* Phone only, screen only: the A4 slip scrolls sideways in its own box. Print is untouched. */}
+      <style>{`@media screen and (max-width: ${MOBILE_MAX_WIDTH}px) {
+  .slip-mobile-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .slip-mobile-scroll > * { min-width: ${MOBILE_SLIP_MIN_WIDTH}px; }
+  .slip-mobile-scroll > .slip-paper-detail { min-width: ${MOBILE_SLIP_DETAIL_MIN_WIDTH}px; }
+}`}</style>
+
       {/* Action bar — hidden when printing */}
       <div data-print-hide style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 16, gap: 12,
+        marginBottom: 16, gap: isMobile ? 8 : 12,
+        flexWrap: isMobile ? 'wrap' : undefined,
       }}>
         <button
           onClick={handleBack}
           style={{
+            minHeight: isMobile ? 40 : undefined,
             padding: '8px 14px', borderRadius: 6,
             fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
             background: 'transparent', border: '1px solid var(--border)',
@@ -130,12 +145,14 @@ export default function SlipPage() {
           display: 'flex', alignItems: 'center', gap: 4,
           background: 'var(--surface-alt)', borderRadius: 8, padding: 4,
           border: '1px solid var(--border)',
+          ...(isMobile ? { order: 3, width: '100%' } : {}),
         }}>
           {(['compact', 'detail'] as PrintMode[]).map(mode => (
             <button
               key={mode}
               onClick={() => setPrintMode(mode)}
               style={{
+                flex: isMobile ? 1 : undefined, minHeight: isMobile ? 36 : undefined,
                 padding: '6px 14px', borderRadius: 5,
                 fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
                 background: printMode === mode ? 'var(--surface)' : 'transparent',
@@ -154,6 +171,7 @@ export default function SlipPage() {
         <button
           onClick={() => window.print()}
           style={{
+            minHeight: isMobile ? 40 : undefined,
             padding: '8px 18px', borderRadius: 6,
             fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
             background: 'var(--text)', border: '1px solid var(--text)',
@@ -165,18 +183,28 @@ export default function SlipPage() {
       </div>
 
       {/* Slip paper — conditional on mode */}
-      {printMode === 'compact' ? (
-        <SlipPaperCompact period={period} payout={payout} liveTotalKomisi={payout.liveTotalKomisi} />
-      ) : (
-        <SlipPaper
-          period={period}
-          computed={payout}
-          storedPayout={storedPayout}
-          rates={rates}
-          isOwner={false}
-          variant="standalone"
-          liveTotalKomisi={payout.liveTotalKomisi}
-        />
+      <div className="slip-mobile-scroll">
+        {printMode === 'compact' ? (
+          <SlipPaperCompact period={period} payout={payout} liveTotalKomisi={payout.liveTotalKomisi} />
+        ) : (
+          <SlipPaper
+            period={period}
+            computed={payout}
+            storedPayout={storedPayout}
+            rates={rates}
+            isOwner={false}
+            variant="standalone"
+            liveTotalKomisi={payout.liveTotalKomisi}
+          />
+        )}
+      </div>
+      {isMobile && (
+        <div data-print-hide style={{
+          marginTop: 8, textAlign: 'center',
+          fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)',
+        }}>
+          Geser ke samping untuk melihat seluruh slip →
+        </div>
       )}
 
       {/* Footer hint — hidden when printing */}

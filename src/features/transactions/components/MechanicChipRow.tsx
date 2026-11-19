@@ -3,6 +3,7 @@ import { useMechanics, useCommissionRates } from '@/features/mechanics/hooks'
 import { useAuthStore } from '@/store/auth'
 import { ConfirmDialog } from '@/components/nq21/ConfirmDialog'
 import { toast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import { useLastJasaMechanicIds } from '../lookups'
 import { evenIntegerShares, proportionalIntegerShares } from '../utils'
 import type { LineMechanic } from '../types'
@@ -80,6 +81,7 @@ export function MechanicChipRow({
   const canSeeKomisi = user?.role === 'owner'
   const { data: rates = [] } = useCommissionRates({ enabled: canSeeKomisi })
   const lastJasa = useLastJasaMechanicIds(user?.id)
+  const isMobile = useIsMobile()
 
   const [confirmDeleteIdx, setConfirmDeleteIdx] = useState<number | null>(null)
   const [editingRateIdx, setEditingRateIdx] = useState<number | null>(null)
@@ -239,6 +241,8 @@ export function MechanicChipRow({
                 border: '1px solid var(--border)',
                 borderRadius: 999,
                 fontSize: 12, fontWeight: 600,
+                // Phone: a full owner chip (share + rate + komisi) can be wider than the line card
+                ...(isMobile && { maxWidth: '100%', flexWrap: 'wrap' as const, rowGap: 2, padding: '3px 6px 3px 3px', borderRadius: 22 }),
               }}
             >
               {/* Avatar */}
@@ -247,11 +251,11 @@ export function MechanicChipRow({
                 onClick={() => handleCycleAvatar(idx)}
                 title={canCycle ? 'Klik untuk ganti mekanik' : 'Hanya 1 mekanik tersedia'}
                 style={{
-                  width: 24, height: 24, borderRadius: '50%',
+                  width: isMobile ? 34 : 24, height: isMobile ? 34 : 24, borderRadius: '50%',
                   background: canCycle ? 'var(--text)' : 'var(--text-muted)',
                   color: '#fff', border: 'none',
                   display: 'grid', placeItems: 'center',
-                  fontFamily: 'Anton, sans-serif', fontSize: 11,
+                  fontFamily: 'Anton, sans-serif', fontSize: isMobile ? 13 : 11,
                   cursor: canCycle ? 'pointer' : 'default',
                   flexShrink: 0, transition: 'background 0.15s',
                 }}
@@ -284,8 +288,8 @@ export function MechanicChipRow({
                     value={chip.sharePercent}
                     onChange={(e) => handleShareChange(idx, e.target.value)}
                     style={{
-                      width: 32, border: 'none', background: 'transparent',
-                      padding: 0, fontFamily: 'var(--mono)', fontSize: 11,
+                      width: isMobile ? 40 : 32, border: 'none', background: 'transparent',
+                      padding: 0, fontFamily: 'var(--mono)', fontSize: isMobile ? 16 : 11,
                       fontWeight: 600, textAlign: 'right', outline: 'none',
                       color: 'var(--text)',
                     }}
@@ -315,9 +319,9 @@ export function MechanicChipRow({
                     if (e.key === 'Escape') setEditingRateIdx(null)
                   }}
                   style={{
-                    width: 38, border: '1px solid var(--accent)', borderRadius: 4,
+                    width: isMobile ? 52 : 38, border: '1px solid var(--accent)', borderRadius: 4,
                     background: 'var(--surface)', padding: '1px 4px',
-                    fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 600,
+                    fontFamily: 'var(--mono)', fontSize: isMobile ? 16 : 11, fontWeight: 600,
                     textAlign: 'right', outline: 'none', color: 'var(--accent)',
                   }}
                 />
@@ -340,6 +344,7 @@ export function MechanicChipRow({
                       fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700,
                       color: 'var(--accent)', background: 'none', border: 'none',
                       cursor: 'pointer', padding: 0, letterSpacing: '0.04em',
+                      ...(isMobile && { minWidth: 32, minHeight: 32 }),
                     }}
                   >
                     {chip.rateOverride}%
@@ -368,9 +373,10 @@ export function MechanicChipRow({
                     onClick={() => startRateEdit(idx)}
                     title="Override rate untuk transaksi ini"
                     style={{
-                      fontSize: 9, background: 'none', border: 'none',
+                      fontSize: isMobile ? 13 : 9, background: 'none', border: 'none',
                       color: 'var(--text-muted)', cursor: 'pointer', padding: 0,
                       lineHeight: 1, opacity: 0.6,
+                      ...(isMobile && { minWidth: 32, minHeight: 32 }),
                     }}
                   >
                     ✏
@@ -394,10 +400,10 @@ export function MechanicChipRow({
                 disabled={mechanics.length <= 1}
                 title={mechanics.length <= 1 ? 'Minimal 1 mekanik' : `Hapus ${mech?.name ?? ''}`}
                 style={{
-                  width: 18, height: 18, border: 'none', background: 'transparent',
+                  width: isMobile ? 34 : 18, height: isMobile ? 34 : 18, border: 'none', background: 'transparent',
                   color: mechanics.length <= 1 ? 'var(--border)' : 'var(--text-muted)',
                   cursor: mechanics.length <= 1 ? 'not-allowed' : 'pointer',
-                  fontSize: 14, lineHeight: 1, padding: 0,
+                  fontSize: isMobile ? 18 : 14, lineHeight: 1, padding: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >
@@ -425,6 +431,7 @@ export function MechanicChipRow({
             letterSpacing: '0.04em',
             color: canAddMore ? 'var(--text-muted)' : 'var(--border)',
             cursor: canAddMore ? 'pointer' : 'not-allowed',
+            ...(isMobile && { height: 42, padding: '0 14px' }),
           }}
         >
           <span style={{ fontSize: 13, lineHeight: 1 }}>+</span>

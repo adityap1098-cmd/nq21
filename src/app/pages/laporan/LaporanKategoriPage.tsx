@@ -4,6 +4,8 @@ import { exportCSV, fmtRupiah, fmtDate } from '@/lib/csv'
 import { usePeriodFilter, type PeriodPreset } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
 import { QueryErrorPanel, LoadingPanel } from './QueryState'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import { TABLE_SCROLL, MOBILE_PERIOD_BAR, MOBILE_RANGE_LABEL, MOBILE_STACK } from './mobile'
 
 const _fmt = new Intl.NumberFormat('id-ID')
 
@@ -42,6 +44,7 @@ function Panel({
   emptyMsg: string
 }) {
   const showHint = rows.length > 0 && rows.length < 5
+  const isMobile = useIsMobile()
   return (
     <div
       style={{
@@ -49,12 +52,13 @@ function Panel({
         border: '1px solid var(--border)',
         borderRadius: 8,
         overflow: 'hidden',
-        minHeight: 380,
+        minHeight: isMobile ? undefined : 380,
         display: 'flex',
         flexDirection: 'column',
+        minWidth: isMobile ? 0 : undefined,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid var(--border)', ...(isMobile ? { padding: '12px 14px', flexWrap: 'wrap' as const, gap: 8 } : undefined) }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -78,8 +82,8 @@ function Panel({
           {emptyMsg}
         </div>
       ) : (
-        <div style={{ flex: 1 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+        <div style={{ flex: 1, ...(isMobile ? TABLE_SCROLL : undefined) }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, ...(isMobile ? { minWidth: 440 } : undefined) }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <th style={{ padding: '8px 12px 8px 20px', textAlign: 'left', width: 28 }}>#</th>
@@ -131,13 +135,22 @@ function Panel({
         </div>
       )}
 
-      <div style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)', display: 'flex', alignItems: 'center', fontWeight: 700, padding: '10px 20px 10px 0' }}>
-        <div style={{ width: 52 }} />
-        <div style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.08em', paddingLeft: 12 }}>GRAND TOTAL</div>
-        <div style={{ width: 56, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>{totalTrx}</div>
-        <div style={{ width: 150, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 13, color: totalColor, paddingRight: 4 }}>{fmtRp(total)}</div>
-        <div style={{ width: 52 }} />
-      </div>
+      {isMobile ? (
+        <div style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, fontWeight: 700, padding: '10px 14px' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.08em' }}>
+            GRAND TOTAL <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>· {totalTrx} TRX</span>
+          </div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: totalColor, whiteSpace: 'nowrap' }}>{fmtRp(total)}</div>
+        </div>
+      ) : (
+        <div style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)', display: 'flex', alignItems: 'center', fontWeight: 700, padding: '10px 20px 10px 0' }}>
+          <div style={{ width: 52 }} />
+          <div style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.08em', paddingLeft: 12 }}>GRAND TOTAL</div>
+          <div style={{ width: 56, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>{totalTrx}</div>
+          <div style={{ width: 150, textAlign: 'right', fontFamily: 'var(--mono)', fontSize: 13, color: totalColor, paddingRight: 4 }}>{fmtRp(total)}</div>
+          <div style={{ width: 52 }} />
+        </div>
+      )}
     </div>
   )
 }
@@ -145,6 +158,7 @@ function Panel({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function LaporanKategoriPage() {
+  const isMobile = useIsMobile()
   const { preset, customRange, range, setPreset, setCustomRange } = usePeriodFilter('week')
   const { data: txsWithLines = [], isLoading, isError, error, refetch } = useTransactionsWithLines({
     dateFrom: range.start,
@@ -225,7 +239,7 @@ export default function LaporanKategoriPage() {
   const labaPositif = summary.labaKotor >= 0
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1200 }}>
+    <div style={{ padding: isMobile ? 0 : '28px 32px', maxWidth: 1200 }}>
       <PageHeader
         title="Per Kategori"
         subtitle={`LAPORAN #1 · Pendapatan & pengeluaran per kategori · ${fmtDate(range.start)} – ${fmtDate(range.end)}`}
@@ -240,7 +254,7 @@ export default function LaporanKategoriPage() {
         }
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--border)', ...(isMobile ? { ...MOBILE_PERIOD_BAR, marginBottom: 16, paddingBottom: 16 } : undefined) }}>
         <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PERIODE</span>
         <PeriodSelector value={preset} onChange={(v) => setPreset(v as PeriodPreset)} />
         {preset === 'custom' && (
@@ -250,7 +264,7 @@ export default function LaporanKategoriPage() {
             onChange={(start, end) => setCustomRange({ start, end })}
           />
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', ...(isMobile ? MOBILE_RANGE_LABEL : undefined) }}>
           {fmtDate(range.start)} → {fmtDate(range.end)}
         </span>
       </div>
@@ -267,31 +281,31 @@ export default function LaporanKategoriPage() {
         </div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24, ...(isMobile ? { ...MOBILE_STACK, gap: 16, marginBottom: 16 } : undefined) }}>
             <Panel title="PENDAPATAN" tag="MASUK" tagIcon="▲" total={summary.totalIncome} rows={income} totalTrx={totalTrxIncome} tint="var(--text)" totalColor="var(--success, #16a34a)" emptyMsg="Tidak ada pendapatan pada periode ini." />
             <Panel title="PENGELUARAN" tag="KELUAR" tagIcon="▼" total={summary.totalExpense} rows={expense} totalTrx={totalTrxExpense} tint="var(--accent)" totalColor="var(--accent)" emptyMsg="Tidak ada pengeluaran pada periode ini." />
           </div>
 
-          <div style={{ background: 'var(--text)', color: 'var(--bg)', borderRadius: 8, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32 }}>
+          <div style={{ background: 'var(--text)', color: 'var(--bg)', borderRadius: 8, padding: '24px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, ...(isMobile ? { flexDirection: 'column' as const, alignItems: 'stretch', gap: 16, padding: '18px 16px' } : undefined) }}>
             <div>
               <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.15em', opacity: 0.55, marginBottom: 4 }}>SELISIH · LABA KOTOR</div>
               <div style={{ fontFamily: 'var(--display)', fontSize: 20, letterSpacing: '0.04em' }}>
                 {labaPositif ? 'Profit Periode Ini' : 'Defisit Periode Ini'}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 32, alignItems: 'center', ...(isMobile ? { flexWrap: 'wrap' as const, gap: '12px 20px' } : undefined) }}>
               <div>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'rgba(255,255,255,0.85)' }}>+ {fmtRp(summary.totalIncome)}</div>
                 <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.1em', opacity: 0.5, marginTop: 2 }}>PENDAPATAN</div>
               </div>
-              <div style={{ opacity: 0.3, fontSize: 18 }}>−</div>
+              {!isMobile && <div style={{ opacity: 0.3, fontSize: 18 }}>−</div>}
               <div>
                 <div style={{ fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700, color: 'rgba(255,100,100,0.9)' }}>− {fmtRp(summary.totalExpense)}</div>
                 <div style={{ fontSize: 10, fontFamily: 'var(--mono)', letterSpacing: '0.1em', opacity: 0.5, marginTop: 2 }}>PENGELUARAN</div>
               </div>
-              <div style={{ opacity: 0.3, fontSize: 18 }}>=</div>
-              <div style={{ borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: 32 }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 28, fontWeight: 700, color: labaPositif ? '#4ade80' : 'rgba(255,100,100,0.9)' }}>
+              {!isMobile && <div style={{ opacity: 0.3, fontSize: 18 }}>=</div>}
+              <div style={isMobile ? { flexBasis: '100%', borderTop: '1px solid rgba(255,255,255,0.15)', paddingTop: 12 } : { borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: 32 }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: isMobile ? 24 : 28, fontWeight: 700, color: labaPositif ? '#4ade80' : 'rgba(255,100,100,0.9)' }}>
                   {labaPositif ? '+' : '−'} {fmtRp(Math.abs(summary.labaKotor))}
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
 import { Badge } from '@/components/ui/badge'
 import { InlineCreateDialog } from './InlineCreateDialog'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { Customer } from '@/features/customers/hooks'
 import type { Supplier } from '@/features/suppliers/hooks'
 
@@ -31,6 +32,7 @@ export function CustomerSupplierAutocomplete({
 }: Props) {
   const { data: customers = [] } = useCustomers()
   const { data: suppliers = [] } = useSuppliers()
+  const isMobile = useIsMobile()
 
   const [query, setQuery] = useState('')
   const [isOpen, setIsOpen] = useState(false)
@@ -186,13 +188,13 @@ export function CustomerSupplierAutocomplete({
           disabled={disabled}
           autoComplete="off"
           style={{
-            width: '100%', height: 36,
-            padding: value && !isStale ? '0 32px 0 12px' : '0 12px',
+            width: '100%', height: isMobile ? 40 : 36,
+            padding: value && !isStale ? (isMobile ? '0 44px 0 12px' : '0 32px 0 12px') : '0 12px',
             borderRadius: 8,
             border: `1px solid ${isStale ? 'var(--warning)' : isOpen ? 'var(--border-strong)' : 'var(--border)'}`,
             background: disabled ? 'var(--surface-alt)' : 'var(--surface)',
             color: disabled ? 'var(--text-muted)' : 'var(--text)',
-            fontSize: 13,
+            fontSize: isMobile ? 16 : 13,
             outline: 'none',
             fontFamily: 'inherit',
             boxSizing: 'border-box',
@@ -211,11 +213,11 @@ export function CustomerSupplierAutocomplete({
             }}
             title="Hapus pilihan"
             style={{
-              position: 'absolute', right: 8, top: '50%',
+              position: 'absolute', right: isMobile ? 6 : 8, top: '50%',
               transform: 'translateY(-50%)',
-              width: 18, height: 18, borderRadius: '50%',
+              width: isMobile ? 30 : 18, height: isMobile ? 30 : 18, borderRadius: '50%',
               border: 'none', background: 'var(--border)',
-              color: 'var(--text-muted)', fontSize: 11,
+              color: 'var(--text-muted)', fontSize: isMobile ? 15 : 11,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               cursor: 'pointer', padding: 0, lineHeight: 1,
             }}

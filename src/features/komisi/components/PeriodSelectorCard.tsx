@@ -2,6 +2,7 @@ import type { CommissionPeriod } from '@/store/types'
 import { fmtPeriodShort, fmtShortDate, fmtClosedAt, fmtRp } from '../utils'
 import { KomisiBadge } from './KomisiBadge'
 import { todayLocal } from '@/lib/format'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface Props {
   period: CommissionPeriod
@@ -25,6 +26,7 @@ function closableFrom(weekEnd: string): string {
 }
 
 export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi, onClick, onClosePeriod }: Props) {
+  const isMobile = useIsMobile()
   const isOpen = period.status === 'open'
   const today = todayLocal()
   const isCurrent = period.weekStart <= today && period.weekEnd >= today
@@ -93,7 +95,7 @@ export function PeriodSelectorCard({ period, isSelected, totalJobs, totalKomisi,
         onClick={onClosePeriod}
         title={`Tutup periode ${fmtPeriodShort(period.weekStart, period.weekEnd)} dan generate payout`}
         style={{
-          padding: '7px 10px', borderRadius: 6, border: 'none',
+          padding: isMobile ? '12px 10px' : '7px 10px', borderRadius: 6, border: 'none',
           background: 'var(--accent)', color: '#fff',
           fontFamily: 'var(--mono)', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em',
           cursor: 'pointer',

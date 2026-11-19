@@ -10,6 +10,8 @@ import type { CommissionRate } from '@/features/mechanics/hooks'
 import { useCategories } from '@/features/categories/hooks'
 import { QueryErrorPanel, LoadingPanel } from './QueryState'
 import { useAuthStore } from '@/store/auth'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import { TABLE_SCROLL, MOBILE_PERIOD_BAR, MOBILE_RANGE_LABEL, MOBILE_STACK, MOBILE_TWO_COL } from './mobile'
 
 // Dyno is is_jasa but has its own report (Laporan #4); keep it out of this one.
 const EXCLUDED_CATEGORY = 'Dyno'
@@ -73,6 +75,10 @@ interface MekanikJasaStats {
   totalKomisi: number
   uniqueCategories: number
 }
+
+// Phone: filter label above its chips, chips wrap onto extra lines.
+const mobileChipGroup: React.CSSProperties = { flexDirection: 'column', alignItems: 'flex-start', maxWidth: '100%' }
+const mobileChipRow: React.CSSProperties = { flexWrap: 'wrap', maxWidth: '100%' }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -294,6 +300,7 @@ const NO_RATES: CommissionRate[] = []
 
 export default function LaporanJasaPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const { preset, customRange, range, setPreset, setCustomRange } = usePeriodFilter('week')
   const [mechanicFilter, setMechanicFilter] = useState<string[]>([])
   const [categoryFilter, setCategoryFilter] = useState<string[]>([])
@@ -410,7 +417,7 @@ export default function LaporanJasaPage() {
   }
 
   return (
-    <div style={{ padding: '28px 32px', maxWidth: 1280 }}>
+    <div style={{ padding: isMobile ? 0 : '28px 32px', maxWidth: 1280 }}>
       <PageHeader
         title="Jasa & Mekanik"
         subtitle={`LAPORAN #3 · Rincian jasa dengan basis komisi dan distribusi per mekanik (tidak termasuk Dyno — lihat Laporan Dyno) · ${fmtDate(range.start)} – ${fmtDate(range.end)}`}
@@ -425,7 +432,7 @@ export default function LaporanJasaPage() {
         }
       />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--border)', ...(isMobile ? { ...MOBILE_PERIOD_BAR, marginBottom: 16 } : undefined) }}>
         <span style={{ fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>PERIODE</span>
         <PeriodSelector value={preset} onChange={(v) => setPreset(v as PeriodPreset)} />
         {preset === 'custom' && (
@@ -435,7 +442,7 @@ export default function LaporanJasaPage() {
             onChange={(start, end) => setCustomRange({ start, end })}
           />
         )}
-        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: 11, fontFamily: 'var(--mono)', color: 'var(--text-muted)', ...(isMobile ? MOBILE_RANGE_LABEL : undefined) }}>
           {fmtDate(range.start)} → {fmtDate(range.end)}
         </span>
       </div>
@@ -448,7 +455,7 @@ export default function LaporanJasaPage() {
       <>
       {/* Mekanik KPI cards */}
       {kpiMechanics.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(kpiMechanics.length, 4)}, 1fr)`, gap: 12, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(kpiMechanics.length, 4)}, 1fr)`, gap: 12, marginBottom: 16, ...(isMobile ? { ...MOBILE_STACK, gap: 10 } : undefined) }}>
           {kpiMechanics.map(stat => (
             <MechanicKpiCard
               key={stat.mechanicId}
@@ -464,9 +471,9 @@ export default function LaporanJasaPage() {
 
       {/* Filter chips */}
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...(isMobile ? mobileChipGroup : undefined) }}>
           <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>MEKANIK</span>
-          <div style={{ display: 'inline-flex', background: 'var(--surface-alt)', borderRadius: 6, padding: 3, gap: 2 }}>
+          <div style={{ display: 'inline-flex', background: 'var(--surface-alt)', borderRadius: 6, padding: 3, gap: 2, ...(isMobile ? mobileChipRow : undefined) }}>
             <button onClick={() => setMechanicFilter([])} style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: 'none', background: mechanicFilter.length === 0 ? 'var(--text)' : 'transparent', color: mechanicFilter.length === 0 ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}>Semua</button>
             {kpiMechanics.map(stat => {
               const active = mechanicFilter.includes(stat.mechanicId)
@@ -483,9 +490,9 @@ export default function LaporanJasaPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, ...(isMobile ? mobileChipGroup : undefined) }}>
           <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', letterSpacing: '0.1em' }}>KATEGORI</span>
-          <div style={{ display: 'inline-flex', background: 'var(--surface-alt)', borderRadius: 6, padding: 3, gap: 2 }}>
+          <div style={{ display: 'inline-flex', background: 'var(--surface-alt)', borderRadius: 6, padding: 3, gap: 2, ...(isMobile ? mobileChipRow : undefined) }}>
             <button onClick={() => setCategoryFilter([])} style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', padding: '5px 10px', borderRadius: 4, border: 'none', background: categoryFilter.length === 0 ? 'var(--text)' : 'transparent', color: categoryFilter.length === 0 ? '#fff' : 'var(--text-muted)', cursor: 'pointer' }}>Semua</button>
             {jasaCategories.map(cat => {
               const active = categoryFilter.includes(cat.id)
@@ -506,7 +513,7 @@ export default function LaporanJasaPage() {
       </div>
 
       {/* Summary KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${showKomisi ? 4 : 2},1fr)`, gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${showKomisi ? 4 : 2},1fr)`, gap: 12, marginBottom: 16, ...(isMobile ? { ...MOBILE_TWO_COL, gap: 10 } : undefined) }}>
         {[
           { label: 'TOTAL JOBS',     value: summary.totalJobs.toString(), mono: false, accent: false },
           { label: mechanicFilter.length > 0 ? 'TOTAL BASIS (PORSI MEKANIK)' : 'TOTAL BASIS', value: fmtRp(summary.totalBasis), mono: true, accent: false },
@@ -515,9 +522,9 @@ export default function LaporanJasaPage() {
             { label: 'AVG KOMISI/JOB', value: fmtRp(summary.avgKomisiPerJob), mono: true, accent: false },
           ] : []),
         ].map(({ label, value, mono, accent }) => (
-          <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px' }}>
+          <div key={label} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 16px', ...(isMobile ? { padding: '12px 14px', minWidth: 0 } : undefined) }}>
             <div style={{ fontSize: 9, fontFamily: 'var(--mono)', letterSpacing: '0.12em', color: 'var(--text-muted)', marginBottom: 6 }}>{label}</div>
-            <div style={{ fontFamily: mono ? 'var(--mono)' : 'var(--display)', fontSize: mono ? 14 : 26, fontWeight: mono ? 700 : undefined, color: accent ? 'var(--accent)' : 'var(--text)' }}>
+            <div style={{ fontFamily: mono ? 'var(--mono)' : 'var(--display)', fontSize: mono ? 14 : 26, fontWeight: mono ? 700 : undefined, color: accent ? 'var(--accent)' : 'var(--text)', ...(isMobile ? { overflowWrap: 'anywhere' as const } : undefined) }}>
               {value}
             </div>
           </div>
@@ -526,7 +533,7 @@ export default function LaporanJasaPage() {
 
       {/* Detail table */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 20px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: isMobile ? '12px 14px' : '12px 20px', borderBottom: '1px solid var(--border)' }}>
           <span style={{ fontFamily: 'var(--display)', fontSize: 14, letterSpacing: '0.04em' }}>RINCIAN JASA</span>
           <span style={{ padding: '2px 8px', borderRadius: 4, background: 'var(--surface-alt)', fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.08em' }}>
             {detailLines.length} LINE
@@ -545,8 +552,8 @@ export default function LaporanJasaPage() {
             )}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 1000 }}>
+          <div style={isMobile ? TABLE_SCROLL : { overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: isMobile ? 900 : 1000 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   {['TGL · REF', 'CUSTOMER', 'KATEGORI', 'NOMINAL', 'MATERIAL', 'BASIS', showKomisi ? 'MEKANIK · SHARE · KOMISI' : 'MEKANIK · SHARE'].map(h => (

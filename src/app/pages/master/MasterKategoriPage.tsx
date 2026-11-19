@@ -19,6 +19,8 @@ import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from '@/components/ui/table'
 import { toast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { Category } from '@/store/types'
 
 // ── Schema ──────────────────────────────────────────────────────────────────
@@ -47,6 +49,7 @@ interface SectionProps {
 }
 
 function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, onDelete, canEdit }: SectionProps) {
+  const isMobile = useIsMobile()
   const [search, setSearch] = useState('')
   const [jasaOnly, setJasaOnly] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
@@ -54,6 +57,9 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
   const isIncome = type === 'income'
   const label = isIncome ? 'Pemasukan' : 'Pengeluaran'
   const accentColor = isIncome ? 'var(--success)' : 'var(--accent)'
+  // Phone: the TIPE badge moves under the name so the row fits without sideways scroll
+  const showTypeColumn = isIncome && !isMobile
+  const actionBtnClass = isMobile ? 'h-10 w-10 px-0' : undefined
 
   const displayed = useMemo(() => {
     let list = showInactive ? categories : categories.filter(c => c.isActive)
@@ -68,7 +74,10 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
   return (
     <div style={{ marginBottom: 40 }}>
       {/* Section header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14,
+        flexWrap: isMobile ? 'wrap' : undefined, gap: isMobile ? 10 : undefined,
+      }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 3, height: 22, borderRadius: 2,
@@ -87,15 +96,18 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
           </div>
         </div>
         {canEdit && (
-          <Button variant="accent" size="sm" onClick={onAdd}>
+          <Button variant="accent" size="sm" onClick={onAdd} className={isMobile ? 'h-10' : undefined}>
             + Tambah {label}
           </Button>
         )}
       </div>
 
       {/* Filter row */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: 280 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+        flexWrap: isMobile ? 'wrap' : undefined,
+      }}>
+        <div style={{ position: 'relative', flex: isMobile ? '1 1 100%' : 1, maxWidth: isMobile ? undefined : 280 }}>
           <Search size={13} style={{
             position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
             color: 'var(--text-muted)', pointerEvents: 'none',
@@ -104,10 +116,13 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
             placeholder={`Cari kategori ${label.toLowerCase()}...`}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ paddingLeft: 30 }}
+            style={isMobile ? { paddingLeft: 30, fontSize: 16, height: 40 } : { paddingLeft: 30 }}
           />
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{
+          marginLeft: isMobile ? undefined : 'auto', display: 'flex', alignItems: 'center', gap: 8,
+          flexWrap: isMobile ? 'wrap' : undefined,
+        }}>
           {isIncome && (
             <div style={{
               display: 'flex', gap: 2, background: 'var(--surface-alt)',
@@ -118,7 +133,7 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                   key={String(v)}
                   onClick={() => setJasaOnly(v)}
                   style={{
-                    padding: '3px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                    padding: isMobile ? '8px 12px' : '3px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
                     fontSize: 12, fontWeight: 700, letterSpacing: '0.04em',
                     background: jasaOnly === v ? 'var(--text)' : 'transparent',
                     color: jasaOnly === v ? '#fff' : 'var(--text-secondary)',
@@ -134,6 +149,7 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
             variant={showInactive ? 'secondary' : 'outline'}
             size="sm"
             onClick={() => setShowInactive(s => !s)}
+            className={isMobile ? 'h-10' : undefined}
           >
             {showInactive ? 'Sembunyikan Nonaktif' : 'Tampilkan Nonaktif'}
           </Button>
@@ -157,10 +173,12 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>NAMA</TableHead>
-                {isIncome && <TableHead style={{ width: 130 }}>TIPE</TableHead>}
-                <TableHead style={{ textAlign: 'center', width: 100 }}>TRANSAKSI</TableHead>
-                {canEdit && <TableHead style={{ width: 88 }} />}
+                <TableHead className={isMobile ? 'px-3' : undefined}>NAMA</TableHead>
+                {showTypeColumn && <TableHead style={{ width: 130 }}>TIPE</TableHead>}
+                {isMobile
+                  ? <TableHead className="px-2" style={{ textAlign: 'center', width: 56 }}>TRX</TableHead>
+                  : <TableHead style={{ textAlign: 'center', width: 100 }}>TRANSAKSI</TableHead>}
+                {canEdit && <TableHead className={isMobile ? 'px-1' : undefined} style={{ width: 88 }} />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -170,8 +188,8 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                 const canDelete = count === 0 && !isSystem && cat.isActive
                 return (
                   <TableRow key={cat.id}>
-                    <TableCell>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <TableCell className={isMobile ? 'px-3' : undefined}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : undefined }}>
                         <span style={{ fontWeight: 600 }}>{cat.name}</span>
                         {isSystem && (
                           <span
@@ -185,23 +203,30 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                           <Badge variant="default">NONAKTIF</Badge>
                         )}
                       </div>
+                      {isIncome && isMobile && (
+                        <div style={{ marginTop: 4 }}>
+                          <Badge variant={cat.isJasa ? 'paid' : 'open'}>
+                            {cat.isJasa ? 'JASA' : 'BARANG/LAIN'}
+                          </Badge>
+                        </div>
+                      )}
                     </TableCell>
-                    {isIncome && (
+                    {showTypeColumn && (
                       <TableCell>
                         <Badge variant={cat.isJasa ? 'paid' : 'open'}>
                           {cat.isJasa ? 'JASA' : 'BARANG/LAIN'}
                         </Badge>
                       </TableCell>
                     )}
-                    <TableCell style={{ textAlign: 'center' }}>
+                    <TableCell className={isMobile ? 'px-2' : undefined} style={{ textAlign: 'center' }}>
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600 }}>
                         {count}
                       </span>
                     </TableCell>
                     {canEdit && (
-                    <TableCell>
+                    <TableCell className={isMobile ? 'px-1' : undefined}>
                       <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                        <Button variant="ghost" size="sm" onClick={() => onEdit(cat)} title="Edit">
+                        <Button variant="ghost" size="sm" className={actionBtnClass} onClick={() => onEdit(cat)} title="Edit" aria-label="Edit">
                           <Pencil size={13} />
                         </Button>
                         <Button
@@ -219,7 +244,8 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
                           }
                           disabled={!canDelete}
                           style={!canDelete ? { opacity: 0.3, cursor: 'not-allowed' } : {}}
-                          className={canDelete ? 'text-[var(--accent)] hover:text-[var(--accent-dark)] hover:bg-[var(--accent-tint)]' : ''}
+                          aria-label="Nonaktifkan"
+                          className={cn(canDelete && 'text-[var(--accent)] hover:text-[var(--accent-dark)] hover:bg-[var(--accent-tint)]', actionBtnClass)}
                         >
                           <Trash2 size={13} />
                         </Button>
@@ -242,6 +268,7 @@ function CategorySection({ type, categories, txnCountByCategory, onAdd, onEdit, 
 export default function MasterKategoriPage() {
   const { user } = useAuthStore()
   const isOwner = user?.role === 'owner'
+  const isMobile = useIsMobile()
 
   const { data: categoryRows = [], error: loadError } = useCategories(true)
   const createMutation = useCreateCategory()
@@ -350,7 +377,7 @@ export default function MasterKategoriPage() {
 
   return (
     <>
-      <div style={{ marginBottom: 32 }}>
+      <div style={{ marginBottom: isMobile ? 16 : 32 }}>
         <PageHeader
           title="KATEGORI"
           subtitle="Kelola kategori pemasukan dan pengeluaran transaksi"
@@ -412,7 +439,7 @@ export default function MasterKategoriPage() {
                   title={locked ? 'Tipe tidak bisa diubah setelah kategori dibuat' : undefined}
                   style={{
                     opacity: locked && !active ? 0.4 : 1,
-                    flex: 1, padding: '9px 16px', borderRadius: 8, border: '2px solid',
+                    flex: 1, padding: isMobile ? '10px 8px' : '9px 16px', borderRadius: 8, border: '2px solid',
                     borderColor: active ? color : 'var(--border)',
                     background: active ? tint : 'transparent',
                     color: active ? color : 'var(--text-secondary)',

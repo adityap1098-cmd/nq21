@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/nq21/EmptyState'
 import { useTransactions, type TransactionRow } from '@/features/transactions/hooks'
 import { useCustomers } from '@/features/customers/hooks'
 import { useSuppliers } from '@/features/suppliers/hooks'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 const PAGE_SIZE = 20
 
@@ -69,7 +70,7 @@ function PaymentBadge({ method }: { method: TransactionRow['payment_method'] }) 
   )
 }
 
-function SummaryStrip({ filtered }: { filtered: TransactionRow[] }) {
+function SummaryStrip({ filtered, isMobile }: { filtered: TransactionRow[]; isMobile: boolean }) {
   const income  = filtered.filter(t => t.tipe === 'income').reduce((s, t) => s + t.total_nominal, 0)
   const expense = filtered.filter(t => t.tipe === 'expense').reduce((s, t) => s + t.total_nominal, 0)
   const net = income - expense
@@ -79,6 +80,43 @@ function SummaryStrip({ filtered }: { filtered: TransactionRow[] }) {
     { label: 'PENGELUARAN', value: expense, color: 'var(--accent)' },
     { label: 'NET', value: net, color: net >= 0 ? 'var(--success)' : 'var(--accent)' },
   ]
+
+  const countLabel = (label: string) => label === 'NET'
+    ? `${filtered.length} total`
+    : `${filtered.filter(t => t.tipe === (label === 'PEMASUKAN' ? 'income' : 'expense')).length} transaksi`
+
+  // Phone: one compact row per figure (label + count left, amount right)
+  if (isMobile) {
+    return (
+      <div style={{
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 10, marginBottom: 16, overflow: 'hidden',
+      }}>
+        {cards.map(({ label, value, color }, i) => (
+          <div key={label} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+            padding: '10px 14px',
+            borderTop: i > 0 ? '1px solid var(--border)' : 'none',
+          }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.16em', color: 'var(--text-muted)' }}>
+                {label}
+              </div>
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-muted)', marginTop: 2 }}>
+                {countLabel(label)}
+              </div>
+            </div>
+            <span style={{ color, flexShrink: 0, display: 'inline-flex', alignItems: 'baseline' }}>
+              {label === 'NET' && value < 0 && (
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 14, marginRight: 4, color: 'var(--accent)' }}>−</span>
+              )}
+              <CurrencyDisplay value={Math.abs(value)} size="md" />
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -111,8 +149,63 @@ function SummaryStrip({ filtered }: { filtered: TransactionRow[] }) {
   )
 }
 
+interface TransactionCardProps {
+  tx: TransactionRow
+  partyName: string
+  isFirst: boolean
+  onOpen: () => void
+}
+
+/** Phone replacement for a table row: the whole card is the tap target to the detail page. */
+function TransactionCard({ tx, partyName, isFirst, onOpen }: TransactionCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`Detail ${tx.no_referensi}`}
+      style={{
+        display: 'flex', flexDirection: 'column', gap: 6,
+        width: '100%', minHeight: 44, padding: '12px 14px',
+        background: 'transparent', border: 'none',
+        borderTop: isFirst ? 'none' : '1px solid var(--border)',
+        textAlign: 'left', cursor: 'pointer', color: 'var(--text)',
+        font: 'inherit',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%' }}>
+        <span style={{
+          fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600,
+          minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {tx.no_referensi}
+        </span>
+        <span style={{ flexShrink: 0 }}>
+          <TipeBadge tipe={tx.tipe} />
+        </span>
+      </div>
+      <div style={{
+        fontSize: 13, color: 'var(--text-secondary)', width: '100%',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {partyName}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, width: '100%' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0, fontSize: 12 }}>
+          <DateDisplay value={tx.tgl + 'T00:00:00'} format="short" />
+          <PaymentBadge method={tx.payment_method} />
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <CurrencyDisplay value={tx.total_nominal} size="sm" />
+          <span aria-hidden="true" style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--text-muted)' }}>›</span>
+        </span>
+      </div>
+    </button>
+  )
+}
+
 export default function DaftarTransaksiPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   // 'always': kasir and owner work on different devices — show each other's new rows on entry
   const { data: transactions = [], isLoading, isError, refetch } = useTransactions({ includeDeleted: false }, { refetchOnMount: 'always' })
   // Inactive parties included so historical rows still show a name
@@ -229,6 +322,7 @@ export default function DaftarTransaksiPage() {
               borderRadius: 8, border: 'none',
               background: 'var(--accent)', color: '#fff',
               cursor: 'pointer',
+              ...(isMobile && { minHeight: 40 }),
             }}
           >
             + INPUT BARU
@@ -239,14 +333,20 @@ export default function DaftarTransaksiPage() {
       {/* ── Filter bar ── */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: isMobile ? 16 : 20,
       }}>
         <input
           type="text"
           value={search}
           onChange={e => handleSearchChange(e.target.value)}
           placeholder="Cari no. referensi atau nama..."
-          style={{
+          style={isMobile ? {
+            fontFamily: 'var(--mono)', fontSize: 16,
+            height: 40, padding: '0 12px', borderRadius: 8,
+            border: '1px solid var(--border)',
+            background: 'var(--surface)', color: 'var(--text)',
+            width: '100%', minWidth: 0, boxSizing: 'border-box', outline: 'none',
+          } : {
             fontFamily: 'var(--mono)', fontSize: 12,
             padding: '7px 12px', borderRadius: 8,
             border: '1px solid var(--border)',
@@ -264,7 +364,7 @@ export default function DaftarTransaksiPage() {
       </div>
 
       {/* ── Summary strip ── */}
-      {!isError && <SummaryStrip filtered={filtered} />}
+      {!isError && <SummaryStrip filtered={filtered} isMobile={isMobile} />}
 
       {/* ── Loading state ── */}
       {isLoading && (
@@ -323,6 +423,21 @@ export default function DaftarTransaksiPage() {
           background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: 10, overflow: 'hidden',
         }}>
+          {isMobile ? (
+            <div>
+              {pageSlice.map((tx, i) => (
+                <TransactionCard
+                  key={tx.id}
+                  tx={tx}
+                  isFirst={i === 0}
+                  partyName={tx.tipe === 'income'
+                    ? (customers.find(c => c.id === tx.customer_id)?.name ?? '—')
+                    : (suppliers.find(s => s.id === tx.supplier_id)?.name ?? '—')}
+                  onOpen={() => navigate(`/transaksi/${tx.id}`)}
+                />
+              ))}
+            </div>
+          ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -412,17 +527,23 @@ export default function DaftarTransaksiPage() {
               })}
             </tbody>
           </table>
+          )}
 
           {/* ── Pagination ── */}
           {totalPages > 1 && (
-            <div style={{
+            <div style={isMobile ? {
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+              padding: '12px', borderTop: '1px solid var(--border)',
+            } : {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '12px 16px', borderTop: '1px solid var(--border)',
             }}>
               <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>
                 Halaman {safePage} / {totalPages} · {filtered.length} transaksi
               </span>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={isMobile
+                ? { display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }
+                : { display: 'flex', gap: 6 }}>
                 {[...Array(totalPages)].map((_, i) => {
                   const p = i + 1
                   const isActivePage = p === safePage
@@ -436,7 +557,7 @@ export default function DaftarTransaksiPage() {
                       onClick={() => setPage(p)}
                       style={{
                         fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700,
-                        width: 28, height: 28, borderRadius: 4,
+                        width: isMobile ? 36 : 28, height: isMobile ? 36 : 28, borderRadius: 4,
                         border: `1px solid ${isActivePage ? 'var(--text)' : 'var(--border)'}`,
                         background: isActivePage ? 'var(--text)' : 'transparent',
                         color: isActivePage ? '#fff' : 'var(--text-muted)',

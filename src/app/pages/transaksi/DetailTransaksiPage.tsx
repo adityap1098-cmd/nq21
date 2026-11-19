@@ -19,6 +19,7 @@ import {
 import { isInClosedPeriod } from '@/features/transactions/utils'
 import { supabase } from '@/lib/supabase'
 import { toast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { CommissionPeriod } from '@/store/types'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -81,10 +82,11 @@ function Badge({ label, color, bg }: { label: string; color: string; bg: string 
 }
 
 function Card({ children, style }: { children: React.ReactNode; style?: CSSProperties }) {
+  const isMobile = useIsMobile()
   return (
     <div style={{
       background: 'var(--surface)', border: '1px solid var(--border)',
-      borderRadius: 10, padding: '18px 20px', ...style,
+      borderRadius: 10, padding: isMobile ? 14 : '18px 20px', ...style,
     }}>
       {children}
     </div>
@@ -107,6 +109,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function DetailTransaksiPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const { data: tx, isLoading, isError: txError } = useTransaction(id)
   const deleteTransaction = useDeleteTransaction()
   const { data: categories = [] } = useCategories(true)
@@ -287,6 +290,8 @@ export default function DetailTransaksiPage() {
   const creatorName = tx.creator_name ?? '—'
   const paymentLabel = tx.payment_method === 'cash' ? 'Cash' : tx.payment_method === 'transfer' ? 'Transfer' : 'QRIS'
   const hasNotes = !!(tx.notes?.trim())
+  // Phone: header buttons share the full row and get 40px touch targets
+  const actionBtnMobile: CSSProperties = isMobile ? { flex: '1 1 auto', minHeight: 40 } : {}
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -296,7 +301,7 @@ export default function DetailTransaksiPage() {
         title="DETAIL TRANSAKSI"
         subtitle={tx.no_referensi}
         action={
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', ...(isMobile && { width: '100%', flexWrap: 'wrap' as const }) }}>
             <button
               onClick={() => navigate('/transaksi')}
               style={{
@@ -304,6 +309,7 @@ export default function DetailTransaksiPage() {
                 letterSpacing: '0.06em', padding: '8px 14px', borderRadius: 8,
                 border: 'none', background: 'transparent',
                 color: 'var(--text-muted)', cursor: 'pointer',
+                ...(isMobile && { minHeight: 40 }),
               }}
             >
               ← KEMBALI
@@ -319,6 +325,7 @@ export default function DetailTransaksiPage() {
                   color: 'var(--accent)',
                   cursor: deleteTransaction.isPending ? 'wait' : 'pointer',
                   opacity: deleteTransaction.isPending ? 0.5 : 1,
+                  ...actionBtnMobile,
                 }}
               >
                 {deleteTransaction.isPending ? 'MENGHAPUS...' : 'HAPUS'}
@@ -335,6 +342,7 @@ export default function DetailTransaksiPage() {
                 background: canEdit ? 'var(--text)' : 'var(--surface-alt)',
                 color: canEdit ? '#fff' : 'var(--text-muted)',
                 cursor: canEdit ? 'pointer' : 'not-allowed',
+                ...actionBtnMobile,
               }}
             >
               EDIT
@@ -361,8 +369,9 @@ export default function DetailTransaksiPage() {
         {isVendorAuto && counterpartTx && (
           <div style={{
             background: 'rgba(200,16,46,0.06)', border: '1px solid rgba(200,16,46,0.2)',
-            borderRadius: 8, padding: '10px 16px',
+            borderRadius: 8, padding: isMobile ? '10px 12px' : '10px 16px',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            ...(isMobile && { flexWrap: 'wrap' as const, gap: 8 }),
           }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-secondary)' }}>
               Auto-link dari transaksi induk
@@ -373,6 +382,7 @@ export default function DetailTransaksiPage() {
                 fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
                 padding: '4px 10px', borderRadius: 4, border: '1px solid var(--border)',
                 background: 'transparent', color: 'var(--text)', cursor: 'pointer',
+                ...(isMobile && { minHeight: 40, maxWidth: '100%', overflowWrap: 'anywhere' as const }),
               }}
             >
               {counterpartTx.no_referensi} →
@@ -401,7 +411,7 @@ export default function DetailTransaksiPage() {
 
         {/* ── Info card ── */}
         <Card>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '1fr 1fr 1fr', gap: isMobile ? 14 : '16px 24px' }}>
             <div>
               <SectionLabel>{isIncome ? 'CUSTOMER' : 'SUPPLIER'}</SectionLabel>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -412,7 +422,7 @@ export default function DetailTransaksiPage() {
                 }}>
                   {partyName[0]?.toUpperCase() ?? '?'}
                 </div>
-                <div>
+                <div style={isMobile ? { minWidth: 0, overflowWrap: 'anywhere' } : undefined}>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>{partyName}</div>
                   {partySub && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{partySub}</div>}
                 </div>
@@ -461,11 +471,11 @@ export default function DetailTransaksiPage() {
 
             return (
               <Card key={line.id}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, ...(isMobile && { flexWrap: 'wrap' as const }) }}>
                   <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
                     LINE {String(i + 1).padStart(2, '0')}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, flex: 1, ...(isMobile && { minWidth: 0, overflowWrap: 'anywhere' as const }) }}>
                     {cat?.name ?? line.category_id}
                     {line.item_name && (
                       <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}> — {line.item_name}</span>
@@ -477,7 +487,7 @@ export default function DetailTransaksiPage() {
                 </div>
 
                 {isJasa ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px 16px', marginBottom: mechRows.length ? 14 : 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, 1fr)', gap: isMobile ? '10px 12px' : '8px 16px', marginBottom: mechRows.length ? 14 : 0 }}>
                     <div>
                       <SectionLabel>NOMINAL</SectionLabel>
                       <CurrencyDisplay value={line.nominal} size="sm" />
@@ -492,7 +502,7 @@ export default function DetailTransaksiPage() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', ...(isMobile && { gap: 8 }) }}>
                     <SectionLabel>NOMINAL</SectionLabel>
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 16, fontWeight: 700 }}>
                       Rp {line.nominal.toLocaleString('id-ID')}
@@ -514,6 +524,7 @@ export default function DetailTransaksiPage() {
                         <div key={row.mechanic_id} style={{
                           display: 'flex', alignItems: 'center', gap: 10,
                           background: 'var(--surface-alt)', borderRadius: 7, padding: '8px 10px',
+                          ...(isMobile && { flexWrap: 'wrap' as const, rowGap: 4 }),
                         }}>
                           <div style={{
                             width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
@@ -530,7 +541,7 @@ export default function DetailTransaksiPage() {
                               <span style={{ fontSize: 9, color: 'var(--text-muted)', textDecoration: 'line-through', marginLeft: 6 }}>NONAKTIF</span>
                             )}
                           </div>
-                          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                          <div style={{ display: 'flex', gap: 12, alignItems: 'center', ...(isMobile && { marginLeft: 'auto', flexWrap: 'wrap' as const }) }}>
                             <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>
                               {row.share}%
                             </span>
@@ -560,7 +571,7 @@ export default function DetailTransaksiPage() {
                     marginTop: 12, background: 'rgba(200,16,46,0.06)',
                     border: '1px solid rgba(200,16,46,0.2)', borderRadius: 7, padding: '10px 12px',
                   }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px 16px', marginBottom: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(3, 1fr)', gap: isMobile ? '10px 12px' : '6px 16px', marginBottom: 10 }}>
                       <div>
                         <SectionLabel>BIAYA VENDOR</SectionLabel>
                         <CurrencyDisplay value={lineLink.vendor_cost} size="sm" />
@@ -603,11 +614,11 @@ export default function DetailTransaksiPage() {
 
         {/* ── Summary footer ── */}
         <Card style={{ borderTop: '3px solid var(--text)', gap: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: isOwner && komisiByMechanic.size > 0 ? 16 : 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: isOwner && komisiByMechanic.size > 0 ? 16 : 0, ...(isMobile && { flexWrap: 'wrap' as const, gap: 8 }) }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
               TOTAL
             </span>
-            <span style={{ fontFamily: 'Anton, sans-serif', fontSize: 36, lineHeight: 1 }}>
+            <span style={{ fontFamily: 'Anton, sans-serif', fontSize: isMobile ? 30 : 36, lineHeight: 1 }}>
               {tx.total_nominal.toLocaleString('id-ID')}
               <span style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text-muted)', marginLeft: 4 }}>IDR</span>
             </span>
@@ -618,7 +629,7 @@ export default function DetailTransaksiPage() {
               background: 'rgba(200,16,46,0.06)', border: '1px solid rgba(200,16,46,0.2)',
               borderRadius: 8, padding: '12px 14px', marginBottom: period ? 14 : 0,
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: komisiByMechanic.size > 1 ? 8 : 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: komisiByMechanic.size > 1 ? 8 : 0, ...(isMobile && { gap: 8, alignItems: 'baseline' }) }}>
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>
                   TOTAL KOMISI MEKANIK
                 </span>
@@ -667,7 +678,7 @@ export default function DetailTransaksiPage() {
           <button
             onClick={() => setAuditExpanded((v) => !v)}
             style={{
-              width: '100%', padding: '14px 20px',
+              width: '100%', padding: isMobile ? '14px' : '14px 20px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
             }}
@@ -681,7 +692,7 @@ export default function DetailTransaksiPage() {
           </button>
 
           {auditExpanded && (
-            <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px' }}>
+            <div style={{ borderTop: '1px solid var(--border)', padding: isMobile ? 14 : '16px 20px' }}>
               {auditError ? (
                 <div style={{ fontSize: 12, color: 'var(--accent)' }}>Gagal memuat riwayat.</div>
               ) : auditEntries.length === 0 ? (
@@ -717,6 +728,7 @@ export default function DetailTransaksiPage() {
 function AuditEntry({ entry }: { entry: TransactionAuditEntry }) {
   const userName = entry.user_name ?? 'Pengguna tidak dikenal'
   const actionLabel = getAuditActionLabel(entry.action)
+  const isMobile = useIsMobile()
 
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -727,11 +739,11 @@ function AuditEntry({ entry }: { entry: TransactionAuditEntry }) {
       }}>
         {userName[0]?.toUpperCase() ?? '?'}
       </div>
-      <div>
+      <div style={isMobile ? { minWidth: 0 } : undefined}>
         <div style={{ fontSize: 12 }}>
           <strong>{userName}</strong> {actionLabel}
         </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 3, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 3, alignItems: 'center', ...(isMobile && { flexWrap: 'wrap' as const }) }}>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--text-muted)' }}>
             {fmtTs(entry.created_at)}
           </span>

@@ -13,5 +13,5 @@ interface PeriodSelectorProps {
 }
 
 export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
-  return <FilterPillGroup options={PERIOD_OPTIONS} value={value} onChange={onChange} />
+  return <FilterPillGroup options={PERIOD_OPTIONS} value={value} onChange={onChange} mobileColumns={2} />
 }

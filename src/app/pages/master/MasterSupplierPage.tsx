@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 const schema = z.object({
   name: z.string().min(2, 'Nama minimal 2 karakter').max(100),
@@ -68,12 +69,12 @@ const columns: ColumnConfig<Supplier>[] = [
   },
 ]
 
-function FilterPills({ vendorOnly, onChange }: { vendorOnly: boolean; onChange: (v: boolean) => void }) {
+function FilterPills({ vendorOnly, onChange, isMobile }: { vendorOnly: boolean; onChange: (v: boolean) => void; isMobile: boolean }) {
   const pill = (label: string, active: boolean, onClick: () => void) => (
     <button
       onClick={onClick}
       style={{
-        padding: '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+        padding: isMobile ? '8px 12px' : '3px 10px', borderRadius: 6, fontSize: 12, fontWeight: 700,
         letterSpacing: '0.04em', border: 'none', cursor: 'pointer',
         background: active ? 'var(--text)' : 'transparent',
         color: active ? '#fff' : 'var(--text-secondary)',
@@ -97,6 +98,7 @@ function FilterPills({ vendorOnly, onChange }: { vendorOnly: boolean; onChange: 
 export default function MasterSupplierPage() {
   const { user } = useAuthStore()
   const isOwner = user?.role === 'owner'
+  const isMobile = useIsMobile()
 
   const [showInactive, setShowInactive] = useState(false)
   const [vendorOnly, setVendorOnly] = useState(false)
@@ -201,12 +203,13 @@ export default function MasterSupplierPage() {
             : undefined,
         }}
         enableFilters={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FilterPills vendorOnly={vendorOnly} onChange={setVendorOnly} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: isMobile ? 'wrap' : undefined }}>
+            <FilterPills vendorOnly={vendorOnly} onChange={setVendorOnly} isMobile={isMobile} />
             <Button
               variant={showInactive ? 'secondary' : 'outline'}
               size="sm"
               onClick={() => setShowInactive(s => !s)}
+              className={isMobile ? 'h-10' : undefined}
             >
               {showInactive ? 'Sembunyikan Nonaktif' : 'Tampilkan Nonaktif'}
             </Button>
@@ -226,7 +229,7 @@ export default function MasterSupplierPage() {
           <Input id="s-name" placeholder="Contoh: Toko Sparepart Maju" {...register('name')} />
         </FormField>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0, 1fr)' : '1fr 1fr', gap: isMobile ? '16px 0' : '0 16px' }}>
           <FormField label="Telepon" htmlFor="s-phone" error={errors.phone?.message}>
             <Input id="s-phone" placeholder="Contoh: 0812-xxxx-xxxx" {...register('phone')} />
           </FormField>

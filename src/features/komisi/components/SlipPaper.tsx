@@ -4,6 +4,7 @@ import { fmtPeriodFull, fmtRp, fmtClosedAt, getInitial, FMT } from '../utils'
 import { KomisiBadge } from './KomisiBadge'
 import { SlipTable } from './SlipTable'
 import { DraftSlipNotice, StoredTotalDriftNotice } from './SlipNotices'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface Props {
   period: CommissionPeriod
@@ -24,6 +25,9 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
   const canMarkPaid = !isOpen && storedPayout?.status === 'pending' && isOwner
   const isStandalone = variant === 'standalone'
   const showDrift = !isOpen && liveTotalKomisi !== null && liveTotalKomisi !== computed.totalKomisi
+  // Phone layout for the on-screen preview only; the standalone (printed) slip never changes
+  const isMobile = useIsMobile()
+  const phone = isMobile && !isStandalone
 
   const printedAt = new Date().toLocaleString('id-ID', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -33,7 +37,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
   return (
     <div className={`slip-paper${isStandalone ? ' slip-paper-detail' : ''}`} style={{
       background: 'var(--surface)', border: isStandalone ? 'none' : '1px solid var(--border)',
-      borderRadius: isStandalone ? 0 : 12, padding: '32px 36px',
+      borderRadius: isStandalone ? 0 : 12, padding: phone ? '20px 16px' : '32px 36px',
       position: 'relative', overflow: 'hidden',
     }}>
       {isOpen && <DraftSlipNotice />}
@@ -43,7 +47,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
         <div style={{
           position: 'absolute', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%) rotate(-18deg)',
-          fontFamily: 'var(--display)', fontSize: 180,
+          fontFamily: 'var(--display)', fontSize: phone ? 110 : 180,
           color: 'rgba(200,16,46,0.04)', letterSpacing: '0.05em',
           pointerEvents: 'none', userSelect: 'none', zIndex: 0,
         }}>
@@ -53,8 +57,9 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
 
       {/* Header */}
       <div className="slip-header" style={{
-        display: 'flex', justifyContent: 'space-between', gap: 24,
-        paddingBottom: 24, borderBottom: '2px solid var(--text)', marginBottom: 24,
+        display: 'flex', justifyContent: 'space-between', gap: phone ? 16 : 24,
+        flexDirection: phone ? 'column' : undefined,
+        paddingBottom: phone ? 18 : 24, borderBottom: '2px solid var(--text)', marginBottom: phone ? 18 : 24,
         position: 'relative', zIndex: 1,
       }}>
         {/* Brand + title */}
@@ -70,7 +75,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
               <div style={{ fontFamily: 'var(--mono)', fontSize: 9, letterSpacing: '0.14em', color: 'var(--text-muted)' }}>SLIP BAGI HASIL</div>
             </div>
           </div>
-          <div className="title" style={{ fontFamily: 'var(--display)', fontSize: 32, letterSpacing: '0.012em', lineHeight: 1.05 }}>
+          <div className="title" style={{ fontFamily: 'var(--display)', fontSize: phone ? 26 : 32, letterSpacing: '0.012em', lineHeight: 1.05 }}>
             SLIP KOMISI MEKANIK
           </div>
           <div className="subtitle" style={{ fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: '0.16em', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -116,8 +121,8 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
 
       {/* Footer */}
       <div className="slip-footer" style={{
-        display: 'grid', gridTemplateColumns: '1fr auto', gap: 24,
-        marginTop: 28, paddingTop: 20, borderTop: '2px solid var(--text)',
+        display: 'grid', gridTemplateColumns: phone ? 'minmax(0, 1fr)' : '1fr auto', gap: phone ? 16 : 24,
+        marginTop: phone ? 20 : 28, paddingTop: 20, borderTop: '2px solid var(--text)',
         alignItems: 'center', position: 'relative', zIndex: 1,
       }}>
         {/* Left */}
@@ -144,14 +149,14 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
 
         {/* Right: Total Komisi Card */}
         <div className="slip-total-card" style={{
-          textAlign: 'right', padding: '18px 24px',
+          textAlign: 'right', padding: phone ? '16px 18px' : '18px 24px',
           background: 'var(--text)', color: '#fff',
           borderRadius: 10, borderLeft: '3px solid var(--accent)',
         }}>
           <div style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.2em', color: 'rgba(255,255,255,0.6)' }}>
             TOTAL KOMISI DITERIMA
           </div>
-          <div className="slip-komisi-accent" style={{ fontFamily: 'var(--display)', fontSize: 44, letterSpacing: '0.012em', lineHeight: 1, marginTop: 4, color: 'var(--accent)' }}>
+          <div className="slip-komisi-accent" style={{ fontFamily: 'var(--display)', fontSize: phone ? 36 : 44, letterSpacing: '0.012em', lineHeight: 1, marginTop: 4, color: 'var(--accent)' }}>
             <span style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'rgba(255,255,255,0.5)', marginRight: 6, letterSpacing: '0.04em' }}>Rp</span>
             {FMT.format(computed.totalKomisi)}
           </div>
@@ -204,9 +209,10 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           marginTop: 20, paddingTop: 16, borderTop: '1px dashed var(--border)',
           position: 'relative', zIndex: 1,
+          flexWrap: phone ? 'wrap' : undefined, gap: phone ? 12 : undefined,
         }}>
           {/* Payout status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: phone ? 'wrap' : undefined }}>
             {storedPayout ? (
               <>
                 <KomisiBadge
@@ -225,10 +231,11 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
           </div>
 
           {/* Buttons */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, width: phone ? '100%' : undefined }}>
             <button
               onClick={() => window.open(`/komisi/slip/${period.id}/${computed.mechanicId}`, '_blank')}
               style={{
+                flex: phone ? 1 : undefined, minHeight: phone ? 40 : undefined,
                 padding: '8px 14px', borderRadius: 6,
                 fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
                 background: 'transparent', border: '1px solid var(--border)',
@@ -241,6 +248,7 @@ export function SlipPaper({ period, computed, storedPayout, rates, isOwner, vari
               <button
                 onClick={onMarkPaid}
                 style={{
+                  flex: phone ? 1 : undefined, minHeight: phone ? 40 : undefined,
                   padding: '8px 18px', borderRadius: 6,
                   fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
                   background: 'var(--text)', border: '1px solid var(--text)',

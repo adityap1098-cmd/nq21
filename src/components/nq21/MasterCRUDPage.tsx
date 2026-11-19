@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react'
+import { Fragment, useState, useMemo } from 'react'
 import { Search, ChevronUp, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import { PageHeader } from './PageHeader'
 import { EmptyState } from './EmptyState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from '@/components/ui/table'
@@ -54,6 +56,7 @@ export function MasterCRUDPage<T extends { id: string }>({
   enableSearch = true,
   enableFilters,
 }: MasterCRUDPageProps<T>) {
+  const isMobile = useIsMobile()
   const [searchTerm, setSearchTerm] = useState('')
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
@@ -96,6 +99,107 @@ export function MasterCRUDPage<T extends { id: string }>({
   const showSearch = enableSearch && !!searchKeys?.length
   const showFilterRow = showSearch || !!enableFilters
   const hasActions = !!onEdit || !!onDelete
+  const sortableColumns = columns.filter(c => c.sortable)
+
+  function renderActions(item: T) {
+    const btnClass = isMobile ? 'h-10 w-10 px-0' : undefined
+    return (
+      <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end', flexShrink: 0 }}>
+        {onEdit && (
+          <Button variant="ghost" size="sm" className={btnClass} onClick={() => onEdit(item)} title="Edit" aria-label="Edit">
+            <Pencil size={13} />
+          </Button>
+        )}
+        {onDelete && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => onDelete(item)}
+            title="Hapus"
+            aria-label="Nonaktifkan"
+            className={cn('text-[var(--accent)] hover:text-[var(--accent-dark)] hover:bg-[var(--accent-tint)]', btnClass)}
+          >
+            <Trash2 size={13} />
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  function renderMobileList() {
+    const [primary, ...rest] = columns
+    return (
+      <div>
+        {sortableColumns.length > 0 && (
+          <div style={{
+            display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6,
+            padding: '8px 12px', borderBottom: '1px solid var(--border)', background: 'var(--surface-alt)',
+          }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.1em', color: 'var(--text-muted)' }}>URUTKAN</span>
+            {sortableColumns.map(col => {
+              const active = sortKey === String(col.key)
+              return (
+                <button
+                  key={String(col.key)}
+                  type="button"
+                  onClick={() => handleSort(col)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    minHeight: 32, padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                    fontSize: 12, fontWeight: 700,
+                    border: `1px solid ${active ? 'var(--text)' : 'var(--border)'}`,
+                    background: active ? 'var(--text)' : 'var(--surface)',
+                    color: active ? '#fff' : 'var(--text-secondary)',
+                  }}
+                >
+                  {col.label}
+                  {active && (sortDir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)}
+                </button>
+              )
+            })}
+          </div>
+        )}
+        {sorted.map((item, idx) => (
+          <div
+            key={item.id}
+            style={{
+              padding: '12px 14px',
+              borderBottom: idx === sorted.length - 1 ? 'none' : '1px solid var(--border)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}>
+                {primary && (primary.render ? primary.render(item) : getCellValue(item, primary.key))}
+              </div>
+              {hasActions && renderActions(item)}
+            </div>
+            {rest.length > 0 && (
+              <dl style={{
+                display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', gap: '6px 12px',
+                alignItems: 'center', margin: '8px 0 0',
+              }}>
+                {rest.map(col => {
+                  const value = col.render ? col.render(item) : getCellValue(item, col.key)
+                  if (value === null || value === undefined || value === '') return null
+                  return (
+                    <Fragment key={String(col.key)}>
+                      <dt style={{
+                        fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.08em',
+                        textTransform: 'uppercase', color: 'var(--text-muted)',
+                      }}>
+                        {col.label}
+                      </dt>
+                      <dd style={{ margin: 0, minWidth: 0, fontSize: 13, overflowWrap: 'anywhere' }}>{value}</dd>
+                    </Fragment>
+                  )
+                })}
+              </dl>
+            )}
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -103,16 +207,19 @@ export function MasterCRUDPage<T extends { id: string }>({
         title={title.toUpperCase()}
         subtitle={description}
         action={
-          <Button variant="accent" onClick={onAdd}>
+          <Button variant="accent" onClick={onAdd} className={isMobile ? 'h-10 w-full' : undefined}>
             {addButtonLabel ?? `+ Tambah ${title}`}
           </Button>
         }
       />
 
       {showFilterRow && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 12, marginBottom: 16,
+          flexWrap: isMobile ? 'wrap' : undefined,
+        }}>
           {showSearch && (
-            <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
+            <div style={{ position: 'relative', flex: isMobile ? '1 1 100%' : 1, maxWidth: isMobile ? undefined : 320 }}>
               <Search
                 size={14}
                 style={{
@@ -128,11 +235,15 @@ export function MasterCRUDPage<T extends { id: string }>({
                 placeholder={`Cari ${title}...`}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                style={{ paddingLeft: 32 }}
+                style={isMobile ? { paddingLeft: 32, fontSize: 16, height: 40 } : { paddingLeft: 32 }}
               />
             </div>
           )}
-          {enableFilters && <div style={{ marginLeft: showSearch ? 'auto' : undefined }}>{enableFilters}</div>}
+          {enableFilters && (
+            <div style={{ marginLeft: showSearch && !isMobile ? 'auto' : undefined, maxWidth: '100%' }}>
+              {enableFilters}
+            </div>
+          )}
         </div>
       )}
 
@@ -156,6 +267,8 @@ export function MasterCRUDPage<T extends { id: string }>({
               ) : undefined
             }
           />
+        ) : isMobile ? (
+          renderMobileList()
         ) : (
           <Table>
             <TableHeader>
@@ -197,24 +310,7 @@ export function MasterCRUDPage<T extends { id: string }>({
                   ))}
                   {hasActions && (
                     <TableCell>
-                      <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                        {onEdit && (
-                          <Button variant="ghost" size="sm" onClick={() => onEdit(item)} title="Edit">
-                            <Pencil size={13} />
-                          </Button>
-                        )}
-                        {onDelete && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onDelete(item)}
-                            title="Hapus"
-                            className="text-[var(--accent)] hover:text-[var(--accent-dark)] hover:bg-[var(--accent-tint)]"
-                          >
-                            <Trash2 size={13} />
-                          </Button>
-                        )}
-                      </div>
+                      {renderActions(item)}
                     </TableCell>
                   )}
                 </TableRow>

@@ -10,6 +10,8 @@ import { usePeriodFilter } from '@/lib/hooks/usePeriodFilter'
 import { useTransactionsWithLines } from '@/features/transactions/hooks'
 import type { TransactionWithLines } from '@/features/transactions/hooks'
 import { QueryErrorPanel, LoadingPanel } from './QueryState'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import { TABLE_SCROLL, MOBILE_PERIOD_BAR, MOBILE_STACK } from './mobile'
 
 // ── Formatters ─────────────────────────────────────────────────────────────────
 
@@ -189,6 +191,8 @@ const PAGE_SIZE = 50
 
 export default function LaporanDynoPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
+  const pagePadding = isMobile ? '0 0 32px' : '0 32px 48px'
   const period = usePeriodFilter('week')
   const [page, setPage] = useState(1)
 
@@ -247,7 +251,7 @@ export default function LaporanDynoPage() {
   const isEmpty = !isLoading && !isError && report.sessions.length === 0
 
   const periodBar = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, ...(isMobile ? { ...MOBILE_PERIOD_BAR, marginBottom: 16 } : undefined) }}>
       <PeriodSelector
         value={period.preset}
         onChange={(v) => period.setPreset(v as import('@/lib/hooks/usePeriodFilter').PeriodPreset)}
@@ -267,7 +271,7 @@ export default function LaporanDynoPage() {
 
   if (isError || isLoading) {
     return (
-      <div style={{ padding: '0 32px 48px' }}>
+      <div style={{ padding: pagePadding }}>
         <PageHeader title="LAPORAN #4 — DYNO" subtitle="Performa sesi dyno test dan operator" />
         {periodBar}
         {isError
@@ -279,7 +283,7 @@ export default function LaporanDynoPage() {
 
   if (isEmpty) {
     return (
-      <div style={{ padding: '0 32px 48px' }}>
+      <div style={{ padding: pagePadding }}>
         <PageHeader
           title="LAPORAN #4 — DYNO"
           subtitle="Performa sesi dyno test dan operator"
@@ -290,7 +294,7 @@ export default function LaporanDynoPage() {
           }
         />
         {periodBar}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 24px', gap: 16, textAlign: 'center', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: isMobile ? '48px 16px' : '80px 24px', gap: 16, textAlign: 'center', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)' }}>
           <div style={{ fontSize: 40 }}>⚡</div>
           <div style={{ fontFamily: 'var(--display)', fontSize: 18, color: 'var(--text)' }}>Belum ada sesi dyno di periode ini.</div>
           <button onClick={() => navigate('/transaksi/baru')} style={{ marginTop: 8, padding: '10px 20px', borderRadius: 6, background: 'var(--accent)', color: '#fff', border: 'none', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', cursor: 'pointer' }}>
@@ -302,7 +306,7 @@ export default function LaporanDynoPage() {
   }
 
   return (
-    <div style={{ padding: '0 32px 48px' }}>
+    <div style={{ padding: pagePadding }}>
       <PageHeader
         title="LAPORAN #4 — DYNO"
         subtitle="Performa sesi dyno test dan operator"
@@ -316,29 +320,29 @@ export default function LaporanDynoPage() {
       {periodBar}
 
       {/* Hero section */}
-      <div style={{ background: 'var(--text)', borderRadius: 8, padding: '32px 40px', marginBottom: 20, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--text)', borderRadius: 8, padding: isMobile ? '22px 18px' : '32px 40px', marginBottom: isMobile ? 16 : 20, position: 'relative', overflow: 'hidden' }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'var(--accent)' }} />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 32, ...(isMobile ? { ...MOBILE_STACK, gap: 18 } : undefined) }}>
           <div>
             <div style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase' }}>TOTAL SESI</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 48, color: '#fff', lineHeight: 1.1 }}>{report.summary.totalSessions}</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: isMobile ? 38 : 48, color: '#fff', lineHeight: 1.1 }}>{report.summary.totalSessions}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>sesi dyno</div>
           </div>
           <div>
             <div style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase' }}>TOTAL REVENUE</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 42, color: '#fff', lineHeight: 1.1 }}>{fmtRp(report.summary.totalRevenue)}</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: isMobile ? 32 : 42, color: '#fff', lineHeight: 1.1, ...(isMobile ? { overflowWrap: 'anywhere' as const } : undefined) }}>{fmtRp(report.summary.totalRevenue)}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>periode ini</div>
           </div>
           <div>
             <div style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(255,255,255,0.5)', marginBottom: 6, textTransform: 'uppercase' }}>RATA-RATA / SESI</div>
-            <div style={{ fontFamily: 'var(--display)', fontSize: 42, color: '#fff', lineHeight: 1.1 }}>{fmtRp(report.summary.avgRevenuePerSession)}</div>
+            <div style={{ fontFamily: 'var(--display)', fontSize: isMobile ? 32 : 42, color: '#fff', lineHeight: 1.1, ...(isMobile ? { overflowWrap: 'anywhere' as const } : undefined) }}>{fmtRp(report.summary.avgRevenuePerSession)}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>per sesi</div>
           </div>
         </div>
       </div>
 
       {/* 2-col: Top Operators + Chart */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20, ...(isMobile ? { ...MOBILE_STACK, marginBottom: 16 } : undefined) }}>
         <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <div style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TOP OPERATOR</div>
@@ -390,7 +394,7 @@ export default function LaporanDynoPage() {
 
       {/* Detail table */}
       <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', ...(isMobile ? { padding: '14px 14px', flexWrap: 'wrap' as const, gap: 8 } : undefined) }}>
           <div>
             <div style={{ fontSize: 10, fontFamily: 'var(--mono)', fontWeight: 700, letterSpacing: '0.08em', color: 'var(--text-muted)', textTransform: 'uppercase' }}>DETAIL SESI</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{report.sessions.length} sesi dyno di periode ini</div>
@@ -402,8 +406,8 @@ export default function LaporanDynoPage() {
           )}
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={isMobile ? TABLE_SCROLL : { overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', ...(isMobile ? { minWidth: 680 } : undefined) }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {(['TGL','JAM','NO REFERENSI','CUSTOMER','OPERATOR','METODE','NOMINAL'] as const).map(h => (
@@ -451,7 +455,7 @@ export default function LaporanDynoPage() {
         </div>
 
         {totalPages > 1 && (
-          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, ...(isMobile ? { flexWrap: 'wrap' as const, padding: '12px 14px' } : undefined) }}>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
               <button key={p} onClick={() => setPage(p)} style={{ padding: '4px 10px', borderRadius: 4, border: `1px solid ${p === page ? 'var(--accent)' : 'var(--border)'}`, background: p === page ? 'var(--accent)' : 'transparent', color: p === page ? '#fff' : 'var(--text)', fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
                 {p}

@@ -4,6 +4,7 @@ import {
   Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface RateMatrixTableProps {
   mechanics: Mechanic[]
@@ -20,6 +21,7 @@ function getRate(rates: CommissionRate[], mechanicId: string, categoryId: string
 }
 
 export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange, readOnly = false }: RateMatrixTableProps) {
+  const isMobile = useIsMobile()
   const [editing, setEditing] = useState<EditingCell | null>(null)
   const [draft, setDraft] = useState('')
 
@@ -53,12 +55,17 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
     )
   }
 
+  // Phone: keep the mechanic column pinned while the rate columns scroll sideways
+  const stickyCol: React.CSSProperties | undefined = isMobile
+    ? { position: 'sticky', left: 0, zIndex: 1, minWidth: 140, background: 'var(--surface)', boxShadow: '1px 0 0 var(--border)' }
+    : undefined
+
   return (
     <div style={{ overflow: 'auto' }}>
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead style={{ minWidth: 200 }}>MEKANIK</TableHead>
+            <TableHead style={isMobile ? { ...stickyCol, background: 'var(--surface-alt)' } : { minWidth: 200 }}>MEKANIK</TableHead>
             {jasaCategories.map(cat => (
               <TableHead key={cat.id} style={{ textAlign: 'center', minWidth: 110 }}>
                 <div>{cat.name.toUpperCase()}</div>
@@ -78,8 +85,8 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
             return (
               <TableRow key={m.id}>
                 {/* Mechanic avatar + name */}
-                <TableCell>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <TableCell style={stickyCol}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 10 }}>
                     <div style={{
                       width: 32, height: 32, borderRadius: '50%',
                       background: m.isActive ? 'var(--text)' : 'var(--text-muted)',
@@ -117,9 +124,9 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
                           onKeyDown={handleKeyDown}
                           style={{
                             width: 64, textAlign: 'center',
-                            fontFamily: 'var(--mono)', fontSize: 14, fontWeight: 700,
+                            fontFamily: 'var(--mono)', fontSize: isMobile ? 16 : 14, fontWeight: 700,
                             border: '2px solid var(--accent)', borderRadius: 4,
-                            padding: '2px 4px', outline: 'none',
+                            padding: isMobile ? '8px 4px' : '2px 4px', outline: 'none',
                             background: 'var(--surface)', color: 'var(--text)',
                           }}
                         />
@@ -130,7 +137,7 @@ export function RateMatrixTable({ mechanics, jasaCategories, rates, onRateChange
                           title={readOnly ? 'Hanya owner yang bisa mengubah rate' : `Edit rate ${cat.name} untuk ${m.name}`}
                           style={{
                             background: 'none', border: 'none', cursor: readOnly ? 'default' : 'pointer',
-                            padding: '2px 6px', borderRadius: 4, width: '100%',
+                            padding: isMobile ? '10px 6px' : '2px 6px', borderRadius: 4, width: '100%',
                             transition: 'background 0.1s',
                           }}
                           onMouseEnter={e => { if (!readOnly) e.currentTarget.style.background = 'var(--surface-alt)' }}

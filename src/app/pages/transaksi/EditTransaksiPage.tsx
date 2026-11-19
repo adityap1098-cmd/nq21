@@ -7,6 +7,7 @@ import type { TransactionFormInitialData } from '@/features/transactions/compone
 import { useTransaction } from '@/features/transactions/hooks'
 import { useCommissionPeriods } from '@/features/komisi/hooks'
 import { isInClosedPeriod } from '@/features/transactions/utils'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import type { Line } from '@/features/transactions/types'
 
 function StatusMessage({ text, onBack }: { text: string; onBack?: () => void }) {
@@ -33,6 +34,7 @@ function StatusMessage({ text, onBack }: { text: string; onBack?: () => void }) 
 export default function EditTransaksiPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
 
   const { data: tx, isLoading, isError: txError, error: txErrorObj } = useTransaction(id)
   const { data: periods = [], isLoading: periodsLoading, isError: periodsError } = useCommissionPeriods()
@@ -137,6 +139,7 @@ export default function EditTransaksiPage() {
               borderRadius: 8, border: '1px solid var(--border)',
               background: 'transparent', color: 'var(--text-secondary)',
               cursor: 'pointer',
+              ...(isMobile && { minHeight: 40 }),
             }}
           >
             ← BATAL
